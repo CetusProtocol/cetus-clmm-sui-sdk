@@ -1,7 +1,7 @@
 # cetus-sdk
 
 - The typescript SDK for [cetus-clmm](https://git.cplus.link/cetus/cetus-clmm).
-- A more structured code example for this guide can be found [here](https://git.cplus.link/web/df/cetus-sui-sdk/-/tree/dev_clmm/tests)
+- A more structured code example for this guide can be found [here](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/tree/main/tests)
 
 ### Install
 
@@ -15,7 +15,7 @@ yarn add @cetusprotocol/cetus-sui-clmm-sdk
 
 #### 1.SDK configuration parameters
 
-- The contract address available for reference [config.ts](https://git.cplus.link/web/df/cetus-sui-sdk/-/blob/dev_clmm/tests/data/config.ts).
+- The contract address available for reference [config.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/data/config.ts).
 
 ```bash
 const SDKConfig = {
@@ -95,8 +95,8 @@ const sdk = new SDK(defaultNetworkOptions)
 
 #### 3. fetch the token list and pool list
 
-- The token list and pool list is fetched from [config-extended](https://git.cplus.link/cetus/config-extended/-/tree/sui_data_list_cetus_testnet) contains the token metadata.
-- code example for this guide can be found [token.test.ts](https://git.cplus.link/web/df/cetus-sui-sdk/-/blob/dev_clmm/tests/token.test.ts)
+- The token list and pool list contains the token metadata.
+- code example for this guide can be found [token.test.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/token.test.ts)
 
 ```ts
 const networkOptions = sdk.sdkOptions.networkOptions
@@ -127,7 +127,7 @@ const poolList =  await sdk.Token.getOwnerPoolList(pool_list_owner,coin_list_own
 
 - the clmm pool not contains the token metadata.
 - all liquidity and swap operations are based on clmm pool.
-- code example for this guide can be found [pool.test.ts](https://git.cplus.link/web/df/cetus-sui-sdk/-/blob/dev_clmm/tests/pool.test.ts)
+- code example for this guide can be found [pool.test.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/pool.test.ts)
 
 ##### 4.1 fetch the clmm pool and position
 
@@ -214,7 +214,7 @@ console.log('doCreatPool: ', getTransactionEffects(transferTxn))
 
 #### 5. Liquidity
 
-code example for this guide can be found [position.test.ts](https://git.cplus.link/web/df/cetus-sui-sdk/-/blob/dev_clmm/tests/position.test.ts)
+code example for this guide can be found [position.test.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/position.test.ts)
 
 ##### 5.1 open position and addLiquidity
 
@@ -482,7 +482,7 @@ const respose = await sendPayloadTx(sdk.client, account, removeLiquidityPayload)
 
 #### 6. swap
 
-- code example for this guide can be found [swap.test.ts](https://git.cplus.link/web/df/cetus-sdk/-/blob/dev-v3/tests/swap.test.ts)
+- code example for this guide can be found [swap.test.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/swap.test.ts)
 
 ```ts
 const sendKeypair = buildTestAccount()
@@ -540,7 +540,7 @@ const swapPayload = sdk.Swap.createSwapTransactionPayload(
 #### 7. collect rewarder
 
 - Provide to the position to collect the rewarder of the position earned.
-- code example for this guide can be found [rewarder.test.ts](https://git.cplus.link/web/df/cetus-sui-sdk/-/blob/dev_clmm/tests/rewarder.test.ts)
+- code example for this guide can be found [rewarder.test.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/rewarder.test.ts)
 
 ```ts
 const sendKeypair = buildTestAccount()
