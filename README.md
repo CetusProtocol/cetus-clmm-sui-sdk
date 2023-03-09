@@ -15,6 +15,8 @@ yarn add @cetusprotocol/cetus-sui-clmm-sdk
 
 #### 1.SDK configuration parameters
 
+- swapPartner field: Contact to apply for swap approve by discord [Discord](<https://discord.gg/cetusprotocol>)
+
 - The contract address available for reference [config.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/data/config.ts).
 
 ```bash
@@ -47,7 +49,7 @@ export const netConfig = {
     cetusClmm: '0x8fe718e1028a7678c17a27cc1926ce7e0db0079e',
     cetusIntegrate: '0xa8b57964a0c4332b93916aa1f9b95a7c3a8849ce',
     integerMate: '0xf3f6102dfcf5910d694408737126d84f74374f5e',
-    swapPartner: '0xe9be1864354e2b7e849862014e1a1bc88bfa1fa7',
+    swapPartner: '',// swap Partner Address
     TokenDeployer: '0x9690d7c1e03909cec38ec2fbf45d04d223af5840',
     faucetObjectId: '0xbc72e752c41d6788dae67576f5a01a923d846d4f',
     initEventConfig: SDKConfig.devnet.initEventConfig,
