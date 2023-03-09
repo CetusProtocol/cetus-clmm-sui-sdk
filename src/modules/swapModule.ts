@@ -207,6 +207,11 @@ export class SwapModule implements IModule {
     const { modules } = this.sdk.sdkOptions.networkOptions
     const sqrtPriceLimit = SwapUtils.getDefaultSqrtPriceLimit(params.a2b)
     const typeArguments = [params.coinTypeA, params.coinTypeB]
+
+    if (modules.swap_partner.length === 0) {
+      throw Error('Please configure swap_partner')
+    }
+
     const args = [
       params.pool_id,
       modules.swap_partner,
