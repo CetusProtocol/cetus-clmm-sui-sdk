@@ -33,7 +33,7 @@ describe('Rewarder Module', () => {
 
     const pool = await sdk.Resources.getPool(TokensMapping.USDT_USDC_LP.poolObjectId[0])
 
-    const rewards: any[] = await sdk.Rewarder.posRewardersAmount(pool.poolAddress, poolObjectId)
+    const rewards: any[] = await sdk.Rewarder.posRewardersAmount(pool.poolAddress, position_object_id)
     const rewardCoinTypes = rewards.map((item) => {
       return item.coin_address as string
     })
