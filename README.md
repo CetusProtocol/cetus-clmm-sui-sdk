@@ -15,7 +15,7 @@ yarn add @cetusprotocol/cetus-sui-clmm-sdk
 
 #### 1.SDK configuration parameters
 
-- swapPartner : Contact the platform to apply by discord [Discord](https://discord.gg/cetusprotocol)
+- swapPartner : Contact the platform to apply  [Apply](https://forms.gle/xvVzKenWVnWSmTrs7)
 
 - The contract address available for reference [config.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/data/config.ts).
 
