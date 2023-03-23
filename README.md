@@ -166,8 +166,8 @@ const lowerTick = TickMath.getPrevInitializableTickIndex(new BN(current_tick_ind
     , new BN(tick_spacing).toNumber())
 const upperTick = TickMath.getNextInitializableTickIndex(new BN(current_tick_index).toNumber()
     , new BN(tick_spacing).toNumber())
-// optional : If coinAmount is 0, only pool is created
-const coinAmount = new BN(200)
+// optional : If fix_coin_amount is 0, only pool is created
+const fix_coin_amount = new BN(200)
 // input token amount is token a
 const fix_amount_a = true
 // slippage value
@@ -177,15 +177,15 @@ const curSqrtPrice = new BN(pool.current_sqrt_price)
 const liquidityInput = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
         lowerTick,
         upperTick,
-        coinAmount,
+        fix_coin_amount,
         fix_amount_a,
         true,
         slippage,
         curSqrtPrice
       )
 // Estimate  token a and token b amount
-const amount_a = fix_amount_a ? coinAmount.toNumber()  : liquidityInput.tokenMaxA.toNumber()
-const amount_b = fix_amount_a ? liquidityInput.tokenMaxB.toNumber()  : coinAmount.toNumber()
+const amount_a = fix_amount_a ? fix_coin_amount.toNumber()  : liquidityInput.tokenMaxA.toNumber()
+const amount_b = fix_amount_a ? liquidityInput.tokenMaxB.toNumber()  : fix_coin_amount.toNumber()
 
 // select token a and token b asset for liquidity
 const coinAs: CoinAsset[] = CoinAssist.getCoinAssets(pool.coinTypeA, allCoinAsset)

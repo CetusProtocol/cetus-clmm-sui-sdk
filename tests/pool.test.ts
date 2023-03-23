@@ -75,22 +75,22 @@ describe('Pool Module', () => {
       new BN(tick_spacing).toNumber()
     )
 
-    const coinAmount = new BN(200)
+    const fix_coin_amount = new BN(200)
     const fix_amount_a = true
     const slippage = 0.05
 
     const liquidityInput = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
       lowerTick,
       upperTick,
-      coinAmount,
+      fix_coin_amount,
       fix_amount_a,
       true,
       slippage,
       new BN(initialize_sqrt_price)
     )
 
-    const amount_a = fix_amount_a ? coinAmount.toNumber() : liquidityInput.tokenMaxA.toNumber()
-    const amount_b = fix_amount_a ? liquidityInput.tokenMaxB.toNumber() : coinAmount.toNumber()
+    const amount_a = fix_amount_a ? fix_coin_amount.toNumber() : liquidityInput.tokenMaxA.toNumber()
+    const amount_b = fix_amount_a ? liquidityInput.tokenMaxB.toNumber() : fix_coin_amount.toNumber()
 
     console.log('amount: ', { amount_a, amount_b })
 
