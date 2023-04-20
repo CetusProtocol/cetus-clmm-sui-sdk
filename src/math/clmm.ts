@@ -154,11 +154,11 @@ export function getNextSqrtPriceFromInput(sqrtPrice: BN, liquidity: BN, amount: 
  * @param sqrtPrice
  * @param liquidity
  * @param amount
- * @param aToB
+ * @param a2b
  * @returns
  */
-export function getNextSqrtPriceFromOutput(sqrtPrice: BN, liquidity: BN, amount: BN, aToB: boolean): BN {
-  return aToB ? getNextSqrtPriceBDown(sqrtPrice, liquidity, amount, false) : getNextSqrtPriceAUp(sqrtPrice, liquidity, amount, false)
+export function getNextSqrtPriceFromOutput(sqrtPrice: BN, liquidity: BN, amount: BN, a2b: boolean): BN {
+  return a2b ? getNextSqrtPriceBDown(sqrtPrice, liquidity, amount, false) : getNextSqrtPriceAUp(sqrtPrice, liquidity, amount, false)
 }
 
 /**
@@ -167,13 +167,29 @@ export function getNextSqrtPriceFromOutput(sqrtPrice: BN, liquidity: BN, amount:
  * @param currentSqrtPrice
  * @param targetSqrtPrice
  * @param liquidity
- * @param aToB
+ * @param a2b
  * @returns
  */
-export function getDeltaUpFromInput(currentSqrtPrice: BN, targetSqrtPrice: BN, liquidity: BN, aToB: boolean): BN {
-  return aToB
-    ? getDeltaA(targetSqrtPrice, currentSqrtPrice, liquidity, true)
-    : getDeltaB(currentSqrtPrice, targetSqrtPrice, liquidity, true)
+export function getDeltaUpFromInput(currentSqrtPrice: BN, targetSqrtPrice: BN, liquidity: BN, a2b: boolean): BN {
+  const sqrtPriceDiff = currentSqrtPrice.gt(targetSqrtPrice) ? currentSqrtPrice.sub(targetSqrtPrice) : targetSqrtPrice.sub(currentSqrtPrice)
+
+  if (liquidity.lte(ZERO) || sqrtPriceDiff.eq(ZERO)) {
+    return ZERO
+  }
+
+  let result
+  if (a2b) {
+    const numberator = new BN(liquidity).mul(new BN(sqrtPriceDiff)).shln(64)
+    const denomminator = targetSqrtPrice.mul(currentSqrtPrice)
+    const quotient = numberator.div(denomminator)
+    const remainder = numberator.mod(denomminator)
+    result = !remainder.eq(ZERO) ? quotient.add(ONE) : quotient
+  } else {
+    const product = new BN(liquidity).mul(new BN(sqrtPriceDiff))
+    const shoudRoundUp = product.and(U64_MAX).gt(ZERO)
+    result = shoudRoundUp ? product.shrn(64).add(ONE) : product.shrn(64)
+  }
+  return result
 }
 
 /**
@@ -182,13 +198,28 @@ export function getDeltaUpFromInput(currentSqrtPrice: BN, targetSqrtPrice: BN, l
  * @param currentSqrtPrice
  * @param targetSqrtPrice
  * @param liquidity
- * @param aTob
+ * @param a2b
  * @returns
  */
-export function getDeltaDownFromOutput(currentSqrtPrice: BN, targetSqrtPrice: BN, liquidity: BN, aTob: boolean): BN {
-  return aTob
-    ? getDeltaB(targetSqrtPrice, currentSqrtPrice, liquidity, false)
-    : getDeltaA(currentSqrtPrice, targetSqrtPrice, liquidity, false)
+export function getDeltaDownFromOutput(currentSqrtPrice: BN, targetSqrtPrice: BN, liquidity: BN, a2b: boolean): BN {
+  const sqrtPriceDiff = currentSqrtPrice.gt(targetSqrtPrice) ? currentSqrtPrice.sub(targetSqrtPrice) : targetSqrtPrice.sub(currentSqrtPrice)
+
+  if (liquidity.lte(ZERO) || sqrtPriceDiff.eq(ZERO)) {
+    return ZERO
+  }
+
+  let result
+  if (a2b) {
+    const product = liquidity.mul(sqrtPriceDiff)
+    // const shoudRoundUp = product.and(U64_MAX).gt(ZERO)
+    // result = shoudRoundUp ? product.shrn(64).add(ONE) : product.shrn(64)
+    result = product.shrn(64)
+  } else {
+    const numberator = liquidity.mul(sqrtPriceDiff).shln(64)
+    const denomminator = targetSqrtPrice.mul(currentSqrtPrice)
+    result = numberator.div(denomminator)
+  }
+  return result
 }
 
 /**
@@ -292,10 +323,10 @@ export function computeSwap(
   let signedLiquidityChange
   const sqrtPriceLimit = SwapUtils.getDefaultSqrtPriceLimit(aToB)
   for (const tick of swapTicks) {
-    if (aToB && poolData.currentTickIndex < Number(tick.index)) {
+    if (aToB && poolData.currentTickIndex < tick.index) {
       continue
     }
-    if (!aToB && poolData.currentTickIndex > Number(tick.index)) {
+    if (!aToB && poolData.currentTickIndex > tick.index) {
       continue
     }
     if (tick === null) {

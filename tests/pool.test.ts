@@ -1,19 +1,23 @@
-import {
-  getTransactionEffects,
-  RawSigner,
-  SuiExecuteTransactionResponse,
-} from '@mysten/sui.js'
+import { RawSigner, TransactionBlock } from '@mysten/sui.js'
 import BN from 'bn.js'
-import { buildSdk, printSDKConfig, buildTestAccount, TokensMapping, position_object_id } from './data/init_test_data';
-import { TickMath } from '../src/math/tick';
-import { d } from '../src/utils/numbers';
-import { ClmmPoolUtil } from '../src/math/clmm';
-import { CoinAsset } from '../src/modules/resourcesModule';
-import { CoinAssist } from '../src/math/CoinAssist';
+import {
+  buildSdk,
+  printSDKConfig,
+  buildTestAccount,
+  TokensMapping,
+  position_object_id,
+  buildWJLaunchPadAccount,
+} from './data/init_test_data'
+import { TickMath } from '../src/math/tick'
+import { d } from '../src/utils/numbers'
+import { ClmmPoolUtil } from '../src/math/clmm'
+import 'isomorphic-fetch'
+import { printTransaction, sendTransaction, TransactionUtil } from '../src/utils/transaction-util'
+import { poolList } from './data/pool_data'
+import { CreatePoolParams } from '../src/modules/poolModule'
 
 describe('Pool Module', () => {
   const sdk = buildSdk()
-
 
   test('getPoolImmutables', async () => {
     const poolImmutables = await sdk.Resources.getPoolImmutables()
@@ -21,59 +25,70 @@ describe('Pool Module', () => {
   })
 
   test('getAllPool', async () => {
-    const allPool = await sdk.Resources.getPools([])
-    console.log('getAllPool', allPool)
+   const allPool = await sdk.Resources.getPools([])
+   console.log('getAllPool', allPool)
   })
 
-  test('getPool', async () => {
+  test('getSiginlePool', async () => {
     const pool = await sdk.Resources.getPool(TokensMapping.USDT_USDC_LP.poolObjectId[0])
     console.log('pool', pool)
   })
 
   test('getPositionList', async () => {
-    const res = await sdk.Resources.getPositionList(buildTestAccount().getPublicKey().toSuiAddress(),[])
+    const res = await sdk.Resources.getPositionList(buildTestAccount().getPublicKey().toSuiAddress())
     console.log('getPositionList####', res)
   })
 
-  test('getPositionInfo', async () => {
-     const res = await sdk.Resources.getPosition(position_object_id)
-     console.log('getPosition####', res)
+  test('getSipmlePosition', async () => {
+    const res = await sdk.Resources.getSipmlePosition(position_object_id)
+    console.log('getPositionList####', res)
   })
 
-  test('doCreatPool', async () => {
-    const signer = new RawSigner(buildTestAccount(), sdk.fullClient)
-    const creatPoolTransactionPayload =  sdk.Pool.creatPoolTransactionPayload({
-      tick_spacing: 4,
-      initialize_sqrt_price: TickMath.priceToSqrtPriceX64(d(1.2),6,6).toString(),
-      uri: '',
-      coinTypeA: TokensMapping.USDT.address,
-      coinTypeB: TokensMapping.USDC.address,
-      amount_a: 0,
-      amount_b: 0,
-      fix_amount_a: false,
-      coin_object_ids_a: [],
-      coin_object_ids_b: [],
-      tick_lower: 0,
-      tick_upper: 0
-    })
-    console.log('creatPoolTransactionPayload: ', creatPoolTransactionPayload)
 
-    const transferTxn = (await signer.executeMoveCall(creatPoolTransactionPayload)) as SuiExecuteTransactionResponse
-    console.log('doCreatPool: ', getTransactionEffects(transferTxn))
+  test('getPositionInfo', async () => {
+    const pool = await sdk.Resources.getPool("0x55a97eac7f868b6503b78e7f518445acc7f6446544443fe3b7a3c6e87ba1bb24")
+    const res = await sdk.Resources.getPosition(pool.positions_handle, "0x09121eb74fa36126d84306fe3b25dc527a05488ab74349283834b2a143d0fc43")
+    console.log('getPosition####', res)
+  })
+
+  test('doCreatPools', async () => {
+    const signer = new RawSigner(buildTestAccount(), sdk.fullClient)
+    sdk.senderAddress = buildTestAccount().getPublicKey().toSuiAddress()
+    const pools = poolList
+    const paramss: CreatePoolParams[] = []
+    for (const pool of pools) {
+      if (!pool.hasCreat) {
+        paramss.push({
+          tick_spacing: pool.tick_spacing,
+          initialize_sqrt_price: TickMath.priceToSqrtPriceX64(
+            d(pool.initialize_price),
+            pool.coin_a_decimals,
+            pool.coin_b_decimals
+          ).toString(),
+          uri: pool.uri,
+          coinTypeA: pool.coin_type_a,
+          coinTypeB: pool.coin_type_b,
+        })
+      }
+    }
+
+    const creatPoolTransactionPayload = await sdk.Pool.creatPoolsTransactionPayload(paramss)
+
+    printTransaction(creatPoolTransactionPayload)
+    const transferTxn = await sendTransaction(signer,creatPoolTransactionPayload,true)
+    console.log('doCreatPool: ', transferTxn)
   })
 
   test('create_and_add_liquidity_fix_token', async () => {
+
     const signer = new RawSigner(buildTestAccount(), sdk.fullClient)
-    const initialize_sqrt_price = TickMath.priceToSqrtPriceX64(d(1.2),6,6).toString()
+    sdk.senderAddress = buildTestAccount().getPublicKey().toSuiAddress()
+    const initialize_sqrt_price = TickMath.priceToSqrtPriceX64(d(0.005), 6, 9).toString()
     const tick_spacing = 60
     const current_tick_index = TickMath.sqrtPriceX64ToTickIndex(new BN(initialize_sqrt_price))
 
-    const lowerTick = TickMath.getPrevInitializableTickIndex(new BN(current_tick_index).toNumber(),
-      new BN(tick_spacing).toNumber()
-    )
-    const upperTick = TickMath.getNextInitializableTickIndex(new BN(current_tick_index).toNumber(),
-      new BN(tick_spacing).toNumber()
-    )
+    const lowerTick = TickMath.getPrevInitializableTickIndex(new BN(current_tick_index).toNumber(), new BN(tick_spacing).toNumber())
+    const upperTick = TickMath.getNextInitializableTickIndex(new BN(current_tick_index).toNumber(), new BN(tick_spacing).toNumber())
 
     const fix_coin_amount = new BN(200)
     const fix_amount_a = true
@@ -94,15 +109,7 @@ describe('Pool Module', () => {
 
     console.log('amount: ', { amount_a, amount_b })
 
-    const allCoinAsset = await sdk.Resources.getOwnerCoinAssets(buildTestAccount().getPublicKey().toSuiAddress())
-
-    const coinAs: CoinAsset[] = CoinAssist.getCoinAssets(TokensMapping.USDT.address, allCoinAsset)
-    const coinBs: CoinAsset[] = CoinAssist.getCoinAssets(TokensMapping.USDC.address, allCoinAsset)
-
-    const coinAObjectIds = await CoinAssist.selectCoinAssets(signer,coinAs, BigInt(amount_a),sdk)
-    const coinBObjectIds = await CoinAssist.selectCoinAssets(signer,coinBs, BigInt(amount_b),sdk)
-
-    const creatPoolTransactionPayload =  sdk.Pool.creatPoolTransactionPayload({
+    const creatPoolTransactionPayload = await sdk.Pool.creatPoolTransactionPayload({
       tick_spacing: tick_spacing,
       initialize_sqrt_price: initialize_sqrt_price,
       uri: '',
@@ -111,31 +118,34 @@ describe('Pool Module', () => {
       amount_a: amount_a,
       amount_b: amount_b,
       fix_amount_a: fix_amount_a,
-      coin_object_ids_a: coinAObjectIds,
-      coin_object_ids_b: coinBObjectIds,
       tick_lower: lowerTick,
-      tick_upper: upperTick
+      tick_upper: upperTick,
     })
-    console.log('creatPoolTransactionPayload: ', creatPoolTransactionPayload)
 
-    const transferTxn = (await signer.executeMoveCall(creatPoolTransactionPayload)) as SuiExecuteTransactionResponse
-    console.log('doCreatPool: ', getTransactionEffects(transferTxn))
+
+    const transferTxn = await sendTransaction(signer, creatPoolTransactionPayload,true)
+    console.log('doCreatPool: ', transferTxn)
   })
 
- /** -----------------------helper function--------------------------- */
-  test('getInitEvent', async () => {
-    const initEvent = await sdk.Resources.getInitEvent()
-    console.log('getInitEvent', initEvent)
+  test('add_fee_tier', async () => {
+    const signer = new RawSigner(buildWJLaunchPadAccount(), sdk.fullClient)
+    const tx = new TransactionBlock()
+    tx.setGasBudget(sdk.gasConfig.GasBudgetLow)
+    const args = [tx.pure(sdk.sdkOptions.clmm.config!.global_config_id), tx.pure('2'), tx.pure('1')]
+
+    tx.moveCall({
+      target: `${sdk.sdkOptions.clmm.clmm_router}::config_script::add_fee_tier`,
+      typeArguments: [],
+      arguments: args,
+    })
+    const transferTxn = await sendTransaction(signer, tx)
+    console.log('add_fee_tier: ', transferTxn)
   })
+
+  /** -----------------------helper function--------------------------- */
 
   test('getCreatePartnerEvent', async () => {
     const initEvent = await sdk.Resources.getCreatePartnerEvent()
     console.log('getCreatePartnerEvent', initEvent)
   })
-
-  test('printSDKConfig', async () => {
-    await printSDKConfig(sdk)
- })
-
-
 })

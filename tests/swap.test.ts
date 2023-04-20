@@ -1,12 +1,13 @@
-import { Ed25519Keypair, getTransactionEffects, ObjectId, RawSigner, SuiExecuteTransactionResponse } from '@mysten/sui.js'
+import { Ed25519Keypair, getTransactionEffects, ObjectId, RawSigner } from '@mysten/sui.js'
 import BN from 'bn.js'
 import { buildSdk, buildTestAccount, buildTestPool, TokensMapping } from './data/init_test_data'
 import { CoinAsset } from '../src/modules/resourcesModule'
 import { CoinAssist } from '../src/math/CoinAssist'
-import { extractStructTagFromType } from '../src/utils/contracts'
+import 'isomorphic-fetch';
+import { printTransaction, sendTransaction, TransactionUtil } from '../src/utils/transaction-util'
+import { adjustForSlippage, d, Percentage } from '../src'
 
 let sendKeypair: Ed25519Keypair
-let allCoinAsset: CoinAsset[] = []
 
 describe('Swap calculate Module', () => {
   const sdk = buildSdk()
@@ -42,24 +43,29 @@ describe('Swap calculate Module', () => {
   })
 
   test('fetchTicksByContract', async () => {
-    const lpInfo = TokensMapping.USDT_USDC_LP
-    const structTag = extractStructTagFromType(lpInfo.address)
 
     const tickdatas = await sdk.Pool.fetchTicks({
-      pool_id: lpInfo.poolObjectId[0],
-      coinTypeA: structTag.type_arguments[0],
-      coinTypeB: structTag.type_arguments[1],
+      pool_id: TokensMapping.USDT_USDC_LP.poolObjectId[0],
+      coinTypeA: "0x473d520316e4ea5550657410669c9da6cde191e570d63d754cee353e11746751::usdt::USDT",
+      coinTypeB: "0x473d520316e4ea5550657410669c9da6cde191e570d63d754cee353e11746751::usdc::USDC",
     })
-    console.log('fetchTicks: ', tickdatas.length)
+    console.log('fetchTicks: ', tickdatas)
   })
 
   test('fetchTicksByRpc', async () => {
-    const tickdatas = await sdk.Pool.fetchTicksByRpc('0x565743e41c830e38ea39416d986ed1806da83f62')
-    console.log('fetchTicks: ', tickdatas.length)
+    const tickdatas = await sdk.Pool.fetchTicksByRpc('0x8d2ed466497914180b59fb3ad2cf036ac62f59c3761646caba51dfa92ca9c97a')
+    console.log('fetchTicks: ', tickdatas)
   })
   test('getTickDataByIndex', async () => {
-    const tickdata = await sdk.Pool.getTickDataByIndex('0xf0f1b4e3477d8cd5127ed60bf7de1a4cb722f8d3', '2')
+    const tickdata = await sdk.Pool.getTickDataByIndex('0x79696ca8bcdc45b9e15ef7da074a9c9a6f94739021590d7f57a3ed4055b93532',-443636)
     console.log('tickdata: ', tickdata)
+  })
+
+  test('getTickDataByObjectId', async () => {
+    const tickdata = await sdk.fullClient.getDynamicFields({parentId: "0x6bb10e21eb4cfbc023a7a5d30ecc07d3b67532ae18aab4369b60a42351ae4ab5"})
+    console.log('tickdata: ', tickdata.data)
+    //const tickdata = await sdk.Pool.getTickDataByObjectId("0x1365a01071ee4f9da231a37480924a5745386af8a17935ed1a4b6bdb7a732a36")
+    // console.log('tickdata: ', tickdata)
   })
 
   test('preswap', async () => {
@@ -89,57 +95,73 @@ describe('Swap Module', () => {
 
   beforeEach(async () => {
     sendKeypair = buildTestAccount()
-    allCoinAsset = await sdk.Resources.getOwnerCoinAssets(sendKeypair.getPublicKey().toSuiAddress())
-    console.log('allCoinAsset: ', allCoinAsset)
+    sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()
   })
 
   test('swap', async () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
 
     const a2b = true
-
+// 9667200
     const byAmountIn = true
-    const amount = new BN(100)
-    const slippage = 0.01
+    const amount = new BN(10)
+    const slippage = Percentage.fromDecimal(d(5))
     const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectId[0]
 
     const currentPool = await buildTestPool(sdk, poolObjectId)
 
     const tickdatas = await sdk.Pool.fetchTicksByRpc(currentPool.ticks_handle)
 
-    const res = await sdk.Swap.calculateRates({
-      decimalsA: 6,
-      decimalsB: 6,
+    const decimalsA = 6
+    const decimalsB = 6
+    const calculateRatesParams = {
+      decimalsA,
+      decimalsB,
       a2b,
       byAmountIn,
       amount,
       swapTicks: tickdatas,
       currentPool,
+    }
+    const res = await sdk.Swap.calculateRates(calculateRatesParams)
+
+    console.log('calculateRates', {
+      estimatedAmountIn: res.estimatedAmountIn.toString(),
+      estimatedAmountOut: res.estimatedAmountOut.toString(),
+      estimatedEndSqrtprice: res.estimatedEndSqrtPrice.toString(),
+      estimatedFeeAmount: res.estimatedFeeAmount.toString(),
+      isExceed: res.isExceed,
+      a2b,
+      byAmountIn,
     })
 
-    const toAmount = res.estimatedAmountOut
-    const amountLimit = toAmount.sub(toAmount.mul(new BN(slippage)))
+
+    const toAmount = byAmountIn ? res.estimatedAmountOut : res.estimatedAmountIn
+
+
+    const amountLimit =  adjustForSlippage(toAmount,slippage,!byAmountIn)
 
     console.log('swap###params####', { amount: res.amount.toString(), amount_limit: amountLimit.toString() })
 
-    const payCoins: CoinAsset[] = CoinAssist.getCoinAssets(a2b ? currentPool.coinTypeA : currentPool.coinTypeB, allCoinAsset)
-    const payObjectIds: ObjectId[] = await CoinAssist.selectCoinAssets(signer, payCoins, BigInt(amount.toString()), sdk)
-
-    const swapPayload = sdk.Swap.createSwapTransactionPayload({
+    const swapPayload = await sdk.Swap.createSwapTransactionPayload({
       pool_id: currentPool.poolAddress,
-      coin_object_ids_a: a2b ? payObjectIds : [],
-      coin_object_ids_b: a2b ? [] : payObjectIds,
       a2b,
       by_amount_in: byAmountIn,
       amount: res.amount.toString(),
       amount_limit: amountLimit.toString(),
       coinTypeA: currentPool.coinTypeA,
       coinTypeB: currentPool.coinTypeB,
+    },{
+      byAmountIn,
+      slippage,
+      decimalsA,
+      decimalsB,
+      swapTicks: tickdatas,
+      currentPool
     })
 
-    console.log('swapPayload: ', swapPayload)
-
-    const transferTxn = (await signer.executeMoveCall(swapPayload)) as SuiExecuteTransactionResponse
-    console.log('swap: ', getTransactionEffects(transferTxn))
+    printTransaction(swapPayload)
+    const transferTxn = await sendTransaction(signer,swapPayload)
+    console.log('swap: ', transferTxn)
   })
 })

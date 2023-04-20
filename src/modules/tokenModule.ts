@@ -1,6 +1,6 @@
 /* eslint-disable class-methods-use-this */
 import { Base64 } from 'js-base64'
-import { getObjectPreviousTransactionDigest, SuiEventEnvelope } from '@mysten/sui.js'
+import { getObjectPreviousTransactionDigest, TransactionBlock } from '@mysten/sui.js'
 import { SuiResource, SuiObjectIdType, SuiAddressType } from '../types/sui'
 import { CachedContent } from '../utils/cachedContent'
 import { extractStructTagFromType } from '../utils/contracts'
@@ -93,27 +93,59 @@ export class TokenModule implements IModule {
     return list
   }
 
-  async getSpecifyTokenListByCache(coinTypes: SuiAddressType[]): Promise<TokenInfo[]> {
+  async getTokenListByCoinTypes(coinTypes: SuiAddressType[]): Promise<Record<string, TokenInfo>> {
+    const tokenMap: Record<string, TokenInfo> = {}
     const cacheKey = `getAllRegisteredTokenList`
+
     const cacheData = this.getCacheData(cacheKey)
-    const findList: TokenInfo[] = []
+
     if (cacheData !== null) {
       const tokenList = cacheData as TokenInfo[]
       for (const coinType of coinTypes) {
         for (const token of tokenList) {
           if (coinType === token.address) {
-            findList.push(token)
+            tokenMap[coinType] = token
             continue
           }
         }
       }
     }
 
-    return findList
+    const unFindArray = coinTypes.filter((coinType: string) => {
+      return tokenMap[coinType] === undefined
+    })
+
+    for (const coinType of unFindArray) {
+      const metadataKey = `${coinType}_metadata`
+      const metadata = this.getCacheData(metadataKey)
+      if (metadata !== null) {
+        tokenMap[coinType] = metadata as TokenInfo
+      } else {
+        // eslint-disable-next-line no-await-in-loop
+        const data = await this._sdk.fullClient.getCoinMetadata({
+          coinType,
+        })
+        const token = {
+          name: data.name,
+          symbol: data.symbol,
+          official_symbol: data.symbol,
+          coingecko_id: '',
+          decimals: data.decimals,
+          project_url: '',
+          logo_url: data.iconUrl as string,
+          address: coinType,
+        }
+        tokenMap[coinType] = token
+
+        this.updateCache(metadataKey, token, cacheTime24h)
+      }
+    }
+
+    return tokenMap
   }
 
   private async factchTokenList(listOwnerAddr = '', forceRefresh = false): Promise<TokenInfo[]> {
-    const { simulationAccount, token } = this.sdk.sdkOptions.networkOptions
+    const { simulationAccount, token } = this.sdk.sdkOptions
 
     const cacheKey = `getAllRegisteredTokenList`
 
@@ -126,34 +158,26 @@ export class TokenModule implements IModule {
 
     const isOwnerRequest = listOwnerAddr.length > 0
 
-    const typeArguments: string[] = []
-    const args = isOwnerRequest ? [token.config.coin_registry_id, listOwnerAddr] : [token.config.coin_registry_id]
-    const payload = {
-      packageObjectId: token.token_deployer,
-      module: 'coin_list',
-      function: isOwnerRequest ? 'fetch_full_list' : 'fetch_all_registered_coin_info',
-      gasBudget: 10000,
-      typeArguments,
-      arguments: args,
-    }
-    const simulateRes = await this.sdk.fullClient.devInspectTransaction(simulationAccount.address, {
-      kind: 'moveCall',
-      data: payload,
+    const tx = new TransactionBlock()
+    tx.moveCall({
+      target: `${token.token_display}::coin_list::${isOwnerRequest ? 'fetch_full_list' : 'fetch_all_registered_coin_info'}`,
+      arguments: isOwnerRequest
+        ? [tx.pure(token.config.coin_registry_id), tx.pure(listOwnerAddr)]
+        : [tx.pure(token.config.coin_registry_id)],
+    })
+    const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: simulationAccount.address,
     })
 
-    if ('Err' in simulateRes.results) {
-      throw new Error(simulateRes.results.Err)
-    }
-
     const tokenList: TokenInfo[] = []
-    simulateRes.effects.events?.forEach((item) => {
-      if ('moveEvent' in item) {
-        const formatType = extractStructTagFromType(item.moveEvent.type)
-        if (formatType.full_address === `${token.token_deployer}::coin_list::FetchCoinListEvent`) {
-          item.moveEvent.fields.full_list.fields.value_list.forEach((item: any) => {
-            tokenList.push(this.transformData(item.fields, false))
-          })
-        }
+
+    simulateRes.events?.forEach((item: any) => {
+      const formatType = extractStructTagFromType(item.type)
+      if (formatType.full_address === `${token.token_display}::coin_list::FetchCoinListEvent`) {
+        item.parsedJson.full_list.value_list.forEach((item: any) => {
+          tokenList.push(this.transformData(item, false))
+        })
       }
     })
     this.updateCache(cacheKey, tokenList, cacheTime24h)
@@ -161,7 +185,7 @@ export class TokenModule implements IModule {
   }
 
   private async factchPoolList(listOwnerAddr = '', forceRefresh = false): Promise<PoolInfo[]> {
-    const { simulationAccount, token } = this.sdk.sdkOptions.networkOptions
+    const { simulationAccount, token } = this.sdk.sdkOptions
     const cacheKey = `getAllRegisteredPoolList`
     if (!forceRefresh) {
       const cacheData = this.getCacheData(cacheKey)
@@ -175,7 +199,7 @@ export class TokenModule implements IModule {
     const typeArguments: string[] = []
     const args = isOwnerRequest ? [token.config.pool_registry_id, listOwnerAddr] : [token.config.pool_registry_id]
     const payload = {
-      packageObjectId: token.token_deployer,
+      packageObjectId: token.token_display,
       module: 'lp_list',
       function: isOwnerRequest ? 'fetch_full_list' : 'fetch_all_registered_coin_info',
       gasBudget: 10000,
@@ -184,35 +208,26 @@ export class TokenModule implements IModule {
     }
     console.log('payload: ', payload)
 
-    const simulateRes = await this.sdk.fullClient.devInspectTransaction(simulationAccount.address, {
-      kind: 'moveCall',
-      data: payload,
+    const tx = new TransactionBlock()
+    tx.moveCall({
+      target: `${token.token_display}::lp_list::${isOwnerRequest ? 'fetch_full_list' : 'fetch_all_registered_coin_info'}`,
+      arguments: isOwnerRequest
+        ? [tx.pure(token.config.pool_registry_id), tx.pure(listOwnerAddr)]
+        : [tx.pure(token.config.pool_registry_id)],
     })
 
-    if ('Err' in simulateRes.results) {
-      throw new Error(simulateRes.results.Err)
-    }
-
-    // const localTxnDataSerializer = new LocalTxnDataSerializer(this._sdk.fullClient)
-    // const dryRunTxBytes = await localTxnDataSerializer.serializeToBytes(simulationAccount.address, {
-    //   kind: 'moveCall',
-    //   data: payload,
-    // })
-    // const simulateRes = await this.sdk.fullClient.dryRunTransaction(dryRunTxBytes)
-
-    // if (simulateRes.status.status === 'failure') {
-    //   throw new Error(simulateRes.status.error)
-    // }
+    const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: simulationAccount.address,
+    })
 
     const tokenList: PoolInfo[] = []
-    simulateRes.effects.events?.forEach((item) => {
-      if ('moveEvent' in item) {
-        const formatType = extractStructTagFromType(item.moveEvent.type)
-        if (formatType.full_address === `${token.token_deployer}::lp_list::FetchPoolListEvent`) {
-          item.moveEvent.fields.full_list.fields.value_list.forEach((item: any) => {
-            tokenList.push(this.transformData(item.fields, true))
-          })
-        }
+    simulateRes.events?.forEach((item: any) => {
+      const formatType = extractStructTagFromType(item.type)
+      if (formatType.full_address === `${token.token_display}::lp_list::FetchPoolListEvent`) {
+        item.parsedJson.full_list.value_list.forEach((item: any) => {
+          tokenList.push(this.transformData(item, true))
+        })
       }
     })
     this.updateCache(cacheKey, tokenList, cacheTime24h)
@@ -243,7 +258,7 @@ export class TokenModule implements IModule {
   }
 
   async getTokenConfigEvent(forceRefresh = false): Promise<TokenConfigEvent> {
-    const packageObjectId = this._sdk.sdkOptions.networkOptions.token.token_deployer
+    const packageObjectId = this._sdk.sdkOptions.token.token_display
     const cacheKey = `${packageObjectId}_getTokenConfigEvent`
 
     const cacheData = this._cache[cacheKey]
@@ -252,45 +267,49 @@ export class TokenModule implements IModule {
       return cacheData.value as TokenConfigEvent
     }
 
-    const packageObject = await this._sdk.fullClient.getObject(packageObjectId)
+    const packageObject = await this._sdk.fullClient.getObject({
+      id: packageObjectId,
+      options: {
+        showPreviousTransaction: true,
+      },
+    })
 
     const previousTx = getObjectPreviousTransactionDigest(packageObject) as string
-    const objects = (await this._sdk.fullClient.getEvents({ Transaction: previousTx }, null, null)).data as SuiEventEnvelope[]
-
+    const objects = await this._sdk.fullClient.queryEvents({
+      query: { Transaction: previousTx },
+    })
     const tokenConfigEvent: TokenConfigEvent = {
       coin_registry_id: '',
       pool_registry_id: '',
       coin_list_owner: '',
       pool_list_owner: '',
     }
+    // console.log(objects.data)
 
-    if (objects.length > 0) {
-      objects.forEach((item) => {
-        if ('newObject' in item.event) {
-          const { objectType, objectId } = item.event.newObject
-          const formatType = extractStructTagFromType(objectType)
-          if (formatType.full_address === `${packageObjectId}::core::Registry`) {
-            switch (formatType.type_arguments[1]) {
-              case `${packageObjectId}::coin_list::CoinInfo`:
-                tokenConfigEvent.coin_registry_id = objectId
-                break
-              case `${packageObjectId}::lp_list::PoolInfo`:
-                tokenConfigEvent.pool_registry_id = objectId
-                break
-              default:
-                break
-            }
-          } else if (formatType.full_address === `${packageObjectId}::core::List`) {
-            switch (formatType.type_arguments[0]) {
-              case `${packageObjectId}::coin_list::CoinKey`:
-                tokenConfigEvent.coin_list_owner = objectId
-                break
-              case `${packageObjectId}::lp_list::PoolKey`:
-                tokenConfigEvent.pool_list_owner = objectId
-                break
-              default:
-                break
-            }
+    if (objects.data.length > 0) {
+      objects.data.forEach((item: any) => {
+        const formatType = extractStructTagFromType(item.type)
+        if (item.transactionModule === 'coin_list') {
+          switch (formatType.name) {
+            case `InitListEvent`:
+              tokenConfigEvent.coin_list_owner = item.parsedJson.list_id
+              break
+            case `InitRegistryEvent`:
+              tokenConfigEvent.coin_registry_id = item.parsedJson.registry_id
+              break
+            default:
+              break
+          }
+        } else if (item.transactionModule === 'lp_list') {
+          switch (formatType.name) {
+            case `InitListEvent<address>`:
+              tokenConfigEvent.pool_list_owner = item.parsedJson.list_id
+              break
+            case `InitRegistryEvent<address>`:
+              tokenConfigEvent.pool_registry_id = item.parsedJson.registry_id
+              break
+            default:
+              break
           }
         }
       })
@@ -310,7 +329,7 @@ export class TokenModule implements IModule {
       token.address = extractStructTagFromType(token.address).full_address
     }
     if (item.extensions) {
-      const extensionsDataArray = item.extensions.fields.contents
+      const extensionsDataArray = item.extensions.contents
       for (const item of extensionsDataArray) {
         const { key } = item.fields
         let { value } = item.fields
@@ -327,7 +346,7 @@ export class TokenModule implements IModule {
     return token
   }
 
-  private updateCache(key: string, data: SuiResource, time = cacheTime5min) {
+  public updateCache(key: string, data: SuiResource, time = cacheTime5min) {
     let cacheData = this._cache[key]
     if (cacheData) {
       cacheData.overdueTime = getFutureTime(time)

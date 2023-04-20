@@ -1,46 +1,40 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-await-in-loop */
-/* eslint-disable class-methods-use-this */
-import { MoveCallTransaction } from '@mysten/sui.js'
-// eslint-disable-next-line import/no-unresolved
+/* eslint-disable no-return-await */
+/* eslint-disable camelcase */
+/* eslint-disable import/no-unresolved */
 import { DynamicFieldPage } from '@mysten/sui.js/dist/types/dynamic_fields'
-import { buildTickData, buildTickDataByEvent } from '../utils/common'
-import { extractStructTagFromType } from '../utils/contracts'
+import { normalizeSuiAddress, TransactionArgument, TransactionBlock } from '@mysten/sui.js'
+import { TransactionUtil } from '../utils/transaction-util'
+import { tickScore } from '../math'
+import { asUintN, buildTickData, buildTickDataByEvent } from '../utils/common'
+import { extractStructTagFromType, isSortedSymbols } from '../utils/contracts'
 import { TickData } from '../types/clmmpool'
-import { ClmmFetcherModule, ClmmIntegrateModule, LiquidityGasBudget, SuiObjectIdType } from '../types/sui'
+import { ClmmFetcherModule, ClmmIntegrateModule, CLOCK_ADDRESS, SuiObjectIdType } from '../types/sui'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { CoinPairType } from './resourcesModule'
-
-const TIICK_TYPE_ARG_REGEX = /^(.+)::i64::I64 {bits: (.+)u64}$/
 
 export type CreatePoolParams = {
   tick_spacing: number
   initialize_sqrt_price: string
   uri: string
+} & CoinPairType
+
+export type CreatePoolAddLiquidityParams = {
   amount_a: number
   amount_b: number
   fix_amount_a: boolean
-  coin_object_ids_a: SuiObjectIdType[]
-  coin_object_ids_b: SuiObjectIdType[]
   tick_lower: number
   tick_upper: number
-} & CoinPairType
+} & CreatePoolParams
 
 export type FetchTickParams = {
   pool_id: SuiObjectIdType
 } & CoinPairType
 
 type GetTickParams = {
-  index: number
-  offset: number
+  start: number[]
   limit: number
 } & FetchTickParams
-
-type TickIndex = {
-  index: string
-  objectId: string
-}
 
 export class PoolModule implements IModule {
   protected _sdk: SDK
@@ -53,47 +47,146 @@ export class PoolModule implements IModule {
     return this._sdk
   }
 
-  creatPoolTransactionPayload(params: CreatePoolParams, gasBudget = LiquidityGasBudget): MoveCallTransaction {
-    const { modules } = this.sdk.sdkOptions.networkOptions
-    const eventConfig = modules.config
-    if (eventConfig === null) {
+  async creatPoolsTransactionPayload(paramss: CreatePoolParams[]): Promise<TransactionBlock> {
+    for (const params of paramss) {
+      if (isSortedSymbols(normalizeSuiAddress(params.coinTypeA), normalizeSuiAddress(params.coinTypeB))) {
+        const swpaCoinTypeB = params.coinTypeB
+        params.coinTypeB = params.coinTypeA
+        params.coinTypeA = swpaCoinTypeB
+      }
+    }
+
+    return await this.creatPool(paramss)
+  }
+
+  /**
+   * Create a pool of clmmpool protocol. The pool is identified by (CoinTypeA, CoinTypeB, tick_spacing).
+   * @param params
+   * @returns
+   */
+  async creatPoolTransactionPayload(params: CreatePoolParams | CreatePoolAddLiquidityParams): Promise<TransactionBlock> {
+    if (isSortedSymbols(normalizeSuiAddress(params.coinTypeA), normalizeSuiAddress(params.coinTypeB))) {
+      const swpaCoinTypeB = params.coinTypeB
+      params.coinTypeB = params.coinTypeA
+      params.coinTypeA = swpaCoinTypeB
+    }
+
+    if ('fix_amount_a' in params) {
+      return await this.creatPoolAndAddLiquidity(params)
+    }
+    return await this.creatPool([params])
+  }
+
+  private async creatPool(paramss: CreatePoolParams[]) {
+    const tx = new TransactionBlock()
+    const { clmm } = this.sdk.sdkOptions
+    const eventConfig = clmm.config
+    if (eventConfig === undefined) {
       throw Error('eventConfig is null')
     }
-    const globalPauseStatusObjectId = eventConfig!.global_config_id
-    const poolsId = eventConfig!.pools_id
+    const globalPauseStatusObjectId = eventConfig.global_config_id
+    const poolsId = eventConfig.pools_id
+    tx.setGasBudget(this._sdk.gasConfig.GasBudgetHigh2)
 
-    const needAddLiquidity = params.amount_a > 0 && params.amount_b > 0
-    const typeArguments = [params.coinTypeA, params.coinTypeB]
-    const args = needAddLiquidity
-      ? [
-          poolsId,
-          globalPauseStatusObjectId,
-          params.tick_spacing.toString(),
-          params.initialize_sqrt_price,
-          params.uri,
-          params.coin_object_ids_a,
-          params.coin_object_ids_b,
-          BigInt.asUintN(64, BigInt(params.tick_lower)).toString(),
-          BigInt.asUintN(64, BigInt(params.tick_upper)).toString(),
-          params.amount_a.toString(),
-          params.amount_b.toString(),
-          params.fix_amount_a,
-        ]
-      : [poolsId, globalPauseStatusObjectId, params.tick_spacing, params.initialize_sqrt_price, params.uri]
-    return {
-      packageObjectId: modules.cetus_integrate,
-      module: ClmmIntegrateModule,
-      function: needAddLiquidity ? 'create_and_add_liquidity_fix_token' : 'create_pool',
-      gasBudget,
-      typeArguments,
-      arguments: args,
+    paramss.forEach((params) => {
+      const args = [
+        tx.object(globalPauseStatusObjectId),
+        tx.object(poolsId),
+        tx.pure(params.tick_spacing.toString()),
+        tx.pure(params.initialize_sqrt_price),
+        tx.pure(params.uri),
+        tx.object(CLOCK_ADDRESS),
+      ]
+
+      tx.moveCall({
+        target: `${clmm.clmm_router}::${ClmmIntegrateModule}::create_pool`,
+        typeArguments: [params.coinTypeA, params.coinTypeB],
+        arguments: args,
+      })
+    })
+
+    return tx
+  }
+
+  private async creatPoolAndAddLiquidity(params: CreatePoolAddLiquidityParams) {
+    if (this._sdk.senderAddress.length === 0) {
+      throw Error('this config sdk senderAddress is empty')
     }
+
+    const tx = new TransactionBlock()
+    const { clmm } = this.sdk.sdkOptions
+    const eventConfig = clmm.config
+    if (eventConfig === undefined) {
+      throw Error('eventConfig is null')
+    }
+    const globalPauseStatusObjectId = eventConfig.global_config_id
+    const poolsId = eventConfig.pools_id
+    const allCoinAsset = await this._sdk.Resources.getOwnerCoinAssets(this._sdk.senderAddress)
+    tx.setGasBudget(this._sdk.gasConfig.GasBudgetHigh2)
+
+    const primaryCoinAInputs = TransactionUtil.buildCoinInputForAmount(
+      tx,
+      allCoinAsset,
+      BigInt(params.amount_a),
+      params.coinTypeA
+    ) as TransactionArgument
+    const primaryCoinBInputs = TransactionUtil.buildCoinInputForAmount(
+      tx,
+      allCoinAsset,
+      BigInt(params.amount_b),
+      params.coinTypeB
+    ) as TransactionArgument
+
+    const primaryCoinInputs: {
+      coinInput: TransactionArgument
+      coinAmount: string
+    }[] = []
+    if (primaryCoinAInputs) {
+      primaryCoinInputs.push({
+        coinInput: primaryCoinAInputs,
+        coinAmount: params.amount_a.toString(),
+      })
+    }
+    if (primaryCoinBInputs) {
+      primaryCoinInputs.push({
+        coinInput: primaryCoinBInputs,
+        coinAmount: params.amount_b.toString(),
+      })
+    }
+
+    let addLiquidityName
+    if (primaryCoinInputs.length === 2) {
+      addLiquidityName = 'create_pool_with_liquidity_with_all'
+    } else {
+      addLiquidityName = primaryCoinAInputs !== undefined ? 'create_pool_with_liquidity_only_a' : 'create_pool_with_liquidity_only_b'
+    }
+
+    const args = [
+      tx.pure(globalPauseStatusObjectId),
+      tx.pure(poolsId),
+      tx.pure(params.tick_spacing.toString()),
+      tx.pure(params.initialize_sqrt_price),
+      tx.pure(params.uri),
+      ...primaryCoinInputs.map((item) => item.coinInput),
+      tx.pure(asUintN(BigInt(params.tick_lower)).toString()),
+      tx.pure(asUintN(BigInt(params.tick_upper)).toString()),
+      ...primaryCoinInputs.map((item) => tx.pure(item.coinAmount)),
+      tx.pure(params.fix_amount_a),
+      tx.pure(CLOCK_ADDRESS),
+    ]
+
+    tx.moveCall({
+      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::${addLiquidityName}`,
+      typeArguments: [params.coinTypeA, params.coinTypeB],
+      arguments: args,
+    })
+
+    return tx
   }
 
   async fetchTicks(params: FetchTickParams): Promise<TickData[]> {
     let ticks: TickData[] = []
-    let index = 0
-    let offset = 0
+    let start: number[] = []
     const limit = 512
 
     while (true) {
@@ -102,61 +195,50 @@ export class PoolModule implements IModule {
         pool_id: params.pool_id,
         coinTypeA: params.coinTypeA,
         coinTypeB: params.coinTypeB,
-        index,
-        offset,
+        start,
         limit,
       })
-      ticks = [...ticks, ...data.ticks]
-      if (data.ticks.length < limit) {
+      // console.log('data: ', data)
+
+      ticks = [...ticks, ...data]
+      if (data.length < limit) {
         break
       }
-      if (data.offset < 999) {
-        offset = data.offset + 1
-        index = data.index
-      } else {
-        index = data.index + 1
-        offset = 0
-      }
+      start = [data[data.length - 1].index]
     }
     return ticks
   }
 
-  private async getTicks(params: GetTickParams): Promise<{ ticks: TickData[]; index: number; offset: number }> {
-    const { modules, simulationAccount } = this.sdk.sdkOptions.networkOptions
+  private async getTicks(params: GetTickParams): Promise<TickData[]> {
+    const { clmm, simulationAccount } = this.sdk.sdkOptions
     const ticks: TickData[] = []
     const typeArguments = [params.coinTypeA, params.coinTypeB]
-    const args = [params.pool_id, params.index.toString(), params.offset.toString(), params.limit.toString()]
 
-    let index = 0
-    let offset = 0
+    const tx = new TransactionBlock()
+    const args = [tx.pure(params.pool_id), tx.pure(params.start), tx.pure(params.limit.toString())]
 
-    const payload = {
-      packageObjectId: modules.cetus_integrate,
-      module: ClmmFetcherModule,
-      function: 'fetch_ticks',
-      gasBudget: 10000,
-      typeArguments,
+    tx.moveCall({
+      target: `${clmm.clmm_router}::${ClmmFetcherModule}::fetch_ticks`,
       arguments: args,
-    }
-    console.log('payload: ', payload)
-
-    const simulateRes = await this.sdk.fullClient.devInspectTransaction(simulationAccount.address, {
-      kind: 'moveCall',
-      data: payload,
+      typeArguments,
     })
-    simulateRes.effects.events?.forEach((item) => {
-      if ('moveEvent' in item) {
-        if (extractStructTagFromType(item.moveEvent.type).name === `FetchTicksResultEvent`) {
-          const { fields } = item.moveEvent
-          index = Number(fields.index)
-          offset = Number(fields.offset)
-          item.moveEvent.fields.ticks.forEach((tick: any) => {
-            ticks.push(buildTickDataByEvent(tick.fields))
-          })
-        }
+    console.log('payload: ', tx.blockData.transactions[0])
+
+    const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: simulationAccount.address,
+    })
+
+    // console.log('simulateRes: ', simulateRes.events)
+
+    simulateRes.events?.forEach((item: any) => {
+      if (extractStructTagFromType(item.type).name === `FetchTicksResultEvent`) {
+        item.parsedJson.ticks.forEach((tick: any) => {
+          ticks.push(buildTickDataByEvent(tick))
+        })
       }
     })
-    return { ticks, index, offset }
+    return ticks
   }
 
   async fetchTicksByRpc(tickHandle: string): Promise<TickData[]> {
@@ -164,26 +246,25 @@ export class PoolModule implements IModule {
     let nextCursor: string | null = null
     const limit = 512
     while (true) {
-      const allTickId: TickIndex[] = []
+      const allTickId: SuiObjectIdType[] = []
       // eslint-disable-next-line no-await-in-loop
-      const idRes: DynamicFieldPage = await this.sdk.fullClient.getDynamicFields(tickHandle, nextCursor, limit)
+      const idRes: DynamicFieldPage = await this.sdk.fullClient.getDynamicFields({
+        parentId: tickHandle,
+        cursor: nextCursor,
+        limit,
+      })
+      // console.log('idRes: ', idRes.data)
+
       nextCursor = idRes.nextCursor
       // eslint-disable-next-line no-loop-func
       idRes.data.forEach((item) => {
-        if (extractStructTagFromType(item.objectType).name === 'Tick') {
-          const warpIndex = (item.name as string).match(TIICK_TYPE_ARG_REGEX)
-          if (warpIndex) {
-            allTickId.push({
-              index: BigInt.asIntN(64, BigInt(warpIndex[2])).toString(),
-              objectId: item.objectId,
-            })
-          } else {
-            console.log(`transform fail:  ${item} `)
-          }
+        if (extractStructTagFromType(item.objectType).module === 'skip_list') {
+          allTickId.push(item.objectId)
         }
       })
 
-      allTickData = [...allTickData, ...(await this.getTicksByRpc(allTickId.map((item) => item.objectId)))]
+      // eslint-disable-next-line no-await-in-loop
+      allTickData = [...allTickData, ...(await this.getTicksByRpc(allTickId))]
 
       if (nextCursor === null || idRes.data.length < limit) {
         break
@@ -194,10 +275,11 @@ export class PoolModule implements IModule {
   }
 
   private async getTicksByRpc(tickObjectId: string[]): Promise<TickData[]> {
-    // console.log('tickObjectId: ', tickObjectId)
-
     const ticks: TickData[] = []
-    const objectDataResponses = await this.sdk.fullClient.getObjectBatch(tickObjectId)
+    const objectDataResponses = await this.sdk.fullClient.multiGetObjects({
+      ids: tickObjectId,
+      options: { showContent: true, showType: true },
+    })
     // eslint-disable-next-line no-restricted-syntax
     for (const suiObj of objectDataResponses) {
       ticks.push(buildTickData(suiObj))
@@ -205,16 +287,21 @@ export class PoolModule implements IModule {
     return ticks
   }
 
-  // "0x352487c02db4a2ad131b416e899bed1970d54de5::i64::I64 {bits: 2u64}"
-  async getTickDataByIndex(tickHandle: string, tickIndex: string): Promise<TickData> {
-    const integerMate = this.sdk.sdkOptions.networkOptions.modules.integer_mate
-    const name = `${integerMate}::i64::I64 {bits: ${BigInt.asUintN(64, BigInt(tickIndex)).toString()}u64}`
-    const res = await this.sdk.fullClient.getDynamicFieldObject(tickHandle, name)
+  async getTickDataByIndex(tickHandle: string, tickIndex: number): Promise<TickData> {
+    const name = { type: 'u64', value: asUintN(BigInt(tickScore(tickIndex).toString())).toString() }
+    const res = await this.sdk.fullClient.getDynamicFieldObject({
+      parentId: tickHandle,
+      name,
+    })
     return buildTickData(res)
   }
 
   async getTickDataByObjectId(tickId: string): Promise<TickData> {
-    const res = await this.sdk.fullClient.getObject(tickId)
+    const res = await this.sdk.fullClient.getObject({
+      id: tickId,
+      options: { showContent: true },
+    })
+
     return buildTickData(res)
   }
 }

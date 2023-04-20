@@ -1,6 +1,6 @@
 {
   "name": "@cetusprotocol/cetus-sui-clmm-sdk",
-  "version": "1.0.0",
+  "version": "2.3.2",
   "description": "SDK for cetus swap and liquidity",
   "typings": "dist/main.d.ts",
   "main": "./dist/index.js",
@@ -45,13 +45,17 @@
     "typescript": "^4.8.2"
   },
   "dependencies": {
-    "@mysten/bcs": "^0.6.1",
-    "@mysten/sui.js": "^0.29.1",
+    "@mysten/bcs":  "0.7.0",
+    "@mysten/sui.js": "0.32.1",
+    "@suchipi/femver": "^1.0.0",
     "@types/bn.js": "^5.1.1",
     "bn.js": "^5.2.1",
     "decimal.js": "^10.4.1",
+    "isomorphic-fetch": "^3.0.0",
     "js-base64": "^3.7.4",
+    "js-sha3": "^0.8.0",
     "ss-graph": "^0.1.1",
+    "superstruct": "^1.0.3",
     "tiny-invariant": "^1.1.0",
     "tweetnacl": "^1.0.3"
   },

@@ -1,6 +1,7 @@
-import { normalizeSuiObjectId } from '@mysten/sui.js'
+import { Keypair, normalizeSuiObjectId, normalizeSuiAddress } from '@mysten/sui.js'
 import { SuiAddressType, SuiStructTag } from '../types/sui'
 import { checkAddress } from './hex'
+import { CoinAssist } from '../math/CoinAssist'
 
 const EQUAL = 0
 const LESS_THAN = 1
@@ -17,15 +18,14 @@ function cmp(a: number, b: number) {
 }
 
 function compare(symbolX: string, symbolY: string) {
-  let iX = symbolX.length
-  let iY = symbolY.length
+  let i = 0
 
-  const lenCmp = cmp(iX, iY)
-  while (iX > 0 && iY > 0) {
-    iX -= 1
-    iY -= 1
+  const len = symbolX.length <= symbolY.length ? symbolX.length : symbolY.length
 
-    const elemCmp = cmp(symbolX.charCodeAt(iX), symbolY.charCodeAt(iY))
+  const lenCmp = cmp(symbolX.length, symbolY.length)
+  while (i < len) {
+    const elemCmp = cmp(symbolX.charCodeAt(i), symbolY.charCodeAt(i))
+    i += 1
     if (elemCmp !== 0) {
       return elemCmp
     }
@@ -48,7 +48,7 @@ export function composeType(address: string, ...args: unknown[]): SuiAddressType
   let result: string = chains.join('::')
 
   if (generics && generics.length) {
-    result += `<${generics.join(',')}>`
+    result += `<${generics.join(', ')}>`
   }
 
   return result
@@ -70,6 +70,10 @@ export function extractStructTagFromType(type: string): SuiStructTag {
       ...tag,
       type_arguments: [...generics],
     }
+    structTag.type_arguments = structTag.type_arguments.map((item) => {
+      return CoinAssist.isSuiCoin(item) ? item : extractStructTagFromType(item).source_address
+    })
+    structTag.source_address = composeType(structTag.full_address, structTag.type_arguments)
     return structTag
   }
   const parts = _type.split('::')
@@ -80,8 +84,10 @@ export function extractStructTagFromType(type: string): SuiStructTag {
     module: parts[1],
     name: parts[2],
     type_arguments: [],
+    source_address: '',
   }
   structTag.full_address = `${structTag.address}::${structTag.module}::${structTag.name}`
+  structTag.source_address = composeType(structTag.full_address, structTag.type_arguments)
   return structTag
 }
 

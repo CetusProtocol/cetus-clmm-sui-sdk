@@ -1,106 +1,87 @@
-import { Ed25519Keypair, getObjectPreviousTransactionDigest, RawSigner, SuiExecuteTransactionResponse,  SuiTransactionResponse, getTransactionEffects } from '@mysten/sui.js';
-import { CoinAssist } from '../src/math/CoinAssist';
-import { FaucetCoin, intervalFaucetTime } from '../src/modules/resourcesModule';
-import { d } from '../src/utils/numbers';
-import { buildSdk, buildTestAccount, faucetObjectId } from './data/init_test_data'
-
-
+import {
+  Ed25519Keypair,
+  getObjectPreviousTransactionDigest,
+  RawSigner,
+  getTransactionEffects,
+  TransactionBlock,
+  SuiTransactionBlockResponse,
+} from '@mysten/sui.js'
+import { CoinAssist } from '../src/math/CoinAssist'
+import { FaucetCoin, intervalFaucetTime } from '../src/modules/resourcesModule'
+import { d } from '../src/utils/numbers'
+import {
+  buildSdk,
+  buildTestAccount,
+  faucetObjectId,
+  buildSKAccount,
+  buildWJLaunchPadAccount,
+  buildWJLaunchPadAccountLocal,
+  mintAll,
+} from './data/init_test_data'
+import 'isomorphic-fetch'
+import { printTransaction, sendTransaction, TransactionUtil } from '../src/utils/transaction-util'
 
 const sdk = buildSdk()
 let sendKeypair: Ed25519Keypair
-let faucetCoins: FaucetCoin[]
-
 
 describe('getFaucetEvent test', () => {
   test('getFaucetEvent', async () => {
     const faucetEvents = await sdk.Resources.getFaucetEvent(faucetObjectId, buildTestAccount().getPublicKey().toSuiAddress())
-    console.log("getFaucetEvent",faucetEvents)
+    console.log('getFaucetEvent', faucetEvents)
   })
-
+  /**
+   * curl --location --request POST 'http://192.168.1.41:9000/gas' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "FixedAmountRequest": {
+        "recipient": "0xd974f68de93ac3f47572bd053969bf2b078ed0524da4b486e1d5471f408f8605"
+    }
+}'
+   */
   test('requestSuiFromFaucet', async () => {
-    const suiFromFaucet = await sdk.fullClient.requestSuiFromFaucet("0x6d49ddaaacf57fc92a2bd0f4d30da78b23f03772")
-    console.log("requestSuiFromFaucet",suiFromFaucet)
+    const suiFromFaucet = await sdk.fullClient.requestSuiFromFaucet(buildTestAccount().getPublicKey().toSuiAddress())
+    console.log('requestSuiFromFaucet', suiFromFaucet)
   })
 })
 
 describe('faucet coin test', () => {
-
   beforeEach(async () => {
     sendKeypair = buildTestAccount()
-    const faucetObject = await sdk.fullClient.getObject(faucetObjectId)
-    console.log("faucetObject: ",faucetObject)
+  })
+
+  test(' get faucet Coins  ', async () => {
+    const faucetObject = await sdk.fullClient.getObject({ id: faucetObjectId, options: { showPreviousTransaction: true } })
     const faucetTx = getObjectPreviousTransactionDigest(faucetObject)
-    console.log("faucetTx: ",faucetTx)
-    if(faucetTx === undefined){
-      throw Error("fail to get faucetTx")
+    console.log('faucetTx: ', faucetTx)
+    if (faucetTx === undefined) {
+      throw Error('fail to get faucetTx')
     }
-    const suiTransactionResponse = await sdk.Resources.getSuiTransactionResponse(faucetTx) as SuiTransactionResponse
-    faucetCoins = CoinAssist.getFaucetCoins(suiTransactionResponse)
-    console.log("getSuiTransactionResponse",faucetCoins)
+    const suiTransactionResponse = (await sdk.Resources.getSuiTransactionResponse(faucetTx)) as SuiTransactionBlockResponse
+    const faucetCoins = CoinAssist.getFaucetCoins(suiTransactionResponse)
+    console.log('faucetCoins', faucetCoins)
   })
 
-
-  test('faucetLimit', async () => {
-    const suplyIDS : string[] = []
-    faucetCoins.forEach(async (coin) => {
-       suplyIDS.push(coin.suplyID)
-    })
-
-    const currentfaucetTime = d(Date.parse(new Date().toString())).div(1000).toDP(0).toNumber()
-    const faucetEvents = await sdk.Resources.getFaucetEvent(faucetObjectId, sendKeypair.getPublicKey().toSuiAddress())
-
-    if(faucetEvents){
-      const lastfaucetTime = faucetEvents.time
-      if((currentfaucetTime - lastfaucetTime)*1000 < intervalFaucetTime ){
-        throw new Error("faucet time Less than 12 hours");
-      }
-    }
-
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
-
-    const transferTxn = await signer.executeMoveCall({
-      packageObjectId: faucetObjectId,
-      module: 'faucet',
-      function: 'faucetLimit',
-      typeArguments: [],
-      gasBudget: 1000,
-      arguments: [...suplyIDS, currentfaucetTime.toString()],
-    }) as SuiExecuteTransactionResponse
-    console.log("faucetAll: ", getTransactionEffects(transferTxn))
+  test('faucetCoins', async () => {
+    await mintAll(sdk, sendKeypair, faucetObjectId, 'faucet', 'faucetAll')
   })
-
-    test('faucetCoins', async () => {
-      const suplyIDS : string[] = []
-      faucetCoins.forEach(async (coin) => {
-         suplyIDS.push(coin.suplyID)
-      })
-      const signer = new RawSigner(sendKeypair, sdk.fullClient)
-      const transferTxn = await signer.executeMoveCall({
-        packageObjectId: faucetObjectId,
-        module: 'faucet',
-        function: 'faucetAll',
-        typeArguments: [],
-        gasBudget: 1000,
-        arguments: [...suplyIDS],
-      }) as SuiExecuteTransactionResponse
-      console.log("faucetAll: ", transferTxn)
-    })
 
   test('faucetOneCoin', async () => {
-    const coin = faucetCoins[4]
+    const coin = {
+      transactionModule: 'btc',
+      suplyID: '0xdf17a296e80416827b9bab70ca2f84a293fdf967815b365c6c7f7b12141703fb',
+      decimals: 8,
+    }
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
-    const transferTxn = await signer.executeMoveCall({
-      packageObjectId: faucetObjectId,
-      module: coin.transactionModule,
-      function: 'faucet',
+
+    const tx = new TransactionBlock()
+    tx.setGasBudget(20000000)
+    tx.moveCall({
+      target: `${faucetObjectId}::${coin.transactionModule}::faucet`,
       typeArguments: [],
-      gasBudget: 1000,
-      arguments: [coin.suplyID],
-    }) as SuiExecuteTransactionResponse
-    console.log("faucetAll: ", transferTxn)
+      arguments: [tx.pure(coin.suplyID)],
+    })
+    printTransaction(tx)
+    const transferTxn = await sendTransaction(signer, tx)
+    console.log('faucetAll: ', transferTxn)
   })
 })
-
-
-
-

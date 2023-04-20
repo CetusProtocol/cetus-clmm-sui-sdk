@@ -1,7 +1,7 @@
 /* eslint-disable import/no-unresolved */
 /* eslint-disable no-bitwise */
 import BN from 'bn.js'
-import { Tick, TickData } from '../types/clmmpool'
+import { asIntN, d } from '../utils'
 import { MAX_SQRT_PRICE, MIN_SQRT_PRICE } from '../types/constants'
 import Decimal from '../utils/decimal'
 import { MathUtil } from './utils'
@@ -10,6 +10,7 @@ const BIT_PRECISION = 14
 const LOG_B_2_X32 = '59543866431248'
 const LOG_B_P_ERR_MARGIN_LOWER_X64 = '184467440737095516'
 const LOG_B_P_ERR_MARGIN_UPPER_X64 = '15793534762490258745'
+const TICK_BOUND = 443636
 
 function signedShiftLeft(n0: BN, shiftBy: number, bitWidth: number) {
   const twosN0 = n0.toTwos(bitWidth).shln(shiftBy)
@@ -248,9 +249,9 @@ export function getTickDataFromUrlData(ticks: any) {
   for (const tick of ticks) {
     const td: any = {
       objectId: tick.objectId,
-      index: Number(BigInt.asIntN(64, BigInt(tick.index)).toString()),
+      index: Number(asIntN(BigInt(tick.index)).toString()),
       sqrtPrice: tick.sqrtPrice,
-      liquidityNet: new BN(BigInt.asIntN(64, BigInt(tick.liquidityNet.toString())).toString()),
+      liquidityNet: new BN(asIntN(BigInt(tick.liquidityNet.toString())).toString()),
       liquidityGross: tick.liquidityGross,
       feeGrowthOutsideA: tick.feeGrowthOutsideA,
       feeGrowthOutsideB: tick.feeGrowthOutsideB,
@@ -263,4 +264,8 @@ export function getTickDataFromUrlData(ticks: any) {
     tickdatas.push(td)
   }
   return tickdatas
+}
+
+export function tickScore(tickIndex: number) {
+  return d(tickIndex).add(d(TICK_BOUND))
 }

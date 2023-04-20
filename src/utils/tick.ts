@@ -62,7 +62,7 @@ export function getRewardInTickRange(
   for (let i = 0; i < rewarderInfos.length; i += 1) {
     let rewarder_growth_below = growthGlobal[i]
     if (tickLower !== null) {
-      if (Number(pool.current_tick_index) < tickLowerIndex) {
+      if (pool.current_tick_index < tickLowerIndex) {
         rewarder_growth_below = growthGlobal[i].sub(new BN(tickLower.rewardersGrowthOutside[i]))
       } else {
         rewarder_growth_below = tickLower.rewardersGrowthOutside[i]
@@ -70,7 +70,7 @@ export function getRewardInTickRange(
     }
     let rewarder_growth_above = new BN(0)
     if (tickUpper !== null) {
-      if (Number(pool.current_tick_index) >= tickUpperIndex) {
+      if (pool.current_tick_index >= tickUpperIndex) {
         rewarder_growth_above = growthGlobal[i].sub(new BN(tickUpper.rewardersGrowthOutside[i]))
       } else {
         rewarder_growth_above = tickUpper.rewardersGrowthOutside[i]

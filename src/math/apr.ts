@@ -1,8 +1,6 @@
 /* eslint-disable camelcase */
 import BN from 'bn.js'
 import Decimal from 'decimal.js'
-import { TickData } from '../types/clmmpool'
-import { getDeltaA, getDeltaB } from './clmm'
 import { TickMath } from './tick'
 import { MathUtil } from './utils'
 
@@ -17,128 +15,6 @@ export function estPoolAPR(preBlockReward: BN, rewardPrice: BN, totalTradingFee:
   const APR = annualRate.mul(preBlockReward.mul(rewardPrice).add(totalTradingFee).div(totalLiquidityValue))
 
   return APR
-}
-
-// Get token amount from liquidity.
-function getCoinAmountsFromLiquidity(liquidity: BN, curSqrtPrice: BN, lowerSqrtPrice: BN, upperSqrtPrice: BN, roundUp: boolean) {
-  let coinA = new BN(0)
-  let coinB = new BN(0)
-  if (curSqrtPrice.lt(lowerSqrtPrice)) {
-    coinA = getDeltaA(lowerSqrtPrice, upperSqrtPrice, liquidity, roundUp)
-  } else if (curSqrtPrice.lt(upperSqrtPrice)) {
-    coinA = getDeltaA(curSqrtPrice, upperSqrtPrice, liquidity, roundUp)
-    coinB = getDeltaB(lowerSqrtPrice, curSqrtPrice, liquidity, roundUp)
-  } else {
-    coinB = getDeltaB(lowerSqrtPrice, upperSqrtPrice, liquidity, roundUp)
-  }
-
-  return {
-    coinA,
-    coinB,
-  }
-}
-
-type Amounts = {
-  amountA: BN
-  amountB: BN
-}
-
-function calSpecifiedTickRangeAmount(
-  lowerSqrtPriceX64: BN,
-  upperSqrtPriceX64: BN,
-  currentSqrtPriceX64: BN,
-  currentLiqidity: BN,
-  tickDatas: Array<TickData>
-): Amounts {
-  let amountA = new BN(0)
-  let amountB = new BN(0)
-  if (currentSqrtPriceX64.lt(lowerSqrtPriceX64)) {
-    let liquidity = currentLiqidity
-    const ticks = tickDatas.sort((a, b) => {
-      return Number(a.index) - Number(b.index)
-    })
-    for (let i = 0; i < ticks.length; i += 1) {
-      const tick = ticks[i]
-      if (tick.sqrtPrice.lt(currentSqrtPriceX64)) {
-        continue
-      }
-      liquidity = liquidity.add(tick.liquidityNet)
-      if (lowerSqrtPriceX64.lt(tick.sqrtPrice)) {
-        continue
-      }
-      if (upperSqrtPriceX64.lt(tick.sqrtPrice)) {
-        break
-      }
-      const amounts = getCoinAmountsFromLiquidity(liquidity, currentSqrtPriceX64, tick.sqrtPrice, ticks[i + 1].sqrtPrice, false)
-      amountA = amountA.add(amounts.coinA)
-      amountB = amountB.add(amounts.coinB)
-    }
-  } else if (currentSqrtPriceX64.gt(upperSqrtPriceX64)) {
-    let liquidity = currentLiqidity
-    const ticks = tickDatas.sort((a, b) => {
-      return Number(b.index) - Number(a.index)
-    })
-    for (let i = 0; i < ticks.length; i += 1) {
-      const tick = ticks[i]
-      if (tick.sqrtPrice.gt(currentSqrtPriceX64)) {
-        continue
-      }
-      liquidity = liquidity.sub(tick.liquidityNet)
-      if (upperSqrtPriceX64.lt(tick.sqrtPrice)) {
-        continue
-      }
-      if (lowerSqrtPriceX64.gte(tick.sqrtPrice)) {
-        break
-      }
-      const amounts = getCoinAmountsFromLiquidity(liquidity, currentSqrtPriceX64, ticks[i + 1].sqrtPrice, tick.sqrtPrice, false)
-      amountA = amountA.add(amounts.coinA)
-      amountB = amountB.add(amounts.coinB)
-    }
-  } else {
-    // calculate lower<->current
-    // let ticks: TickData[] = []
-    let ticks = tickDatas.sort((a, b) => {
-      return Number(b.index) - Number(a.index)
-    })
-    let liquidity = currentLiqidity
-    for (let i = 0; i < tickDatas.length; i += 1) {
-      const tick = ticks[i]
-      if (tick.sqrtPrice.gt(currentSqrtPriceX64)) {
-        continue
-      }
-      liquidity = liquidity.sub(tick.liquidityNet)
-      if (lowerSqrtPriceX64.gte(tick.sqrtPrice)) {
-        break
-      }
-
-      const amounts = getCoinAmountsFromLiquidity(liquidity, currentSqrtPriceX64, ticks[i + 1].sqrtPrice, tick.sqrtPrice, false)
-      amountA = amountA.add(amounts.coinA)
-      amountB = amountB.add(amounts.coinB)
-    }
-
-    // calculate current<->upper
-    ticks = tickDatas.sort((a, b) => {
-      return Number(a.index) - Number(b.index)
-    })
-    liquidity = currentLiqidity
-    for (let i = 0; i < ticks.length; i += 1) {
-      const tick = ticks[i]
-      if (tick.sqrtPrice.lt(currentSqrtPriceX64)) {
-        continue
-      }
-      liquidity = liquidity.add(tick.liquidityNet)
-      if (upperSqrtPriceX64.lt(tick.sqrtPrice)) {
-        break
-      }
-      const amounts = getCoinAmountsFromLiquidity(liquidity, currentSqrtPriceX64, tick.sqrtPrice, ticks[i + 1].sqrtPrice, true)
-      amountA = amountA.add(amounts.coinA)
-      amountB = amountB.add(amounts.coinB)
-    }
-  }
-  return {
-    amountA,
-    amountB,
-  }
 }
 
 function calculatePoolValidTVL(

@@ -1,21 +1,19 @@
 /* eslint-disable no-constant-condition */
 import {
   Coin,
-  GetObjectDataResponse,
-  getObjectExistsResponse,
+  getMoveObject,
+  getObjectFields,
   getObjectPreviousTransactionDigest,
-  MoveEvent,
   ObjectContentFields,
   PaginatedCoins,
-  SuiEventEnvelope,
   SuiMoveObject,
-  SuiObject,
-  SuiTransactionResponse,
+  SuiObjectResponse,
+  SuiTransactionBlockResponse,
   TransactionDigest,
 } from '@mysten/sui.js'
 import { CachedContent } from '../utils/cachedContent'
-import { buildPool, buildPosition } from '../utils/common'
-import { SuiAddressType, SuiObjectIdType, SuiResource } from '../types/sui'
+import { buildPool, buildPosition, buildPositionReward } from '../utils/common'
+import { SuiAddressType, SuiObjectIdType, SuiResource, NFT } from '../types/sui'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { extractStructTagFromType } from '../utils/contracts'
@@ -34,12 +32,12 @@ export type Position = {
   pos_object_id: SuiObjectIdType
   pool: SuiObjectIdType
   type: SuiAddressType
-  name: string
+  coin_type_a: SuiAddressType
+  coin_type_b: SuiAddressType
   index: number
-  uri: string
   liquidity: string
-  tick_lower_index: string
-  tick_upper_index: string
+  tick_lower_index: number
+  tick_upper_index: number
   fee_growth_inside_a: string
   fee_owed_a: string
   fee_growth_inside_b: string
@@ -50,7 +48,7 @@ export type Position = {
   reward_growth_inside_0: string
   reward_growth_inside_1: string
   reward_growth_inside_2: string
-}
+} & NFT
 
 export type CoinPairType = {
   coinTypeA: SuiAddressType
@@ -66,54 +64,43 @@ export type Pool = {
   poolType: string
   coinAmountA: number
   coinAmountB: number
+  /// The current sqrt price
   current_sqrt_price: number
+  /// The current tick index
   current_tick_index: number
-  fee_growth_global_a: number
+  /// The global fee growth of coin a,b as Q64.64
   fee_growth_global_b: number
+  fee_growth_global_a: number
+  /// The amounts of coin a,b owend to protocol
   fee_protocol_coin_a: number
   fee_protocol_coin_b: number
+  /// The numerator of fee rate, the denominator is 1_000_000.
   fee_rate: number
+  /// is the pool pause
   is_pause: boolean
+  /// The liquidity of current tick index
   liquidity: number
-  positionIndex: number
+  /// The pool index
+  index: number
   positions_handle: string
-  protocol_fee_rate: string
-  rewarder_balances: string
   rewarder_infos: Array<Rewarder>
   rewarder_last_updated_time: string
-  tick_indexes_handle: string
   ticks_handle: string
   uri: string
   name: string
 } & PoolImmutables
 
 export type Rewarder = {
-  coin_name: string
+  coinAddress: string
   emissions_per_second: number
   growth_global: number
-}
-
-export type InitConfigEvent = {
-  tx_sender: SuiAddressType
-  admin_cap_id: SuiObjectIdType
-  global_config_id: SuiObjectIdType
-  protocol_fee_claim_cap_id: SuiObjectIdType
-}
-
-export type InitFactoryEvent = {
-  tx_sender: SuiAddressType
-  pools_id: SuiObjectIdType
-}
-
-export type InitPartnerEvent = {
-  tx_sender: SuiAddressType
-  partners_id: SuiObjectIdType
+  emissionsEveryDay: number
 }
 
 export type InitEvent = {
-  initConfigEvent?: InitConfigEvent
-  initFactoryEvent?: InitFactoryEvent
-  initPartnerEvent?: InitPartnerEvent
+  pools_id: SuiObjectIdType
+  global_config_id: SuiObjectIdType
+  global_vault_id: SuiObjectIdType
 }
 
 export type CreatePartnerEvent = {
@@ -140,18 +127,13 @@ export type CoinAsset = {
 export type WarpSuiObject = {
   coinAddress: SuiAddressType
   balance: number
-} & SuiObject
+} & SuiMoveObject
 
 export type FaucetCoin = {
   transactionModule: string
-  address: SuiAddressType
   suplyID: SuiObjectIdType
   decimals: number
 } & ObjectContentFields
-
-type moveEvent = {
-  moveEvent: MoveEvent
-}
 
 function getFutureTime(interval: number) {
   return Date.parse(new Date().toString()) + interval
@@ -170,14 +152,35 @@ export class ResourcesModule implements IModule {
     return this._sdk
   }
 
-  async getSuiTransactionResponse(digest: TransactionDigest, forceRefresh = false): Promise<SuiTransactionResponse | null> {
+  async getSuiTransactionResponse(digest: TransactionDigest, forceRefresh = false): Promise<SuiTransactionBlockResponse | null> {
     const cacheKey = `${digest}_getSuiTransactionResponse`
     const cacheData = this._cache[cacheKey]
 
     if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
-      return cacheData.value as SuiTransactionResponse
+      return cacheData.value as SuiTransactionBlockResponse
     }
-    const objects = (await this._sdk.fullClient.getTransactionWithEffects(digest)) as SuiTransactionResponse
+    let objects
+    try {
+      objects = (await this._sdk.fullClient.getTransactionBlock({
+        digest,
+        options: {
+          showEvents: true,
+          showEffects: true,
+          showBalanceChanges: true,
+          showInput: true,
+          showObjectChanges: true,
+        },
+      })) as SuiTransactionBlockResponse
+    } catch (error) {
+      objects = (await this._sdk.fullClient.getTransactionBlock({
+        digest,
+        options: {
+          showEvents: true,
+          showEffects: true,
+        },
+      })) as SuiTransactionBlockResponse
+    }
+
     this.updateCache(cacheKey, objects, cacheTime24h)
     return objects
   }
@@ -189,27 +192,31 @@ export class ResourcesModule implements IModule {
     if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
       return cacheData.value as FaucetEvent
     }
-    const objects = (await this._sdk.fullClient.getEvents({ MoveEvent: `${packageObjectId}::faucet::FaucetEvent` }, null, null))
-      .data as SuiEventEnvelope[]
+    const objects = (
+      await this._sdk.fullClient.queryEvents({
+        query: { MoveEventType: `${packageObjectId}::faucet::FaucetEvent` },
+      })
+    ).data
     let findFaucetEvent: FaucetEvent = {
       id: '',
       time: 0,
     }
-    objects.forEach((object) => {
-      const eventObject = object.event as moveEvent
-      if (addHexPrefix(walletAddress) === eventObject.moveEvent.sender) {
-        const { fields } = (object.event as moveEvent).moveEvent
-        const faucetEvent = {
-          id: fields.id,
-          time: Number(fields.time),
-        }
-        const findTime = findFaucetEvent.time
-        if (findTime > 0) {
-          if (faucetEvent.time > findTime) {
+    objects.forEach((eventObject) => {
+      if (addHexPrefix(walletAddress) === eventObject.sender) {
+        const fields = eventObject.parsedJson
+        if (fields) {
+          const faucetEvent = {
+            id: fields.id,
+            time: Number(fields.time),
+          }
+          const findTime = findFaucetEvent.time
+          if (findTime > 0) {
+            if (faucetEvent.time > findTime) {
+              findFaucetEvent = faucetEvent
+            }
+          } else {
             findFaucetEvent = faucetEvent
           }
-        } else {
-          findFaucetEvent = faucetEvent
         }
       }
     })
@@ -221,32 +228,47 @@ export class ResourcesModule implements IModule {
   }
 
   async getInitEvent(forceRefresh = false): Promise<InitEvent> {
-    const packageObjectId = this._sdk.sdkOptions.networkOptions.modules.cetus_clmm
+    const packageObjectId = this._sdk.sdkOptions.clmm.clmm_display
     const cacheKey = `${packageObjectId}_getInitEvent`
     const cacheData = this._cache[cacheKey]
 
     if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
       return cacheData.value as InitEvent
     }
-    const packageObject = await this._sdk.fullClient.getObject(packageObjectId)
-    const previousTx = getObjectPreviousTransactionDigest(packageObject) as string
-    const objects = (await this._sdk.fullClient.getEvents({ Transaction: previousTx }, null, null)).data as SuiEventEnvelope[]
+    const packageObject = await this._sdk.fullClient.getObject({
+      id: packageObjectId,
+      options: { showPreviousTransaction: true },
+    })
 
-    const initEvent: InitEvent = {}
+    const previousTx = getObjectPreviousTransactionDigest(packageObject) as string
+
+    const objects = (
+      await this._sdk.fullClient.queryEvents({
+        query: { Transaction: previousTx },
+      })
+    ).data
+
+    // console.log('objects: ', objects)
+
+    const initEvent: InitEvent = {
+      pools_id: '',
+      global_config_id: '',
+      global_vault_id: '',
+    }
 
     if (objects.length > 0) {
       objects.forEach((item) => {
-        if ('moveEvent' in item.event) {
-          const { fields } = item.event.moveEvent
-          switch (item.event.moveEvent.type) {
+        const fields = item.parsedJson as any
+        if (item.type) {
+          switch (extractStructTagFromType(item.type).full_address) {
             case `${packageObjectId}::config::InitConfigEvent`:
-              initEvent.initConfigEvent = fields as InitConfigEvent
-              break
-            case `${packageObjectId}::partner::InitPartnerEvent`:
-              initEvent.initPartnerEvent = fields as InitPartnerEvent
+              initEvent.global_config_id = fields.global_config_id
               break
             case `${packageObjectId}::factory::InitFactoryEvent`:
-              initEvent.initFactoryEvent = fields as InitFactoryEvent
+              initEvent.pools_id = fields.pools_id
+              break
+            case `${packageObjectId}::rewarder::RewarderInitEvent`:
+              initEvent.global_vault_id = fields.global_vault_id
               break
             default:
               break
@@ -261,22 +283,23 @@ export class ResourcesModule implements IModule {
   }
 
   async getCreatePartnerEvent(forceRefresh = false): Promise<CreatePartnerEvent[]> {
-    const packageObjectId = this._sdk.sdkOptions.networkOptions.modules.cetus_clmm
+    const packageObjectId = this._sdk.sdkOptions.clmm.clmm_display
     const cacheKey = `${packageObjectId}_getInitEvent`
     const cacheData = this._cache[cacheKey]
 
     if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
       return cacheData.value as CreatePartnerEvent[]
     }
-    const objects = (await this._sdk.fullClient.getEvents({ MoveEvent: `${packageObjectId}::partner::CreatePartnerEvent` }, null, null))
-      .data as SuiEventEnvelope[]
+    const objects = (
+      await this._sdk.fullClient.queryEvents({
+        query: { MoveEventType: `${packageObjectId}::partner::CreatePartnerEvent` },
+      })
+    ).data
     const events: CreatePartnerEvent[] = []
 
     if (objects.length > 0) {
       objects.forEach((item) => {
-        if ('moveEvent' in item.event) {
-          events.push(item.event.moveEvent.fields as CreatePartnerEvent)
-        }
+        events.push(item.parsedJson as CreatePartnerEvent)
       })
       this.updateCache(cacheKey, events, cacheTime24h)
     }
@@ -285,7 +308,7 @@ export class ResourcesModule implements IModule {
   }
 
   async getPoolImmutables(assignPools: string[] = [], offset = 0, limit = 100, forceRefresh = false): Promise<PoolImmutables[]> {
-    const clmmIntegrate = this._sdk.sdkOptions.networkOptions.modules.cetus_clmm
+    const clmmIntegrate = this._sdk.sdkOptions.clmm.clmm_display
     const cacheKey = `${clmmIntegrate}_getInitPoolEvent`
     const cacheData = this._cache[cacheKey]
 
@@ -298,13 +321,16 @@ export class ResourcesModule implements IModule {
 
     if (allPools.length === 0) {
       try {
-        const objects = (await this._sdk.fullClient.getEvents({ MoveEvent: `${clmmIntegrate}::factory::CreatePoolEvent` }, null, null))
-          .data as SuiEventEnvelope[]
-        objects.forEach((object) => {
-          if ('moveEvent' in object.event) {
-            const { fields } = object.event.moveEvent
+        const objects = await this._sdk.fullClient.queryEvents({
+          query: { MoveEventType: `${clmmIntegrate}::factory::CreatePoolEvent` },
+        })
+        // console.log('objects: ', objects)
+
+        objects.data.forEach((object) => {
+          const fields = object.parsedJson
+          if (fields) {
             allPools.push({
-              poolAddress: fields.id,
+              poolAddress: fields.pool_id,
               tickSpacing: fields.tick_spacing,
               coinTypeA: extractStructTagFromType(fields.coin_type_a).full_address,
               coinTypeB: extractStructTagFromType(fields.coin_type_b).full_address,
@@ -326,7 +352,7 @@ export class ResourcesModule implements IModule {
         continue
       }
       if (!hasassignPools) {
-        const itemIndex = Number(index)
+        const itemIndex = index
         if (itemIndex < offset || itemIndex >= offset + limit) {
           continue
         }
@@ -338,17 +364,23 @@ export class ResourcesModule implements IModule {
 
   async getPools(assignPools: string[] = [], offset = 0, limit = 100): Promise<Pool[]> {
     const allPool: Pool[] = []
-    const poolObjectIds: string[] = []
+    let poolObjectIds: string[] = []
 
     if (assignPools.length > 0) {
-      poolObjectIds.push(...poolObjectIds)
+      poolObjectIds = [...assignPools]
     } else {
       const poolImmutables = await this.getPoolImmutables([], offset, limit, false)
       poolImmutables.forEach((item) => {
         poolObjectIds.push(item.poolAddress)
       })
     }
-    const objectDataResponses = await this.sdk.fullClient.getObjectBatch(poolObjectIds)
+    const objectDataResponses = await this.sdk.fullClient.multiGetObjects({
+      ids: poolObjectIds,
+      options: {
+        showContent: true,
+        showType: true,
+      },
+    })
     // eslint-disable-next-line no-restricted-syntax
     for (const suiObj of objectDataResponses) {
       const pool = buildPool(suiObj)
@@ -366,69 +398,134 @@ export class ResourcesModule implements IModule {
     if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
       return cacheData.value as Pool
     }
-    const objects = (await this._sdk.fullClient.getObject(poolObjectId)) as GetObjectDataResponse
+    const objects = (await this._sdk.fullClient.getObject({
+      id: poolObjectId,
+      options: {
+        showType: true,
+        showContent: true,
+      },
+    })) as SuiObjectResponse
     const pool = buildPool(objects)
     this.updateCache(cacheKey, pool)
     return pool
   }
 
   async getPositionList(accountAddress: string, assignPoolIds: string[] = []): Promise<Position[]> {
-    const cetusClmm = this._sdk.sdkOptions.networkOptions.modules.cetus_clmm
+    const cetusClmm = this._sdk.sdkOptions.clmm.clmm_display
     const allPosition: Position[] = []
-    const ownerRes = await this._sdk.fullClient.getObjectsOwnedByAddress(accountAddress)
+    let cursor = null
 
-    const positionIds: string[] = []
-    ownerRes.forEach((item) => {
-      const type = extractStructTagFromType(item.type)
-      if (type.full_address === `${cetusClmm}::pool::Position`) {
-        positionIds.push(item.objectId)
-      }
-    })
+    while (true) {
+      // eslint-disable-next-line no-await-in-loop
+      const ownerRes: any = await this._sdk.fullClient.getOwnedObjects({
+        owner: accountAddress,
+        options: { showType: true, showContent: true, showDisplay: true },
+        cursor,
+        // filter: { Package: cetusClmm },
+      })
 
-    const hasAssignPoolIds = assignPoolIds.length > 0
-    const objectDataResponses = await this.sdk.fullClient.getObjectBatch(positionIds)
-    for (const suiObj of objectDataResponses) {
-      if (suiObj.status === 'Exists') {
-        const pool = buildPosition(suiObj)
-        if (hasAssignPoolIds) {
-          if (assignPoolIds.includes(pool.pool)) {
-            allPosition.push(pool)
+      const hasAssignPoolIds = assignPoolIds.length > 0
+      for (const item of ownerRes.data as any[]) {
+        const type = extractStructTagFromType(item.data.type)
+
+        if (type.full_address === `${cetusClmm}::position::Position`) {
+          const position = buildPosition(item)
+          const cacheKey = `${position.pos_object_id}_getPositionList`
+          this.updateCache(cacheKey, position, cacheTime24h)
+          if (hasAssignPoolIds) {
+            if (assignPoolIds.includes(position.pool)) {
+              allPosition.push(position)
+            }
+          } else {
+            allPosition.push(position)
           }
-        } else {
-          allPosition.push(pool)
         }
+      }
+
+      if (ownerRes.hasNextPage) {
+        cursor = ownerRes.nextCursor
+      } else {
+        break
       }
     }
 
     return allPosition
   }
 
-  async getPosition(positionId: string): Promise<Position | undefined> {
-    const objectDataResponses = await this.sdk.fullClient.getObject(positionId)
-    if (objectDataResponses.status === 'Exists') {
-      return buildPosition(objectDataResponses)
-    }
-    return undefined
+  async getPosition(positionHandle: string, positionId: string): Promise<Position> {
+    let position = await this.getSipmlePosition(positionId)
+    position = await this.updatePositionRewarders(positionHandle, position)
+    return position
   }
 
-  async getOwnerCoinAssets(suiAddress: string): Promise<CoinAsset[]> {
+  async getPositionById(positionId: string): Promise<Position> {
+    const position = await this.getSipmlePosition(positionId)
+    const pool = await this.getPool(position.pool, false)
+    const result = await this.updatePositionRewarders(pool.positions_handle, position)
+    return result
+  }
+
+  async getSipmlePosition(positionId: string): Promise<Position> {
+    const cacheKey = `${positionId}_getPositionList`
+    const cacheData = this._cache[cacheKey]
+    let position: Position | null = null
+    if (cacheData !== undefined && cacheData.getCacheData()) {
+      position = cacheData.value as Position
+    }
+
+    if (position === null) {
+      const objectDataResponses = await this.sdk.fullClient.getObject({
+        id: positionId,
+        options: { showContent: true, showType: true, showDisplay: true },
+      })
+      position = buildPosition(objectDataResponses)
+    }
+    return position
+  }
+
+  private async updatePositionRewarders(positionHandle: string, position: Position): Promise<Position> {
+    // const res = await sdk.fullClient.getDynamicFields({parentId: "0x70aca04c93afb16bbe8e7cf132aaa40186e4b3e8197aa239619f662e3eb46a3a"})
+    const res = await this._sdk.fullClient.getDynamicFieldObject({
+      parentId: positionHandle,
+      name: {
+        type: '0x2::object::ID',
+        value: position.pos_object_id,
+      },
+    })
+    const fields = (getObjectFields(res.data as any) as any).value.fields.value
+    return buildPositionReward(fields, position)
+  }
+
+  async getOwnerCoinAssets(suiAddress: string, coinType?: string | null): Promise<CoinAsset[]> {
     const allCoinAsset: CoinAsset[] = []
     let nextCursor: string | null = null
 
     while (true) {
       // eslint-disable-next-line no-await-in-loop
-      const allCoinObject: PaginatedCoins = await this._sdk.fullClient.getAllCoins(suiAddress, nextCursor, null)
+      const allCoinObject: PaginatedCoins = await (coinType
+        ? this._sdk.fullClient.getCoins({
+            owner: suiAddress,
+            coinType,
+            cursor: nextCursor,
+          })
+        : this._sdk.fullClient.getAllCoins({
+            owner: suiAddress,
+            cursor: nextCursor,
+          }))
+
       // eslint-disable-next-line no-loop-func
-      allCoinObject.data.forEach((coin) => {
-        allCoinAsset.push({
-          coinAddress: coin.coinType,
-          coinObjectId: coin.coinObjectId,
-          balance: BigInt(coin.balance),
-        })
+      allCoinObject.data.forEach((coin: any) => {
+        if (BigInt(coin.balance) > 0) {
+          allCoinAsset.push({
+            coinAddress: extractStructTagFromType(coin.coinType).source_address,
+            coinObjectId: coin.coinObjectId,
+            balance: BigInt(coin.balance),
+          })
+        }
       })
       nextCursor = allCoinObject.nextCursor
 
-      if (nextCursor === null) {
+      if (!allCoinObject.hasNextPage) {
         break
       }
     }
@@ -437,20 +534,23 @@ export class ResourcesModule implements IModule {
 
   async getSuiObjectOwnedByAddress(suiAddress: string): Promise<WarpSuiObject[]> {
     const allSuiObjects: WarpSuiObject[] = []
-    const allObjectRefs = await this._sdk.fullClient.getObjectsOwnedByAddress(suiAddress)
+    const allObjectRefs = await this._sdk.fullClient.getOwnedObjects({
+      owner: suiAddress,
+    })
 
-    const objectIDs = allObjectRefs.map((anObj) => anObj.objectId)
-    const allObjRes = await this._sdk.fullClient.getObjectBatch(objectIDs)
+    const objectIDs = allObjectRefs.data.map((anObj: any) => anObj.objectId)
+    const allObjRes = await this._sdk.fullClient.multiGetObjects({
+      ids: objectIDs,
+    })
     allObjRes.forEach((objRes) => {
-      const suiObj = getObjectExistsResponse(objRes)
-      if (suiObj) {
-        const moveObject = suiObj.data as SuiMoveObject
+      const moveObject = getMoveObject(objRes)
+      if (moveObject) {
         const coinAddress = CoinAssist.getCoinTypeArg(moveObject) as SuiAddressType
         const balance = Coin.getBalance(moveObject) as unknown as number
         const coinAsset: WarpSuiObject = {
           coinAddress,
           balance,
-          ...suiObj,
+          ...moveObject,
         }
         allSuiObjects.push(coinAsset)
       }

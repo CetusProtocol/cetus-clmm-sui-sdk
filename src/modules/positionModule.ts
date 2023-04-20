@@ -1,8 +1,13 @@
+/* eslint-disable no-bitwise */
+/* eslint-disable no-plusplus */
 /* eslint-disable camelcase */
 /* eslint-disable no-nested-ternary */
 /* eslint-disable class-methods-use-this */
-import { MoveCallTransaction } from '@mysten/sui.js'
-import { ClmmIntegrateModule, GasBudget, LiquidityGasBudget, SuiAddressType, SuiObjectIdType } from '../types/sui'
+import BN from 'bn.js'
+import { TransactionBlock } from '@mysten/sui.js'
+import { asUintN } from '../utils'
+import { findAdjustCoin, TransactionUtil } from '../utils/transaction-util'
+import { ClmmIntegrateModule, CLOCK_ADDRESS, SuiAddressType, SuiObjectIdType } from '../types/sui'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { CoinPairType } from './resourcesModule'
@@ -16,6 +21,7 @@ export type AddLiquidityFixTokenParams = {
   amount_a: number | string
   amount_b: number | string
   fix_amount_a: boolean
+  is_open: boolean // control whether or not to create a new position or add liquidity on existed position.
 } & AddLiquidityCommonParams
 
 export type AddLiquidityParams = {
@@ -25,11 +31,8 @@ export type AddLiquidityParams = {
 } & AddLiquidityCommonParams
 
 export type AddLiquidityCommonParams = {
-  coin_object_ids_a: SuiObjectIdType[]
-  coin_object_ids_b: SuiObjectIdType[]
   tick_lower: string | number
   tick_upper: string | number
-  is_open: boolean // control whether or not to create a new position or add liquidity on existed position.
 } & CoinPairType &
   CommonParams
 
@@ -40,19 +43,19 @@ export type OpenPositionParams = {
 } & CoinPairType
 
 export type RemoveLiquidityParams = {
-  coin_types: SuiAddressType[]
   delta_liquidity: string
   min_amount_a: string
   min_amount_b: string
-} & CommonParams
+  collect_fee: boolean
+} & CommonParams &
+  CoinPairType
 
-export type RemoveLiquidityAndCloseParams = {
-  coin_types: SuiAddressType[]
+export type ClosePositionParams = {
+  rewarder_coin_types: SuiAddressType[]
   min_amount_a: string
   min_amount_b: string
-} & CommonParams
-
-export type ClosePositionParams = CommonParams & CoinPairType
+} & CoinPairType &
+  CommonParams
 
 export type CollectFeeParams = CommonParams & CoinPairType
 
@@ -67,139 +70,180 @@ export class PositionModule implements IModule {
     return this._sdk
   }
 
-  createAddLiquidityTransactionPayload(
+  /**
+   * create add liquidity transaction payload
+   * @param params
+   * @param gasEstimateArg : When the fix input amount is SUI, gasEstimateArg can control whether to recalculate the number of SUI to prevent insufficient gas.
+   * If this parameter is not passed, gas estimation is not performed
+   * @returns
+   */
+  async createAddLiquidityTransactionPayload(
     params: AddLiquidityParams | AddLiquidityFixTokenParams,
-    gasBudget = LiquidityGasBudget
-  ): MoveCallTransaction {
-    const { modules } = this.sdk.sdkOptions.networkOptions
-
-    if (params.coin_object_ids_a.length === 0) {
-      throw Error('this coin_object_ids_a is empty')
+    gasEstimateArg?: {
+      slippage: number
+      curSqrtPrice: BN
     }
-
-    if (params.coin_object_ids_b.length === 0) {
-      throw Error('this coin_object_ids_a is empty')
+  ): Promise<TransactionBlock> {
+    if (this._sdk.senderAddress.length === 0) {
+      throw Error('this config sdk senderAddress is empty')
     }
+    const allCoinAsset = await this._sdk.Resources.getOwnerCoinAssets(this._sdk.senderAddress)
 
     const isFixToken = !('delta_liquidity' in params)
-    const isOpen = params.is_open
 
-    const functionName = isFixToken
-      ? isOpen
-        ? 'open_and_add_liquidity_fix_token'
-        : 'add_liquidity_fix_token'
-      : isOpen
-      ? 'open_and_add_liquidity'
-      : 'add_liquidity'
-    const typeArguments = [params.coinTypeA, params.coinTypeB]
-    const tick_lower = BigInt.asUintN(64, BigInt(params.tick_lower)).toString()
-    const tick_upper = BigInt.asUintN(64, BigInt(params.tick_upper)).toString()
-    const args = isFixToken
-      ? isOpen
-        ? [
-            params.pool_id,
-            params.coin_object_ids_a,
-            params.coin_object_ids_b,
-            tick_lower,
-            tick_upper,
-            params.amount_a.toString(),
-            params.amount_b.toString(),
-            params.fix_amount_a,
-          ]
-        : [
-            params.pool_id,
-            params.pos_id,
-            params.coin_object_ids_a,
-            params.coin_object_ids_b,
-            params.amount_a.toString(),
-            params.amount_b.toString(),
-            params.fix_amount_a,
-          ]
-      : isOpen
-      ? [params.pool_id, params.coin_object_ids_a, params.coin_object_ids_b, tick_lower, tick_upper, params.delta_liquidity]
-      : [params.pool_id, params.pos_id, params.coin_object_ids_a, params.coin_object_ids_b, params.delta_liquidity]
-
-    return {
-      packageObjectId: modules.cetus_integrate,
-      module: ClmmIntegrateModule,
-      function: functionName,
-      gasBudget,
-      typeArguments,
-      arguments: args,
+    if (gasEstimateArg) {
+      const { isAdjustCoinA, isAdjustCoinB } = findAdjustCoin(params)
+      if (isFixToken) {
+        params = params as AddLiquidityFixTokenParams
+        if ((params.fix_amount_a && isAdjustCoinA) || (!params.fix_amount_a && isAdjustCoinB)) {
+          const tx = await TransactionUtil.buildAddLiquidityTransactionForGas(this._sdk, allCoinAsset, params, gasEstimateArg)
+          return tx
+        }
+      }
     }
+
+    return TransactionUtil.buildAddLiquidityTransaction(this._sdk, allCoinAsset, params)
   }
 
-  removeLiquidityTransactionPayload(
-    params: RemoveLiquidityParams | RemoveLiquidityAndCloseParams,
-    gasBudget = LiquidityGasBudget
-  ): MoveCallTransaction {
-    const { modules } = this.sdk.sdkOptions.networkOptions
+  /**
+   * Remove liquidity from a position.
+   * @param params
+   * @param gasBudget
+   * @returns
+   */
+  removeLiquidityTransactionPayload(params: RemoveLiquidityParams): TransactionBlock {
+    const { clmm } = this.sdk.sdkOptions
 
-    const onlyRemoveLiquidity = 'delta_liquidity' in params
-    let functionName = 'remove_liquidity'
-    const functionNameArray = ['remove_position', 'remove_position_for_one', 'remove_position_for_two', 'remove_position_for_three']
+    const functionName = 'remove_liquidity'
 
-    if (!onlyRemoveLiquidity) {
-      functionName = functionNameArray[params.coin_types.length - 2]
-    }
-
-    const typeArguments = [...params.coin_types]
-    const args = onlyRemoveLiquidity
-      ? [params.pool_id, params.pos_id, params.delta_liquidity, params.min_amount_a, params.min_amount_b]
-      : [params.pool_id, params.pos_id, params.min_amount_a, params.min_amount_b]
-    return {
-      packageObjectId: modules.cetus_integrate,
-      module: ClmmIntegrateModule,
-      function: functionName,
-      gasBudget,
-      typeArguments,
-      arguments: args,
-    }
-  }
-
-  closePositionTransactionPayload(params: ClosePositionParams, gasBudget = GasBudget): MoveCallTransaction {
-    const { modules } = this.sdk.sdkOptions.networkOptions
+    const tx = new TransactionBlock()
+    tx.setGasBudget(this._sdk.gasConfig.GasBudgetHigh2)
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
-    const args = [params.pool_id, params.pos_id]
-    return {
-      packageObjectId: modules.cetus_integrate,
-      module: ClmmIntegrateModule,
-      function: 'close_position',
-      gasBudget,
+
+    if (params.collect_fee) {
+      tx.moveCall({
+        target: `${clmm.clmm_router}::${ClmmIntegrateModule}::collect_fee`,
+        typeArguments,
+        arguments: [tx.object(clmm.config.global_config_id), tx.object(params.pool_id), tx.object(params.pos_id)],
+      })
+    }
+
+    const args = [
+      tx.object(clmm.config.global_config_id),
+      tx.object(params.pool_id),
+      tx.object(params.pos_id),
+      tx.pure(params.delta_liquidity),
+      tx.pure(params.min_amount_a),
+      tx.pure(params.min_amount_b),
+      tx.object(CLOCK_ADDRESS),
+    ]
+
+    tx.moveCall({
+      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::${functionName}`,
       typeArguments,
       arguments: args,
-    }
+    })
+
+    return tx
   }
 
-  openPositionTransactionPayload(params: OpenPositionParams, gasBudget = GasBudget): MoveCallTransaction {
-    const { modules } = this.sdk.sdkOptions.networkOptions
+  /**
+   * Close position and remove all liquidity and collect_reward
+   * @param params
+   * @param gasBudget
+   * @returns
+   */
+
+  closePositionTransactionPayload(params: ClosePositionParams): TransactionBlock {
+    const { clmm } = this.sdk.sdkOptions
+
+    const tx = new TransactionBlock()
+    tx.setGasBudget(this._sdk.gasConfig.GasBudgetHigh2)
+
     const typeArguments = [params.coinTypeA, params.coinTypeB]
-    const tick_lower = BigInt.asUintN(64, BigInt(params.tick_lower)).toString()
-    const tick_upper = BigInt.asUintN(64, BigInt(params.tick_upper)).toString()
-    const args = [params.pool_id, tick_lower, tick_upper]
-    return {
-      packageObjectId: modules.cetus_integrate,
-      module: ClmmIntegrateModule,
-      function: 'open_position',
-      gasBudget,
+
+    tx.moveCall({
+      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::collect_fee`,
       typeArguments,
-      arguments: args,
-    }
+      arguments: [tx.object(clmm.config.global_config_id), tx.object(params.pool_id), tx.object(params.pos_id)],
+    })
+
+    params.rewarder_coin_types.forEach((type) => {
+      tx.moveCall({
+        target: `${clmm.clmm_router}::${ClmmIntegrateModule}::collect_reward`,
+        typeArguments: [...typeArguments, type],
+        arguments: [
+          tx.object(clmm.config.global_config_id),
+          tx.object(params.pool_id),
+          tx.object(params.pos_id),
+          tx.object(clmm.config.global_vault_id),
+          tx.object(CLOCK_ADDRESS),
+        ],
+      })
+    })
+
+    tx.moveCall({
+      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::close_position`,
+      typeArguments,
+      arguments: [
+        tx.object(clmm.config.global_config_id),
+        tx.object(params.pool_id),
+        tx.object(params.pos_id),
+        tx.pure(params.min_amount_a),
+        tx.pure(params.min_amount_b),
+        tx.object(CLOCK_ADDRESS),
+      ],
+    })
+
+    return tx
   }
 
-  collectFeeTransactionPayload(params: CollectFeeParams, gasBudget = GasBudget): MoveCallTransaction {
-    const { modules } = this.sdk.sdkOptions.networkOptions
+  /**
+   * Open position in clmmpool.
+   * @param params
+   * @returns
+   */
+  openPositionTransactionPayload(params: OpenPositionParams): TransactionBlock {
+    const { clmm } = this.sdk.sdkOptions
+
+    const tx = new TransactionBlock()
+    tx.setGasBudget(this._sdk.gasConfig.GasBudgetHigh)
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
-    const args = [params.pool_id, params.pos_id]
-    return {
-      packageObjectId: modules.cetus_integrate,
-      module: ClmmIntegrateModule,
-      function: 'collect_fee',
-      gasBudget,
+    const tick_lower = asUintN(BigInt(params.tick_lower)).toString()
+    const tick_upper = asUintN(BigInt(params.tick_upper)).toString()
+    const args = [tx.pure(clmm.config.global_config_id), tx.pure(params.pool_id), tx.pure(tick_lower), tx.pure(tick_upper)]
+
+    tx.moveCall({
+      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::open_position`,
       typeArguments,
       arguments: args,
-    }
+    })
+
+    return tx
+  }
+
+  /**
+   * Collect LP fee from Position.
+   * @param params
+   * @returns
+   */
+  collectFeeTransactionPayload(params: CollectFeeParams): TransactionBlock {
+    const { clmm } = this.sdk.sdkOptions
+
+    const tx = new TransactionBlock()
+    tx.setGasBudget(this._sdk.gasConfig.GasBudgetLow)
+
+    const typeArguments = [params.coinTypeA, params.coinTypeB]
+    const args = [tx.object(clmm.config.global_config_id), tx.pure(params.pool_id), tx.pure(params.pos_id)]
+
+    tx.moveCall({
+      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::collect_fee`,
+      typeArguments,
+      arguments: args,
+    })
+
+    return tx
   }
 }

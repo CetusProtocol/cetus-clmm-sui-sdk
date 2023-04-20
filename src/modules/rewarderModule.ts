@@ -1,11 +1,13 @@
+/* eslint-disable no-bitwise */
+/* eslint-disable no-plusplus */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable camelcase */
 import BN from 'bn.js'
-import { MoveCallTransaction } from '@mysten/sui.js'
+import { TransactionBlock } from '@mysten/sui.js'
+import { ClmmIntegrateModule, SuiAddressType, SuiObjectIdType, CLOCK_ADDRESS } from '../types/sui'
 import { getRewardInTickRange } from '../utils/tick'
-import { SuiObjectIdType, SuiAddressType, GasBudget, ClmmIntegrateModule } from '../types/sui'
 import { MathUtil, ZERO } from '../math/utils'
-import { Pool, Position } from './resourcesModule'
+import { CoinPairType, Pool, Position } from './resourcesModule'
 import { TickData } from '../types/clmmpool'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
@@ -13,8 +15,9 @@ import { IModule } from '../interfaces/IModule'
 export type CollectRewarderParams = {
   pool_id: SuiObjectIdType
   pos_id: SuiObjectIdType
-  coinType: SuiAddressType[]
-}
+  collect_fee: boolean //
+  rewarder_coin_types: SuiAddressType[]
+} & CoinPairType
 
 export class RewarderModule implements IModule {
   protected _sdk: SDK
@@ -43,7 +46,7 @@ export class RewarderModule implements IModule {
       const emissionSeconds = MathUtil.fromX64(new BN(rewarderInfo.emissions_per_second))
       emissionsEveryDay.push({
         emissions: Math.floor(emissionSeconds.toNumber() * 60 * 60 * 24),
-        coin_address: rewarderInfo.coin_name,
+        coin_address: rewarderInfo.coinAddress,
       })
     }
 
@@ -76,10 +79,10 @@ export class RewarderModule implements IModule {
     return currentPool
   }
 
-  async posRewardersAmount(poolObjectId: string, positionId: string) {
+  async posRewardersAmount(poolObjectId: string, positionHandle: string, positionId: string) {
     const currentTime = Date.parse(new Date().toString())
     const pool: Pool = await this.updatePoolRewarder(poolObjectId, new BN(currentTime))
-    const position = await this.sdk.Resources.getPosition(positionId)
+    const position = await this.sdk.Resources.getPosition(positionHandle, positionId)
 
     if (position === undefined) {
       return []
@@ -114,8 +117,8 @@ export class RewarderModule implements IModule {
   }
 
   private posRewardersAmountInternal(pool: Pool, position: Position, tickLower: TickData, tickUpper: TickData) {
-    const tickLowerIndex = parseInt(position.tick_lower_index, 10)
-    const tickUpperIndex = parseInt(position.tick_upper_index, 10)
+    const tickLowerIndex = position.tick_lower_index
+    const tickUpperIndex = position.tick_upper_index
     const rewardersInside = getRewardInTickRange(pool, tickLower, tickUpper, tickLowerIndex, tickUpperIndex, this.growthGlobal)
 
     const growthInside = []
@@ -127,7 +130,7 @@ export class RewarderModule implements IModule {
       growthInside.push(rewardersInside[0])
       AmountOwed.push({
         amount_owed: new BN(position.reward_amount_owed_0).add(amountOwed_0),
-        coin_address: pool.rewarder_infos[0].coin_name,
+        coin_address: pool.rewarder_infos[0].coinAddress,
       })
     }
 
@@ -139,7 +142,7 @@ export class RewarderModule implements IModule {
 
       AmountOwed.push({
         amount_owed: new BN(position.reward_amount_owed_1).add(amountOwed_1),
-        coin_address: pool.rewarder_infos[1].coin_name,
+        coin_address: pool.rewarder_infos[1].coinAddress,
       })
     }
 
@@ -149,7 +152,7 @@ export class RewarderModule implements IModule {
       growthInside.push(rewardersInside[2])
       AmountOwed.push({
         amount_owed: new BN(position.reward_amount_owed_2).add(amountOwed_2),
-        coin_address: pool.rewarder_infos[2].coin_name,
+        coin_address: pool.rewarder_infos[2].coinAddress,
       })
     }
     return AmountOwed
@@ -169,20 +172,34 @@ export class RewarderModule implements IModule {
     return [lowerTicks, upperTicks]
   }
 
-  collectRewarderTransactionPayload(params: CollectRewarderParams, gasBudget = GasBudget): MoveCallTransaction {
-    const { modules } = this.sdk.sdkOptions.networkOptions
-    const functionNames = ['collect_rewarder', 'collect_rewarder_for_two', 'collect_rewarder_for_three']
+  /**
+   * Collect rewards from Position.
+   * @param params
+   * @param gasBudget
+   * @returns
+   */
+  collectRewarderTransactionPayload(params: CollectRewarderParams): TransactionBlock {
+    const { clmm } = this.sdk.sdkOptions
 
-    const typeArguments = [...params.coinType]
+    const typeArguments = [params.coinTypeA, params.coinTypeB, ...params.rewarder_coin_types]
 
-    const args = [params.pool_id, params.pos_id]
-    return {
-      packageObjectId: modules.cetus_integrate,
-      module: ClmmIntegrateModule,
-      function: functionNames[params.coinType.length - 2],
-      gasBudget,
-      typeArguments,
-      arguments: args,
-    }
+    const tx = new TransactionBlock()
+    tx.setGasBudget(this._sdk.gasConfig.GasBudgetLow)
+
+    params.rewarder_coin_types.forEach((type) => {
+      tx.moveCall({
+        target: `${clmm.clmm_router}::${ClmmIntegrateModule}::collect_reward`,
+        typeArguments: [...typeArguments, type],
+        arguments: [
+          tx.object(clmm.config.global_config_id),
+          tx.object(params.pool_id),
+          tx.object(params.pos_id),
+          tx.object(clmm.config.global_vault_id),
+          tx.pure(CLOCK_ADDRESS),
+        ],
+      })
+    })
+
+    return tx
   }
 }

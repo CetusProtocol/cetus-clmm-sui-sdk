@@ -1,8 +1,11 @@
+/* eslint-disable camelcase */
 import BN from 'bn.js'
-import { MoveCallTransaction } from '@mysten/sui.js'
+import { TransactionBlock } from '@mysten/sui.js'
+import { Percentage } from '../math'
+import { findAdjustCoin, TransactionUtil } from '../utils/transaction-util'
 import { extractStructTagFromType } from '../utils/contracts'
-import { ClmmFetcherModule, ClmmIntegrateModule, LiquidityGasBudget, SuiObjectIdType } from '../types/sui'
-import { TickData, ClmmpoolData } from '../types/clmmpool'
+import { ClmmFetcherModule, SuiObjectIdType } from '../types/sui'
+import { TickData, transClmmpoolDataWithoutTicks } from '../types/clmmpool'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { CachedContent } from '../utils/cachedContent'
@@ -44,12 +47,11 @@ export type CalculateRatesResult = {
 
 export type SwapParams = {
   pool_id: SuiObjectIdType
-  coin_object_ids_a: SuiObjectIdType[]
-  coin_object_ids_b: SuiObjectIdType[]
   a2b: boolean
   by_amount_in: boolean
   amount: string
   amount_limit: string
+  swap_partner?: string
 } & CoinPairType
 
 export type PreSwapParams = {
@@ -76,35 +78,31 @@ export class SwapModule implements IModule {
   }
 
   async preswap(params: PreSwapParams) {
-    const { modules, simulationAccount } = this.sdk.sdkOptions.networkOptions
+    const { clmm, simulationAccount } = this.sdk.sdkOptions
+
+    const tx = new TransactionBlock()
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
-    const args = [params.pool.poolAddress, params.a2b, params.by_amount_in, params.amount]
+    const args = [tx.pure(params.pool.poolAddress), tx.pure(params.a2b), tx.pure(params.by_amount_in), tx.pure(params.amount)]
 
-    const payload = {
-      packageObjectId: modules.cetus_integrate,
-      module: ClmmFetcherModule,
-      function: 'calculate_swap_result',
-      typeArguments,
+    tx.moveCall({
+      target: `${clmm.clmm_router}::${ClmmFetcherModule}::calculate_swap_result`,
       arguments: args,
-    }
-    const simulateRes = await this.sdk.fullClient.devInspectTransaction(simulationAccount.address, {
-      kind: 'moveCall',
-      data: payload,
+      typeArguments,
+    })
+    const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: simulationAccount.address,
     })
 
-    console.log('preswap###simulateRes####', simulateRes)
-
-    const valueData: any = simulateRes.effects.events?.filter((item) => {
-      if ('moveEvent' in item) {
-        return extractStructTagFromType(item.moveEvent.type).name === `CalculatedSwapResultEvent`
-      }
-      return false
+    const valueData: any = simulateRes.events?.filter((item: any) => {
+      return extractStructTagFromType(item.type).name === `CalculatedSwapResultEvent`
     })
     if (valueData.length === 0) {
       return null
     }
-    return this.transformSwapData(params, valueData[0].moveEvent.fields.data.fields)
+    // console.log('preswap###simulateRes####', valueData[0])
+    return this.transformSwapData(params, valueData[0].parsedJson.data)
   }
 
   // eslint-disable-next-line class-methods-use-this
@@ -130,31 +128,16 @@ export class SwapModule implements IModule {
   /* eslint-disable class-methods-use-this */
   calculateRates(params: CalculateRatesParams): CalculateRatesResult {
     const { currentPool } = params
-    const poolData: ClmmpoolData = {
-      coinA: currentPool.coinTypeA, // string
-      coinB: currentPool.coinTypeB, // string
-      currentSqrtPrice: new BN(currentPool.current_sqrt_price), // BN
-      currentTickIndex: Number(currentPool.current_tick_index), // number
-      feeGrowthGlobalA: new BN(currentPool.fee_growth_global_a), // BN
-      feeGrowthGlobalB: new BN(currentPool.fee_growth_global_b), // BN
-      feeProtocolCoinA: new BN(currentPool.fee_protocol_coin_a), // BN
-      feeProtocolCoinB: new BN(currentPool.fee_protocol_coin_b), // BN
-      feeRate: new BN(currentPool.fee_rate), // number
-      liquidity: new BN(currentPool.liquidity), // BN
-      tickIndexes: [], // number[]
-      tickSpacing: Number(currentPool.tickSpacing), // number
-      ticks: [], // Array<TickData>
-      collection_name: '',
-    }
+    const poolData = transClmmpoolDataWithoutTicks(currentPool)
 
     let ticks
     if (params.a2b) {
       ticks = params.swapTicks.sort((a, b) => {
-        return Number(b.index) - Number(a.index)
+        return b.index - a.index
       })
     } else {
       ticks = params.swapTicks.sort((a, b) => {
-        return Number(a.index) - Number(b.index)
+        return a.index - b.index
       })
     }
 
@@ -162,8 +145,10 @@ export class SwapModule implements IModule {
 
     let isExceed = false
     if (params.byAmountIn) {
+      console.log(swapResult.amountIn.toString(), params.amount.toString(), params.byAmountIn)
       isExceed = swapResult.amountIn.lt(params.amount)
     } else {
+      console.log(swapResult.amountOut.toString(), params.amount.toString(), params.byAmountIn)
       isExceed = swapResult.amountOut.lt(params.amount)
     }
     const sqrtPriceLimit = SwapUtils.getDefaultSqrtPriceLimit(params.a2b)
@@ -203,33 +188,38 @@ export class SwapModule implements IModule {
     }
   }
 
-  createSwapTransactionPayload(params: SwapParams, gasBudget = LiquidityGasBudget): MoveCallTransaction {
-    const { modules } = this.sdk.sdkOptions.networkOptions
-    const sqrtPriceLimit = SwapUtils.getDefaultSqrtPriceLimit(params.a2b)
-    const typeArguments = [params.coinTypeA, params.coinTypeB]
+  /**
+   * create swap transaction payload
+   * @param params
+   * @param gasEstimateArg When the fix input amount is SUI, gasEstimateArg can control whether to recalculate the number of SUI to prevent insufficient gas.
+   * If this parameter is not passed, gas estimation is not performed
+   * @returns
+   */
+  async createSwapTransactionPayload(
+    params: SwapParams,
+    gasEstimateArg?: {
+      byAmountIn: boolean
+      slippage: Percentage
+      decimalsA: number
+      decimalsB: number
+      swapTicks: Array<TickData>
+      currentPool: Pool
+    }
+  ): Promise<TransactionBlock> {
+    if (this._sdk.senderAddress.length === 0) {
+      throw Error('this config sdk senderAddress is empty')
+    }
+    const allCoinAsset = await this._sdk.Resources.getOwnerCoinAssets(this._sdk.senderAddress)
 
-    if (modules.swap_partner.length === 0) {
-      throw Error('Please configure swap_partner')
+    if (gasEstimateArg) {
+      const { isAdjustCoinA, isAdjustCoinB } = findAdjustCoin(params)
+
+      if ((params.a2b && isAdjustCoinA) || (!params.a2b && isAdjustCoinB)) {
+        const tx = await TransactionUtil.buildSwapTransactionForGas(this._sdk, params, allCoinAsset, gasEstimateArg)
+        return tx
+      }
     }
 
-    const args = [
-      params.pool_id,
-      modules.swap_partner,
-      params.coin_object_ids_a,
-      params.coin_object_ids_b,
-      params.a2b,
-      params.by_amount_in,
-      params.amount,
-      params.amount_limit,
-      sqrtPriceLimit.toString(),
-    ]
-    return {
-      packageObjectId: modules.cetus_integrate,
-      module: ClmmIntegrateModule,
-      function: 'swap_with_partner',
-      gasBudget,
-      typeArguments,
-      arguments: args,
-    }
+    return TransactionUtil.buildSwapTransaction(this.sdk, params, allCoinAsset)
   }
 }

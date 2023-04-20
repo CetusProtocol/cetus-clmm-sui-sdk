@@ -1,10 +1,11 @@
 /* eslint-disable camelcase */
 import BN from 'bn.js'
+import { Pool } from '../modules/resourcesModule'
 import { ZERO } from '../math/utils'
 
 export type TickData = {
   objectId: string
-  index: string
+  index: number
   sqrtPrice: BN
   liquidityNet: BN
   liquidityGross: BN
@@ -42,6 +43,26 @@ export type ClmmpoolData = {
   tickSpacing: number
   ticks: Array<TickData>
   collection_name: string
+}
+
+export function transClmmpoolDataWithoutTicks(pool: Pool): ClmmpoolData {
+  const poolData: ClmmpoolData = {
+    coinA: pool.coinTypeA, // string
+    coinB: pool.coinTypeB, // string
+    currentSqrtPrice: new BN(pool.current_sqrt_price), // BN
+    currentTickIndex: pool.current_tick_index, // number
+    feeGrowthGlobalA: new BN(pool.fee_growth_global_a), // BN
+    feeGrowthGlobalB: new BN(pool.fee_growth_global_b), // BN
+    feeProtocolCoinA: new BN(pool.fee_protocol_coin_a), // BN
+    feeProtocolCoinB: new BN(pool.fee_protocol_coin_b), // BN
+    feeRate: new BN(pool.fee_rate), // number
+    liquidity: new BN(pool.liquidity), // BN
+    tickIndexes: [], // number[]
+    tickSpacing: Number(pool.tickSpacing), // number
+    ticks: [], // Array<TickData>
+    collection_name: '',
+  }
+  return poolData
 }
 
 export function newBits(index: number | string): Bits {

@@ -48,7 +48,6 @@ export const netConfig = {
     faucetURL: 'https://faucet.devnet.sui.io/gas',
     cetusClmm: '0x8fe718e1028a7678c17a27cc1926ce7e0db0079e',
     cetusIntegrate: '0xa8b57964a0c4332b93916aa1f9b95a7c3a8849ce',
-    integerMate: '0xf3f6102dfcf5910d694408737126d84f74374f5e',
     swapPartner: '',// swap Partner Address
     TokenDeployer: '0x9690d7c1e03909cec38ec2fbf45d04d223af5840',
     faucetObjectId: '0xbc72e752c41d6788dae67576f5a01a923d846d4f',
@@ -83,7 +82,6 @@ const defaultNetworkOptions: SdkOptions = {
     modules: {
       cetus_clmm: sdkEnv.cetusClmm,
       cetus_integrate: sdkEnv.cetusIntegrate,
-      integer_mate: sdkEnv.integerMate,
       swap_partner: sdkEnv.swapPartner,
       config: {
         global_config_id: sdkEnv.initEventConfig.initConfigEvent.global_config_id,
@@ -292,8 +290,8 @@ const pool = await sdk.Resources.getPool(poolAddress)
 //  Fetch position data
 const position = await sdk.Resources.getPositionInfo(position_object_id)
 //  build position lowerTick and upperTick
-const lowerTick = Number(position.tick_lower_index)
-const upperTick = Number(position.tick_upper_index)
+const lowerTick = position.tick_lower_index
+const upperTick = position.tick_upper_index
 // fix input token amount
 const coinAmount = new BN(120000)
 // input token amount is token a
@@ -356,8 +354,8 @@ const pool = await sdk.Resources.getPool(poolAddress)
 // Fetch position data
 const position = await sdk.Resources.getPositionInfo(position_object_id)
 // build tick data
-const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(Number(position.tick_lower_index))
-const upperSqrtPrice = TickMath.tickIndexToSqrtPriceX64(Number(position.tick_upper_index))
+const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_lower_index)
+const upperSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_upper_index)
 const ticksHandle = pool.ticks_handle
 const tickLower = await sdk.Resources.getTickDataByIndex(ticksHandle, position.tick_lower_index)
 const tickUpper = await sdk.Resources.getTickDataByIndex(ticksHandle, position.tick_upper_index)

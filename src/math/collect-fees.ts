@@ -1,6 +1,5 @@
 /* eslint-disable camelcase */
 import BN from 'bn.js'
-import { d } from '../utils/numbers'
 import { Pool, Position } from '../modules/resourcesModule'
 import { TickData } from '../types/clmmpool'
 import { MathUtil } from './utils'
@@ -27,7 +26,7 @@ function getFeeInTickRange(clmmpool: Pool, tickLower: TickData, tickUpper: TickD
   let fee_growth_below_a = new BN(0)
   let fee_growth_below_b = new BN(0)
 
-  if (Number(clmmpool.current_tick_index) < Number(tickLower.index)) {
+  if (clmmpool.current_tick_index < tickLower.index) {
     fee_growth_below_a = MathUtil.subUnderflowU128(new BN(clmmpool.fee_growth_global_a), new BN(tickLower.feeGrowthOutsideA))
     fee_growth_below_b = MathUtil.subUnderflowU128(new BN(clmmpool.fee_growth_global_b), new BN(tickLower.feeGrowthOutsideB))
   } else {
@@ -38,7 +37,7 @@ function getFeeInTickRange(clmmpool: Pool, tickLower: TickData, tickUpper: TickD
   let fee_growth_above_a = new BN(0)
   let fee_growth_above_b = new BN(0)
 
-  if (Number(clmmpool.current_tick_index) < Number(tickUpper.index)) {
+  if (clmmpool.current_tick_index < tickUpper.index) {
     fee_growth_above_a = new BN(tickUpper.feeGrowthOutsideA)
     fee_growth_above_b = new BN(tickUpper.feeGrowthOutsideB)
   } else {

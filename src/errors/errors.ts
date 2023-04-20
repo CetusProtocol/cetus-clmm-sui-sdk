@@ -27,7 +27,11 @@ export enum SwapErrorCode {
   TickArrayIndexNotInitialized = `TickArrayIndexNotInitialized`,
 }
 
-export type ClmmpoolsErrorCode = MathErrorCode | SwapErrorCode | CoinErrorCode
+export enum PoolErrorCode {
+  InvalidCoinTypeSequence = `InvalidCoinTypeSequence`,
+}
+
+export type ClmmpoolsErrorCode = MathErrorCode | SwapErrorCode | CoinErrorCode | PoolErrorCode
 
 export class ClmmpoolsError extends Error {
   override message: string
