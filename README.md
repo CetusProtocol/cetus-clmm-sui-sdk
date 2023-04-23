@@ -15,50 +15,82 @@ yarn add @cetusprotocol/cetus-sui-clmm-sdk
 
 #### 1.SDK configuration parameters
 
-- swapPartner : Contact the platform to apply  [Apply](https://forms.gle/xvVzKenWVnWSmTrs7)
-
 - The contract address available for reference [config.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/data/config.ts).
 
 ```bash
 const SDKConfig = {
   devnet:  {
-      initEventConfig:  {
-        initFactoryEvent: { pools_id: '0x6bdca4fa2c6afac9638e5f9755ccdcbe413a833c' },
-        initPartnerEvent: { partners_id: '0x59c9d39e7d8b628bb54eadf8cbf49d9a296eeee8' },
-        initConfigEvent: {
-          admin_cap_id: '0x19a2872ce65e79285adf54d807e54a9798e7ce5f',
-          global_config_id: '0xb8893bbf6a5509cf6ee09fd28a89320a203f6c49',
-          protocol_fee_claim_cap_id: '0x2db9a2420b7907f684f721edd79150417f525545'
-        }
-      },
-      tokenConfig: {
-        coin_registry_id: '0xa210baf82a5f29dcebb1a1941b024dee5f632db8',
-        pool_registry_id: '0xedd6e34dcb05d1c0e5f543e97901ec7987f9919b',
-        coin_list_owner: '0x5bd7e0182807d45dfc8d019da6cf3d2351771364',
-        pool_list_owner: '0x9aa924f25509decf440e5de98cefa4e0b65dd5bb'
-      }
+      // ...
   },
   testnet:  {
-   // ...
+    clmmConfig: {
+      pools_id: '0x67679ae85ea0f39f5c211330bb830f68aeccfbd0085f47f80fc27bef981cc678',
+      global_config_id: '0x28565a057d74e4c20d502002bdef5ecf8ff99e1bd9fc4dd11fe549c858ee99d7',
+      global_vault_id: '0x6d582d2fa147214d50a0e537084859403e96a3b4554e962d5e993ad5761251f4',
+    },
+    tokenConfig: {
+      coin_registry_id: '0x2cc70e515a70f3f953363febbab5e01027a25fc01b729d9de29df3db326cc302',
+      pool_registry_id: '0xfd15ad9a6493fc3ff6b2fc922daeda50bba3df760fda32e53382b7f8dbcbc133',
+      coin_list_owner: '0x44682678136f8e8b5a4ffbf9fe06a940b0ccbc9d46d9ae1a68aef2332c2e9cf1',
+      pool_list_owner: '0x494262448a7b8d07e6f00980b67f07a18432a5587d898c27651d18daa4c4c33f'
+    },
+    launchpadConfig: {
+      pools_id: '',
+      admin_cap_id: '',
+      config_cap_id: '',
+      lock_manager_id: ''
+    },
+    xcetusConfig: {
+      xcetus_manager_id: '',
+      lock_manager_id: '',
+      dividend_manager_id: ''
+    },
+    boosterConfig: {
+      booster_config_id: '',
+      booster_pool_handle: ''
+    }
   }
 }
 export const netConfig = {
   devnet: {
-    fullRpcUrl: 'https://fullnode.devnet.sui.io',
-    faucetURL: 'https://faucet.devnet.sui.io/gas',
-    cetusClmm: '0x8fe718e1028a7678c17a27cc1926ce7e0db0079e',
-    cetusIntegrate: '0xa8b57964a0c4332b93916aa1f9b95a7c3a8849ce',
-    swapPartner: '',// swap Partner Address
-    TokenDeployer: '0x9690d7c1e03909cec38ec2fbf45d04d223af5840',
-    faucetObjectId: '0xbc72e752c41d6788dae67576f5a01a923d846d4f',
-    initEventConfig: SDKConfig.devnet.initEventConfig,
-    tokenConfig: SDKConfig.devnet.tokenConfig,
-    simulationAccount: {
-      address: '0x3f6cfdcf7bc19e86693d3d0f261f56b6e8caff0d',
-    }
+    // ...
   },
   testnet: {
-   // ...
+    fullRpcUrl: 'https://fullnode.testnet.sui.io',
+    faucetURL: '',
+    faucet_router: '0x4d892ceccd1497b9be7701e09d51c580bc83f22c9c97050821b373a77d0d9a9e',
+    simulationAccount: {
+      address: '0x5f9d2fb717ba2433f7723cf90bdbf90667001104915001d0af0cccb52b67c1e8',
+    },
+    token: {
+      token_display: '0x9dac946be53cf3dd137fa9289a23ecf146f8b87f3eb1a91cc323c93cdd26f8b3',
+      config: SDKConfig.testnet.tokenConfig,
+    },
+    clmm: {
+      clmm_display: '0xb7e7513751376aed2e21b267ef6edebe806a27c979870d3575658dd443ac4248',
+      clmm_router: '0x5b77ec28a4077acb46e27e2421aa36b6bbdbe14b4165bc8a7024f10f0fde6112',
+      config: SDKConfig.testnet.clmmConfig,
+    },
+    launchpad: {
+      ido_display: '',
+      ido_router: '',
+      lock_display: '',
+      lock_router: '',
+      config: SDKConfig.testnet.launchpadConfig,
+    },
+    xcetus: {
+      xcetus_display: '',
+      xcetus_router: '',
+      dividends_display: '',
+      dividends_router: '',
+      cetus_faucet: '',
+      config: SDKConfig.testnet.xcetusConfig,
+    },
+    booster: {
+      booster_display: '',
+      booster_router: '',
+      config: SDKConfig.local.boosterConfig,
+    }
   },
 }
 
@@ -68,29 +100,13 @@ export const netConfig = {
 #### 2. Init SDK
 
 ```ts
-export const sdkEnv = netConfig.devnet
+// init global sdk object
+const sdk = new SDK(netConfig.devnet)
+// set GasBudget config default gas rate is 1
+sdk.gasConfig = new GasConfig(1)
+// When connecting the wallet, set the wallet address
+sdk.senderAddress = ""
 
-const defaultNetworkOptions: SdkOptions = {
-  fullRpcUrl: sdkEnv.fullRpcUrl,
-  faucetURL: sdkEnv.faucetURL,
-  networkOptions: {
-    simulationAccount: sdkEnv.simulationAccount,
-    token: {
-      token_deployer: sdkEnv.TokenDeployer,
-      config: sdkEnv.tokenConfig,
-    },
-    modules: {
-      cetus_clmm: sdkEnv.cetusClmm,
-      cetus_integrate: sdkEnv.cetusIntegrate,
-      swap_partner: sdkEnv.swapPartner,
-      config: {
-        global_config_id: sdkEnv.initEventConfig.initConfigEvent.global_config_id,
-        pools_id: sdkEnv.initEventConfig.initFactoryEvent.pools_id,
-      },
-    },
-  },
-}
-const sdk = new SDK(defaultNetworkOptions)
 ```
 
 #### 3. fetch the token list and pool list
@@ -99,8 +115,7 @@ const sdk = new SDK(defaultNetworkOptions)
 - code example for this guide can be found [token.test.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/token.test.ts)
 
 ```ts
-const networkOptions = sdk.sdkOptions.networkOptions
-const tokenConfig = sdk.sdkOptions.networkOptions.token.config
+const tokenConfig = sdk.sdkOptions.token.config
 
 // Fetch  all tokens
 const tokenList =  await sdk.Token.getAllRegisteredTokenList()
@@ -144,11 +159,12 @@ const poolImmutables = await sdk.Resources.getPoolImmutables(assignPools, offset
 //Fetch clmm pool by poolAddress
 const pool = await sdk.Resources.getPool(poolAddress)
 
-//Fetch clmm position list of accountAddress for assign poolIds
+//Fetch clmm position list of accountAddress for assign poolIds (not contains position rewarders)
 const pool = sdk.Resources.getPositionList(accountAddress, assignPoolIds)
 
-//Fetch clmm position by position_object_id
-sdk.Resources.getPosition(position_object_id)
+//Fetch clmm position by position_object_id  (contains position rewarders)
+sdk.Resources.getPosition(pool.positions_handle, position_object_id)
+sdk.Resources.getPositionById(position_object_id)
 ```
 
 ##### 4.2 create clmm pool and add liquidity
@@ -157,14 +173,14 @@ sdk.Resources.getPosition(position_object_id)
 const signer = new RawSigner(buildTestAccount(), sdk.fullClient)
 // initialize sqrt_price
 const initialize_sqrt_price = TickMath.priceToSqrtPriceX64(d(1.2),6,6).toString()
-const tick_spacing = 18
+const tick_spacing = 2
 const current_tick_index = TickMath.sqrtPriceX64ToTickIndex(new BN(initialize_sqrt_price))
 // build tick range
 const lowerTick = TickMath.getPrevInitializableTickIndex(new BN(current_tick_index).toNumber()
     , new BN(tick_spacing).toNumber())
 const upperTick = TickMath.getNextInitializableTickIndex(new BN(current_tick_index).toNumber()
     , new BN(tick_spacing).toNumber())
-// optional : If fix_coin_amount is 0, only pool is created
+// input token amount
 const fix_coin_amount = new BN(200)
 // input token amount is token a
 const fix_amount_a = true
@@ -185,11 +201,30 @@ const liquidityInput = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
 const amount_a = fix_amount_a ? fix_coin_amount.toNumber()  : liquidityInput.tokenMaxA.toNumber()
 const amount_b = fix_amount_a ? liquidityInput.tokenMaxB.toNumber()  : fix_coin_amount.toNumber()
 
-// select token a and token b asset for liquidity
-const coinAs: CoinAsset[] = CoinAssist.getCoinAssets(pool.coinTypeA, allCoinAsset)
-const coinBs: CoinAsset[] = CoinAssist.getCoinAssets(pool.coinTypeB, allCoinAsset)
-const coinAObjectIds = await CoinAssist.selectCoinAssets(signer,coinAs, BigInt(amount_a),sdk)
-const coinBObjectIds = await CoinAssist.selectCoinAssets(signer,coinBs, BigInt(amount_b),sdk)
+// build creatPoolPayload Payload
+const creatPoolPayload = sdk.Pool.creatPoolTransactionPayload({
+    coinTypeA: `0x3cfe7b9f6106808a8178ebd2d5ae6656cd0ccec15d33e63fd857c180bde8da75::coin:CetusUSDT`,
+    coinTypeB: `0x3cfe7b9f6106808a8178ebd2d5ae6656cd0ccec15d33e63fd857c180bde8da75::coin::CetusUSDC`,
+    tick_spacing: tick_spacing,
+    initialize_sqrt_price: initialize_sqrt_price,
+    uri: '',
+    amount_a: amount_a,
+    amount_b: amount_b,
+    fix_amount_a: fix_amount_a,
+    tick_lower: lowerTick,
+    tick_upper: upperTick
+  })
+
+ // send the transaction
+ const transferTxn = await sendTransaction(signer, creatPoolTransactionPayload,true)
+ console.log('doCreatPool: ', transferTxn)
+
+```
+
+##### 4.3 create clmm pool (support batch create)
+
+```ts
+const signer = new RawSigner(buildTestAccount(), sdk.fullClient)
 
 // build creatPoolPayload Payload
 const creatPoolPayload = sdk.Pool.creatPoolTransactionPayload({
@@ -201,15 +236,14 @@ const creatPoolPayload = sdk.Pool.creatPoolTransactionPayload({
     amount_a: amount_a,
     amount_b: amount_b,
     fix_amount_a: fix_amount_a,
-    coin_object_ids_a: coinAObjectIds,
-    coin_object_ids_b: coinBObjectIds,
     tick_lower: lowerTick,
     tick_upper: upperTick
   })
-console.log('creatPoolTransactionPayload: ', creatPoolTransactionPayload)
 
-const transferTxn = (await signer.executeMoveCall(creatPoolTransactionPayload)) as SuiExecuteTransactionResponse
-console.log('doCreatPool: ', getTransactionEffects(transferTxn))
+const creatPoolTransactionPayload = await sdk.Pool.creatPoolsTransactionPayload([creatPoolPayload])
+// send the transaction
+const transferTxn = await sendTransaction(signer, creatPoolTransactionPayload,true)
+console.log('doCreatPool: ', transferTxn)
 ```
 
 #### 5. Liquidity
@@ -221,8 +255,6 @@ code example for this guide can be found [position.test.ts](https://github.com/C
 ```ts
 const sendKeypair = buildTestAccount()
 const signer = new RawSigner(sendKeypair, sdk.fullClient)
-// Fetch coin assets of sendKeypair
-const allCoinAsset = await sdk.Resources.getOwnerCoinAssets(sendKeypair.getPublicKey().toSuiAddress())
 //  Fetch pool data
 const pool = await sdk.Resources.getPool(poolAddress)
 //  build lowerTick and  upperTick
@@ -250,11 +282,6 @@ const liquidityInput = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
 // Estimate  token a and token b amount
 const amount_a = fix_amount_a ? coinAmount.toNumber()  : liquidityInput.tokenMaxA.toNumber()
 const amount_b = fix_amount_a ? liquidityInput.tokenMaxB.toNumber()  : coinAmount.toNumber()
-// select token a and token b asset for liquidity
-const coinAs: CoinAsset[] = CoinAssist.getCoinAssets(pool.coinTypeA, allCoinAsset)
-const coinBs: CoinAsset[] = CoinAssist.getCoinAssets(pool.coinTypeB, allCoinAsset)
-const coinAObjectIds = await CoinAssist.selectCoinAssets(signer,coinAs, BigInt(amount_a),sdk)
-const coinBObjectIds = await CoinAssist.selectCoinAssets(signer,coinBs, BigInt(amount_b),sdk)
 
 // build open position and addLiquidity Payload
 const addLiquidityPayload = sdk.Position.createAddLiquidityTransactionPayload(
@@ -262,8 +289,6 @@ const addLiquidityPayload = sdk.Position.createAddLiquidityTransactionPayload(
           coinTypeA: pool.coinTypeA,
           coinTypeB: pool.coinTypeB,
           pool_id: pool.poolAddress,
-          coin_object_ids_a: coinAObjectIds,
-          coin_object_ids_b: coinBObjectIds,
           tick_lower: lowerTick.toString(),
           tick_upper: upperTick.toString(),
           fix_amount_a,
@@ -272,10 +297,16 @@ const addLiquidityPayload = sdk.Position.createAddLiquidityTransactionPayload(
           is_open: true,// control whether or not to create a new position or add liquidity on existed position.
           pos_id: "",// pos_id: position id. if `is_open` is true, index is no use.
       })
-const createAddLiquidityTransactionPayload = sdk.Position.createAddLiquidityTransactionPayload(addLiquidityPayloadParams)
 
-const transferTxn = (await signer.executeMoveCall(createAddLiquidityTransactionPayload)) as SuiExecuteTransactionResponse
-console.log('open_and_add_liquidity_fix_token: ', getTransactionEffects(transferTxn))
+ //   0. `[params]` this add liquidity data for build payload
+ //   1. `[gasEstimateArg]` optional parameters, When the fix input amount is SUI ,Calculate Gas and correct the amount
+ const createAddLiquidityTransactionPayload = await sdk.Position.createAddLiquidityTransactionPayload(addLiquidityPayloadParams, {
+      slippage: slippage,
+      curSqrtPrice: curSqrtPrice
+    })
+
+ const transferTxn = await sendTransaction(signer,createAddLiquidityTransactionPayload)
+ console.log('open_and_add_liquidity_fix_token: ', transferTxn)
 ```
 
 ##### 5.2  addLiquidity
@@ -283,8 +314,6 @@ console.log('open_and_add_liquidity_fix_token: ', getTransactionEffects(transfer
 ```ts
 const sendKeypair = buildTestAccount()
 const signer = new RawSigner(sendKeypair, sdk.fullClient)
-// Fetch coin assets of sendKeypair
-const allCoinAsset = await sdk.Resources.getOwnerCoinAssets(sendKeypair.getPublicKey().toSuiAddress())
 //  Fetch pool data
 const pool = await sdk.Resources.getPool(poolAddress)
 //  Fetch position data
@@ -313,12 +342,6 @@ const liquidityInput = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
 const amount_a = fix_amount_a ? coinAmount.toNumber()  : liquidityInput.tokenMaxA.toNumber()
 const amount_b = fix_amount_a ? liquidityInput.tokenMaxB.toNumber()  : coinAmount.toNumber()
 
-// select token a and token b asset for liquidity
-const coinAs: CoinAsset[] = CoinAssist.getCoinAssets(pool.coinTypeA, allCoinAsset)
-const coinBs: CoinAsset[] = CoinAssist.getCoinAssets(pool.coinTypeB, allCoinAsset)
-const coinAObjectIds = await CoinAssist.selectCoinAssets(signer,coinAs, BigInt(amount_a),sdk)
-const coinBObjectIds = await CoinAssist.selectCoinAssets(signer,coinBs, BigInt(amount_b),sdk)
-
 // build and addLiquidity Payload
 const addLiquidityPayload = sdk.Position.createAddLiquidityTransactionPayload(
       {
@@ -337,14 +360,12 @@ const addLiquidityPayload = sdk.Position.createAddLiquidityTransactionPayload(
       })
 const createAddLiquidityTransactionPayload = sdk.Position.createAddLiquidityTransactionPayload(addLiquidityPayloadParams)
 
-const transferTxn = (await signer.executeMoveCall(createAddLiquidityTransactionPayload)) as SuiExecuteTransactionResponse
-console.log('open_and_add_liquidity_fix_token: ', getTransactionEffects(transferTxn))
+const transferTxn = await sendTransaction(signer,createAddLiquidityTransactionPayload)
+console.log('add_liquidity_fix_token: ', transferTxn)
 
 ```
 
-##### 5.3  removeLiquidity
-
-- if want to remove liquidity and collect rewarder, The cointype of the reward must be passed in when build Payload, else only remove liquidity
+##### 5.3  removeLiquidity(can control whether collect fee)
 
 ```ts
 const sendKeypair = buildTestAccount()
@@ -369,57 +390,69 @@ const coinAmounts = ClmmPoolUtil.getCoinAmountFromLiquidity(liquidity, curSqrtPr
 // adjust  token a and token b amount for slippage
 const { tokenMaxA, tokenMaxB } = adjustForCoinSlippage(coinAmounts, slippageTolerance, false)
 
-// mode(1) only remove liquidity
+// build remove liquidity params
 const removeLiquidityParams : RemoveLiquidityParams = {
-      coin_types: [pool.coinTypeA, pool.coinTypeB,...rewardCoinTypes],
+      coinTypeA: pool.coinTypeA,
+      coinTypeB: pool.coinTypeB,
       delta_liquidity: liquidity.toString(),
       min_amount_a: tokenMaxA.toString(),
       min_amount_b: tokenMaxB.toString(),
       pool_id: pool.poolAddress,
       pos_id: position.pos_object_id
+      collect_fee: true // Whether to collect fee
     }
 const removeLiquidityTransactionPayload = sdk.Position.removeLiquidityTransactionPayload(removeLiquidityParams)
 
-// mode(2) remove all liquidity  and collect rewards and close position
-// Fetch all rewards data for position (If only remove liquidity ,  This step is optional)
-const rewards: any[] = await sdk.Rewarder.posRewardersAmount(poolAddress, position_object_id)
-const rewardCoinTypes = rewards.map((item) => {
-      return item.coin_address as string
-    })
-const removeLiquidityAndCloseParams : RemoveLiquidityAndCloseParams = {
-      coin_types: [pool.coinTypeA, pool.coinTypeB,...rewardCoinTypes],
-      min_amount_a: tokenMaxA.toString(),
-      min_amount_b: tokenMaxB.toString(),
-      pool_id: pool.poolAddress,
-      pos_id: position.pos_object_id
-    }
-const removeLiquidityTransactionPayload = sdk.Position.removeLiquidityTransactionPayload(removeLiquidityAndCloseParams)
-
-const transferTxn = (await signer.executeMoveCall(removeLiquidityTransactionPayload)) as SuiExecuteTransactionResponse
-console.log('remove_liquidity: ', getTransactionEffects(transferTxn))
-
+const transferTxn = await sendTransaction(signer, removeLiquidityTransactionPayload)
+console.log('removeLiquidity: ', transferTxn)
 ```
 
 ##### 5.4  close position
 
-- Provide to close position if position is empty.
+- Close position and remove all liquidity and collect reward
 
 ```ts
 const sendKeypair = buildTestAccount()
 const signer = new RawSigner(sendKeypair, sdk.fullClient)
-
-// build closePosition Payload
+// Fetch pool data
+const pool = await sdk.Resources.getPool(poolAddress)
+// Fetch position data
+const position = await sdk.Resources.getPositionInfo(position_object_id)
+// build tick data
+const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_lower_index)
+const upperSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_upper_index)
+const ticksHandle = pool.ticks_handle
+const tickLower = await sdk.Resources.getTickDataByIndex(ticksHandle, position.tick_lower_index)
+const tickUpper = await sdk.Resources.getTickDataByIndex(ticksHandle, position.tick_upper_index)
+// input liquidity amount for remove
+const liquidity = new BN(position.liquidity)
+// slippage value
+const slippageTolerance = new Percentage(new BN(5), new BN(100))
+const curSqrtPrice = new BN(pool.current_sqrt_price)
+// Get token amount from liquidity.
+const coinAmounts = ClmmPoolUtil.getCoinAmountFromLiquidity(liquidity, curSqrtPrice, lowerSqrtPrice, upperSqrtPrice, false)
+// adjust  token a and token b amount for slippage
+const { tokenMaxA, tokenMaxB } = adjustForCoinSlippage(coinAmounts, slippageTolerance, false)
+// get all rewarders of position
+const rewards: any[] = await sdk.Rewarder.posRewardersAmount(poolObjectId,pool.positions_handle, position_object_id)
+const rewardCoinTypes = rewards.filter((item) => {
+    if(Number(item.amount_owed) > 0){
+      return item.coin_address as string
+    }
+  })
+// build close position payload
 const closePositionTransactionPayload = sdk.Position.closePositionTransactionPayload({
-      coinTypeA: `0xbc72e752c41d6788dae67576f5a01a923d846d4f::usdt::USDT`,
-      coinTypeB: `0xbc72e752c41d6788dae67576f5a01a923d846d4f::usdt::USDT`,
-      pool_id:  poolObjectId,
-      pos_id: pos_object_id
+      coinTypeA: pool.coinTypeA,
+      coinTypeB: pool.coinTypeB,
+      min_amount_a: tokenMaxA.toString(),
+      min_amount_b: tokenMaxB.toString(),
+      rewarder_coin_types: [...rewardCoinTypes],
+      pool_id: pool.poolAddress,
+      pos_id: position_object_id,
     })
 
-const closePositionTransactionPayload = sdk.Position.closePositionTransactionPayload(closePositionTransactionPayload)
-
-const transferTxn = (await signer.executeMoveCall(closePositionTransactionPayload)) as SuiExecuteTransactionResponse
-console.log('close position: ', getTransactionEffects(transferTxn))
+const transferTxn = await sendTransaction(signer,closePositionTransactionPayload)
+console.log('close position: ', transferTxn)
 
 ```
 
@@ -475,8 +508,9 @@ const removeLiquidityPayload = (await sdk.Position.collectFeeTransactionPayload(
           pos_id: position.position_object_id,
         },
         true
-      )) as TxnBuilderTypes.TransactionPayloadEntryFunction
-const respose = await sendPayloadTx(sdk.client, account, removeLiquidityPayload)
+      ))
+const transferTxn = await sendTransaction(signer,collectFeeTransactionPayload)
+console.log('collect_fee: ', transferTxn)
 
 ```
 
@@ -501,7 +535,7 @@ const coinAmount = new BN(120000)
 // input token amount is token a
 const by_amount_in = true
 // slippage value
-const slippage = 0.05
+ const slippage = Percentage.fromDecimal(d(5))
 const curSqrtPrice = new BN(pool.current_sqrt_price)
 // Estimated amountIn amountOut fee
 const res = await sdk.Swap.calculateRates({
@@ -513,27 +547,24 @@ const res = await sdk.Swap.calculateRates({
       swapTicks: tickdatas,
       currentPool,
     })
-const toAmount = res.estimatedAmountOut
-const amountLimit = toAmount.sub(toAmount.mul(new BN(slippage)))
-// prepare pay objectIds for input assets
-const payCoins: CoinAsset[] = CoinAssist.getCoinAssets(a2b ? pool.coinTypeA : pool.coinTypeB, allCoinAsset)
-    const payObjectIds: ObjectId[] =  await CoinAssist.selectCoinAssets(signer,payCoins, BigInt(amount.toString()),sdk)
+const toAmount = byAmountIn ? res.estimatedAmountOut : res.estimatedAmountIn
+const amountLimit =  adjustForSlippage(toAmount,slippage,!byAmountIn)
+
 // build swap Payload
 const swapPayload = sdk.Swap.createSwapTransactionPayload(
       {
         pool_id: pool.poolAddress,
         coinTypeA: pool.coinTypeA,
         coinTypeB: pool.coinTypeB
-        a_to_b: a2b,
+        a2b: a2b,
         by_amount_in: by_amount_in,
         amount: res.amount.toString(),
         amount_limit: amountLimit.toString(),
       },
-      true
-    ) as TxnBuilderTypes.TransactionPayloadEntryFunction
+    )
 
- const transferTxn = (await signer.executeMoveCall(swapPayload)) as SuiExecuteTransactionResponse
- console.log('swap: ', getTransactionEffects(transferTxn))
+ const transferTxn = await sendTransaction(signer,swapPayload)
+ console.log('swap: ', transferTxn)
 
 ```
 
@@ -557,12 +588,15 @@ const rewardCoinTypes = rewards.map((item) => {
 const collectRewarderParams: CollectRewarderParams = {
       pool_id: pool.poolAddress,
       pos_id: poolObjectId,
-      coinType: [pool.coinTypeA, pool.coinTypeB , ...rewardCoinTypes]
+      rewarder_coin_types: [ ...rewardCoinTypes],
+      coinTypeA: pool.coinTypeA,
+      coinTypeB: pool.coinTypeB,
+      collect_fee: false
     }
 
 const collectRewarderPayload =  sdk.Rewarder.collectRewarderTransactionPayload(collectRewarderParams)
 
-const transferTxn = (await signer.executeMoveCall(collectRewarderPayload)) as SuiExecuteTransactionResponse
+const transferTxn = (await signer.signAndExecuteTransactionBlock({transactionBlock:collectRewarderPayload}))
 console.log('result: ', getTransactionEffects(transferTxn))
 
 ```

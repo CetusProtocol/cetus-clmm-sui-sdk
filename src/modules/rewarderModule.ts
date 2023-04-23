@@ -181,10 +181,18 @@ export class RewarderModule implements IModule {
   collectRewarderTransactionPayload(params: CollectRewarderParams): TransactionBlock {
     const { clmm } = this.sdk.sdkOptions
 
-    const typeArguments = [params.coinTypeA, params.coinTypeB, ...params.rewarder_coin_types]
+    const typeArguments = [params.coinTypeA, params.coinTypeB]
 
     const tx = new TransactionBlock()
     tx.setGasBudget(this._sdk.gasConfig.GasBudgetLow)
+
+    if (params.collect_fee) {
+      tx.moveCall({
+        target: `${clmm.clmm_router}::${ClmmIntegrateModule}::collect_fee`,
+        typeArguments,
+        arguments: [tx.object(clmm.config.global_config_id), tx.object(params.pool_id), tx.object(params.pos_id)],
+      })
+    }
 
     params.rewarder_coin_types.forEach((type) => {
       tx.moveCall({
@@ -195,7 +203,7 @@ export class RewarderModule implements IModule {
           tx.object(params.pool_id),
           tx.object(params.pos_id),
           tx.object(clmm.config.global_vault_id),
-          tx.pure(CLOCK_ADDRESS),
+          tx.object(CLOCK_ADDRESS),
         ],
       })
     })
