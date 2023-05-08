@@ -9,7 +9,6 @@ import {
   SuiObjectResponse,
 } from '@mysten/sui.js'
 import BN, { min } from 'bn.js'
-import { bigint } from 'superstruct'
 import { SDK } from '../sdk'
 import { CONST_DENOMINATOR, LaunchpadPool, LaunchpadPoolActivityState, LaunchpadPoolState, PurchaseMark } from '../types/luanchpa_type'
 import { composeType, extractStructTagFromType } from './contracts'
@@ -78,7 +77,7 @@ export class LauncpadUtil {
       least_raise_amount: fields.least_raise_amount,
       softcap: fields.softcap,
       hardcap: fields.hardcap,
-      liquidity_rate: Number(fields.liquidity_rate) / 100,
+      liquidity_rate: Number(fields.liquidity_rate) / 10000,
       activity_start_time: Number(fields.duration_manager.fields.start_time),
       activity_end_time: 0,
       settle_end_time: 0,
@@ -88,13 +87,12 @@ export class LauncpadUtil {
       is_cancel: fields.is_cancel,
       white_summary: {
         white_handle: fields.white_list.fields.users.fields.id.id,
-        white_each_safe_cap: fields.white_list.fields.each_safe_cap,
         white_hard_cap_total: fields.white_list.fields.hard_cap_total,
         white_purchase_total: fields.white_list.fields.purchase_total,
         size: Number(fields.white_list.fields.users.fields.size),
       },
       unused_sale: fields.unused_sale,
-      unused_raise: fields.unused_raise,
+      harvest_raise: fields.harvest_raise,
       tick_spacing: Number(fields.tick_spacing),
       recipient: fields.recipient,
       purchase_summary: {
@@ -143,19 +141,21 @@ export class LauncpadUtil {
    * @returns
    */
   static updatePoolCurrentPrice(pool: LaunchpadPool, saleDecimals: number, raiseDecimals: number): number {
-    const raise_value = BigInt(pool.reality_raise_total)
+    // const raise_value = BigInt(pool.reality_raise_total)
 
-    if (raise_value < BigInt(pool.softcap)) {
-      pool.current_price = pool.min_price
-    } else if (raise_value <= BigInt(pool.hardcap)) {
-      pool.current_price = this.priceFixToReal(
-        d(raise_value.toString()).div(d(pool.sale_total)).toNumber(),
-        saleDecimals,
-        raiseDecimals
-      ).toString()
-    } else if (raise_value > BigInt(pool.hardcap)) {
-      pool.current_price = pool.max_price
-    }
+    // if (raise_value < BigInt(pool.softcap)) {
+    //   pool.current_price = pool.min_price
+    // } else if (raise_value <= BigInt(pool.hardcap)) {
+    //   pool.current_price = this.priceFixToReal(
+    //     d(raise_value.toString()).div(d(pool.sale_total)).toNumber(),
+    //     saleDecimals,
+    //     raiseDecimals
+    //   ).toString()
+    // } else if (raise_value > BigInt(pool.hardcap)) {
+    //   pool.current_price = pool.max_price
+    // }
+
+    pool.current_price = this.priceFixToReal(Number(pool.current_price), saleDecimals, raiseDecimals).toString()
 
     return Number(pool.current_price)
   }
@@ -176,13 +176,25 @@ export class LauncpadUtil {
     LauncpadUtil.updatePoolCurrentPrice(pool, saleDecimals, raiseDecimals)
   }
 
+  /**
+   * https://git.cplus.link/cetus/cetus-launchpad/-/blob/whitelist/sui/IDO/sources/pool.move#L887
+   * withdraw_sale_internal
+   * @param pool
+   * @returns
+   */
   static async getWithdrawRaise(pool: LaunchpadPool) {
     if (pool.pool_status === LaunchpadPoolActivityState.Ended) {
-      return d(pool.raise_coin_amount).sub(d(pool.unused_raise)).toString()
+      return pool.harvest_raise
     }
     return '0'
   }
 
+  /**
+   * https://git.cplus.link/cetus/cetus-launchpad/-/blob/whitelist/sui/IDO/sources/pool.move#L906
+   * withdraw_raise_internal
+   * @param pool
+   * @returns
+   */
   static async getWithdrawSale(pool: LaunchpadPool) {
     if (pool.pool_status === LaunchpadPoolActivityState.Ended) {
       return pool.unused_sale
@@ -190,12 +202,19 @@ export class LauncpadUtil {
     return pool.sale_coin_amount
   }
 
+  /**
+   * https://m8bj5905cd.larksuite.com/docx/V5AKdlbm3o3muFxh2dwu5C9RsTb
+   * $$raiseAmount=min(totalRaised，hardcap)$$
+   * @param sdk
+   * @param pool
+   * @returns
+   */
   static async getHistoryWithdrawRaise(sdk: SDK, pool: LaunchpadPool) {
     if (pool.pool_status === LaunchpadPoolActivityState.Ended) {
-      if (d(pool.unused_raise).equals(d(0))) {
+      if (d(pool.harvest_raise).equals(d(0))) {
         const settleEvent = await sdk.Launchpad.getSettleEvent(pool.pool_address)
         if (settleEvent) {
-          pool.unused_raise = settleEvent.unused_raise
+          pool.harvest_raise = settleEvent.unused_raise
         }
       }
       const minAmount = min(new BN(pool.reality_raise_total), new BN(pool.hardcap))
@@ -216,39 +235,40 @@ export class LauncpadUtil {
   }
 
   /**
-   * 超额返还用户资产数量
+   * https://m8bj5905cd.larksuite.com/docx/V5AKdlbm3o3muFxh2dwu5C9RsTb
+   * Returning the user's assets in excess
    * @param sdk
    * @param pool
    * @returns
    */
   static async getOverrecruitReverseAmount(sdk: SDK, pool: LaunchpadPool) {
-    const purchaseMark = await sdk.Launchpad.getPurchaseMark(sdk.senderAddress, pool.pool_address, false)
-    if (purchaseMark) {
-      const userStakeAmount = purchaseMark.total_amount
-      const userProtectAmount = await sdk.Launchpad.getPurchaseAmount(pool.white_summary.white_handle, sdk.senderAddress)
+    const purchaseMarks = await sdk.Launchpad.getPurchaseMarks(sdk.senderAddress, [pool.pool_address], false)
+    if (purchaseMarks.length > 0) {
+      const userStakeAmount = purchaseMarks[0].purchase_total
+      const userProtectAmount = (await sdk.Launchpad.getPurchaseAmount(pool.white_summary.white_handle, sdk.senderAddress))
+        .safe_purchased_amount
       const { white_purchase_total } = pool.white_summary
 
       return d(userStakeAmount)
         .sub(userProtectAmount)
         .div(d(pool.reality_raise_total).sub(white_purchase_total))
-        .mul(pool.unused_raise)
+        .mul(d(pool.reality_raise_total).sub(pool.hardcap))
         .toString()
     }
     return '0'
   }
 
   /**
-   * 用户可购得的资产总量
-   * = (用户质押资产数量-返还资产数量) / price}
+   * https://m8bj5905cd.larksuite.com/docx/V5AKdlbm3o3muFxh2dwu5C9RsTb
    * @param sdk
    * @param pool
    * @returns
    */
   static async getCanPurchaseAmount(sdk: SDK, pool: LaunchpadPool) {
     const overrecruitReverseAmount = await LauncpadUtil.getOverrecruitReverseAmount(sdk, pool)
-    const purchaseMark = await sdk.Launchpad.getPurchaseMark(sdk.senderAddress, pool.pool_address, false)
-    if (purchaseMark) {
-      const userStakeAmount = purchaseMark.total_amount
+    const purchaseMarks = await sdk.Launchpad.getPurchaseMarks(sdk.senderAddress, [pool.pool_address], false)
+    if (purchaseMarks) {
+      const userStakeAmount = purchaseMarks[0].purchase_total
       d(userStakeAmount).sub(overrecruitReverseAmount).div(pool.current_price)
     }
     return '0'

@@ -7,7 +7,7 @@ import BN from 'bn.js'
 import { TransactionBlock } from '@mysten/sui.js'
 import { asUintN } from '../utils'
 import { findAdjustCoin, TransactionUtil } from '../utils/transaction-util'
-import { ClmmIntegrateModule, CLOCK_ADDRESS, SuiAddressType, SuiObjectIdType } from '../types/sui'
+import { ClmmIntegratePoolModule, CLOCK_ADDRESS, SuiAddressType, SuiObjectIdType } from '../types/sui'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { CoinPairType } from './resourcesModule'
@@ -123,7 +123,7 @@ export class PositionModule implements IModule {
 
     if (params.collect_fee) {
       tx.moveCall({
-        target: `${clmm.clmm_router}::${ClmmIntegrateModule}::collect_fee`,
+        target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::collect_fee`,
         typeArguments,
         arguments: [tx.object(clmm.config.global_config_id), tx.object(params.pool_id), tx.object(params.pos_id)],
       })
@@ -140,7 +140,7 @@ export class PositionModule implements IModule {
     ]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::${functionName}`,
+      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::${functionName}`,
       typeArguments,
       arguments: args,
     })
@@ -164,14 +164,14 @@ export class PositionModule implements IModule {
     const typeArguments = [params.coinTypeA, params.coinTypeB]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::collect_fee`,
+      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::collect_fee`,
       typeArguments,
       arguments: [tx.object(clmm.config.global_config_id), tx.object(params.pool_id), tx.object(params.pos_id)],
     })
 
     params.rewarder_coin_types.forEach((type) => {
       tx.moveCall({
-        target: `${clmm.clmm_router}::${ClmmIntegrateModule}::collect_reward`,
+        target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::collect_reward`,
         typeArguments: [...typeArguments, type],
         arguments: [
           tx.object(clmm.config.global_config_id),
@@ -184,7 +184,7 @@ export class PositionModule implements IModule {
     })
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::close_position`,
+      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::close_position`,
       typeArguments,
       arguments: [
         tx.object(clmm.config.global_config_id),
@@ -216,7 +216,7 @@ export class PositionModule implements IModule {
     const args = [tx.pure(clmm.config.global_config_id), tx.pure(params.pool_id), tx.pure(tick_lower), tx.pure(tick_upper)]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::open_position`,
+      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::open_position`,
       typeArguments,
       arguments: args,
     })
@@ -239,7 +239,7 @@ export class PositionModule implements IModule {
     const args = [tx.object(clmm.config.global_config_id), tx.pure(params.pool_id), tx.pure(params.pos_id)]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::collect_fee`,
+      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::collect_fee`,
       typeArguments,
       arguments: args,
     })

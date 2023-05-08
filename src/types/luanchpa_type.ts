@@ -55,13 +55,12 @@ export type LaunchpadPoolState = {
   is_cancel: boolean
   white_summary: {
     white_handle: string
-    white_each_safe_cap: string
     white_hard_cap_total: string
     white_purchase_total: string
     size: number
   }
   unused_sale: string
-  unused_raise: string
+  harvest_raise: string /// Amount of raise coin recipienter can withdraw
   tick_spacing: number
   recipient: SuiAddressType
   purchase_summary: {
@@ -99,9 +98,6 @@ export type CreateLaunchpadPoolParams = {
   sale_decimals: number
   raise_decimals: number
   tick_spacing: number
-  clmm_args?: {
-    url: string
-  }
 } & LaunchpadCoinPairType
 
 export type PurchaseParams = {
@@ -111,17 +107,18 @@ export type PurchaseParams = {
 
 export type ClaimParams = {
   pool_address: SuiObjectIdType
-  amount_lp: string
 } & LaunchpadCoinPairType
 
 export type SettleParams = {
   pool_address: SuiObjectIdType
-  clmm_pool_address: SuiObjectIdType
-  current_price: string
-  clmm_sqrt_price: string
-  sale_decimals: number
-  raise_decimals: number
-  opposite: boolean
+  clmm_args?: {
+    clmm_pool_address: SuiObjectIdType
+    current_price: string
+    clmm_sqrt_price: string
+    sale_decimals: number
+    raise_decimals: number
+    opposite: boolean
+  }
 } & LaunchpadCoinPairType
 
 export type SettleForCreateClmmPoolParams = {
@@ -138,11 +135,17 @@ export type WithdrawParams = {
   raise_amount: bigint
 } & LaunchpadCoinPairType
 
-export type ConfigWhitelistParams = {
+export type AddUserToWhitelistParams = {
   pool_address: SuiObjectIdType
-  each_safe_cap: number // each_safe_cap <= pool_info.max_purchase && each_safe_cap > pool_info.min_purchase
-  hard_cap_total: number // hard_cap_total < hardcap
   user_addrs: SuiObjectIdType[]
+  safe_limit_amount: string
+} & LaunchpadCoinPairType
+
+export type UpdateWhitelistCapParams = {
+  pool_address: SuiObjectIdType
+  white_list_member: SuiObjectIdType
+  safe_limit_amount: number
+  hard_cap_total: number // hard_cap_total < hardcap
 } & LaunchpadCoinPairType
 
 export type RemoveWhitelistParams = {
@@ -159,17 +162,12 @@ export type CancelParams = {
   pool_address: SuiObjectIdType
 } & LaunchpadCoinPairType
 
-export type ResertRecipientParams = {
+export type UpdateRecipientParams = {
   pool_address: SuiObjectIdType
   new_recipient: SuiObjectIdType
 } & LaunchpadCoinPairType
 
-export type ResertResetStartParams = {
-  pool_address: SuiObjectIdType
-  new_start_time: SuiObjectIdType
-} & LaunchpadCoinPairType
-
-export type ResertPoolDurationParams = {
+export type UpdatePoolDurationParams = {
   pool_address: SuiObjectIdType
   activity_duration: number
   settle_duration: number
@@ -179,10 +177,12 @@ export type ResertPoolDurationParams = {
 export type PurchaseMark = {
   id: SuiObjectIdType
   pool_id: SuiObjectIdType
-  current_amount: string
-  total_amount: string
-  claim_raise: string
-  claim_sale: string
+  /// Purchase total raise amount
+  purchase_total: string
+  /// Claim get sale amount
+  obtain_sale_amount: string
+  /// Claim draw raise amount
+  used_raise_amount: string
 }
 
 export type SettleEvent = {

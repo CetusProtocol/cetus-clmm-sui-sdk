@@ -2,6 +2,7 @@ import { buildSdk, TokensMapping, position_object_id, buildTestAccount } from '.
 import { CollectRewarderParams } from '../src/modules/rewarderModule';
 import { RawSigner, getTransactionEffects } from '@mysten/sui.js'
 import 'isomorphic-fetch';
+import BN from 'bn.js';
 
 const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectId[0]
 describe('Rewarder Module', () => {
@@ -13,9 +14,11 @@ describe('Rewarder Module', () => {
   })
 
   test('posRewardersAmount', async () => {
-    const pool = await sdk.Resources.getPool(poolObjectId)
-    const res: any = await sdk.Rewarder.posRewardersAmount(pool.poolAddress,pool.positions_handle, position_object_id)
-    console.log('res####', res)
+    const pool = await sdk.Resources.getPool("0x7b9d0f7e1ba6de8eefaa259da9f992e00aa8c22310b71ffabf2784e5b018a173")
+    console.log("pool" , pool);
+
+    const res = await sdk.Rewarder.posRewardersAmount(pool.poolAddress,pool.positions_handle, "0x5a0a9317df9239a80c5d9623ea87f0ac36f1cec733dc767ba606a6316a078d04")
+    console.log('res####', res[0].amount_owed.toString(), res[1].amount_owed.toString(), res[2].amount_owed.toString())
 
   })
 
@@ -25,6 +28,19 @@ describe('Rewarder Module', () => {
     const res = await sdk.Rewarder.poolRewardersAmount(account, TokensMapping.USDT_USDC_LP.poolObjectId[0])
     console.log('res####', res)
 
+  })
+
+  test('test BN', async () => {
+    const a = new BN('49606569301722253557813231039171')
+    const a2 = a.mul(new BN(2))
+    console.log(a2.toString())
+    let a3 = a2.mul(new BN(2))
+    console.log(a3.toString())
+    for (let i = 0; i < 30; i += 1) {
+      const a4 = a3.mul(new BN(2))
+      console.log(a4.toString())
+      a3 = a4
+    }
   })
 
 

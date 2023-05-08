@@ -59,7 +59,6 @@ export class CoinAssist {
   public static getFaucetCoins(suiTransactionResponse: SuiTransactionBlockResponse): FaucetCoin[] {
     const { events } = suiTransactionResponse
     const faucetCoin: FaucetCoin[] = []
-    console.log('events:', events)
 
     events?.forEach((item: any) => {
       const { type } = item
@@ -89,42 +88,51 @@ export class CoinAssist {
     return extractStructTagFromType(coinAddress).full_address === GAS_TYPE_ARG
   }
 
-  static selectCoinObjectIdGreaterThanOrEqual(coins: CoinAsset[], amount: bigint, exclude: ObjectId[] = []): ObjectId[] {
-    return CoinAssist.selectCoinAssetGreaterThanOrEqual(coins, amount, exclude).map((item) => item.coinObjectId)
+  static selectCoinObjectIdGreaterThanOrEqual(
+    coins: CoinAsset[],
+    amount: bigint,
+    exclude: ObjectId[] = []
+  ): { objectArray: ObjectId[]; remainCoins: CoinAsset[] } {
+    const objectArray = CoinAssist.selectCoinAssetGreaterThanOrEqual(coins, amount, exclude).selectedCoins.map((item) => item.coinObjectId)
+    const remainCoins = CoinAssist.selectCoinAssetGreaterThanOrEqual(coins, amount, exclude).remainingCoins
+    return { objectArray, remainCoins }
   }
 
-  static selectCoinAssetGreaterThanOrEqual(coins: CoinAsset[], amount: bigint, exclude: ObjectId[] = []): CoinAsset[] {
+  static selectCoinAssetGreaterThanOrEqual(
+    coins: CoinAsset[],
+    amount: bigint,
+    exclude: ObjectId[] = []
+  ): { selectedCoins: CoinAsset[]; remainingCoins: CoinAsset[] } {
     const sortedCoins = CoinAssist.sortByBalance(coins.filter((c) => !exclude.includes(c.coinObjectId)))
 
     const total = CoinAssist.calculateTotalBalance(sortedCoins)
 
-    // return empty set if the aggregate balance of all coins is smaller than amount
     if (total < amount) {
-      return []
+      return { selectedCoins: [], remainingCoins: sortedCoins }
     }
     if (total === amount) {
-      return sortedCoins
+      return { selectedCoins: sortedCoins, remainingCoins: [] }
     }
 
     let sum = BigInt(0)
-    const ret = []
+    const selectedCoins = []
+    const remainingCoins = [...sortedCoins]
     while (sum < total) {
-      // prefer to add a coin with smallest sufficient balance
       const target = amount - sum
-      const coinWithSmallestSufficientBalance = sortedCoins.find((c) => c.balance >= target)
-      if (coinWithSmallestSufficientBalance) {
-        ret.push(coinWithSmallestSufficientBalance)
+      const coinWithSmallestSufficientBalanceIndex = remainingCoins.findIndex((c) => c.balance >= target)
+      if (coinWithSmallestSufficientBalanceIndex !== -1) {
+        selectedCoins.push(remainingCoins[coinWithSmallestSufficientBalanceIndex])
+        remainingCoins.splice(coinWithSmallestSufficientBalanceIndex, 1)
         break
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const coinWithLargestBalance = sortedCoins.pop()!
+      const coinWithLargestBalance = remainingCoins.pop()!
       if (coinWithLargestBalance.balance > 0) {
-        ret.push(coinWithLargestBalance)
+        selectedCoins.push(coinWithLargestBalance)
         sum += coinWithLargestBalance.balance
       }
     }
-    return CoinAssist.sortByBalance(ret)
+    return { selectedCoins: CoinAssist.sortByBalance(selectedCoins), remainingCoins: CoinAssist.sortByBalance(remainingCoins) }
   }
 
   /**

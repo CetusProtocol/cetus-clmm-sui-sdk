@@ -24,26 +24,49 @@ describe('sdk config', () => {
 
   test('launchpadConfig', async () => {
     try {
-      const initFactoryEvent = await sdk.Launchpad.getInitFactoryEvent()
-      const initLockEvent = await sdk.Launchpad.getInitLockEvent()
+     const initFactoryEvent = await sdk.Launchpad.getInitFactoryEvent()
+      // const initLockEvent = await sdk.Launchpad.getInitLockEvent()
       console.log('launchpadConfig ', {
-        ...initFactoryEvent,
-        lock_manager_id: initLockEvent.lock_manager_id,
+       ...initFactoryEvent,
+        // lock_manager_id: initLockEvent.lock_manager_id,
       })
     } catch (error) {
       console.log(error)
     }
   })
 
-  test('xwhaleConfig', async () => {
+  test('xcetusConfig', async () => {
     try {
-      const initFactoryEvent = await sdk.XWhaleModule.getInitFactoryEvent()
-      const lockUpManagerEvent = await sdk.XWhaleModule.getLockUpManagerEvent()
-      const dividendManagerEvent = await sdk.XWhaleModule.getDividendManagerEvent()
+       const initFactoryEvent = await sdk.XCetusModule.getInitFactoryEvent()
+       const lockUpManagerEvent = await sdk.XCetusModule.getLockUpManagerEvent()
+      const dividendManagerEvent = await sdk.XCetusModule.getDividendManagerEvent()
+      console.log({
+         ...initFactoryEvent,
+         lock_manager_id: lockUpManagerEvent.lock_manager_id,
+         lock_handle_id: lockUpManagerEvent.lock_handle_id,
+        dividend_manager_id: dividendManagerEvent.dividend_manager_id
+      })
+    } catch (error) {
+      console.log(error)
+    }
+  })
+
+  test('boosteConfig', async () => {
+    try {
+      const initFactoryEvent = await sdk.BoosterModule.getInitFactoryEvent()
       console.log({
         ...initFactoryEvent,
-        lock_manager_id: lockUpManagerEvent.lock_manager_id,
-        dividend_manager_id: dividendManagerEvent.dividend_manager_id
+      })
+    } catch (error) {
+      console.log(error)
+    }
+  })
+
+  test('makerBonusConfig', async () => {
+    try {
+      const initFactoryEvent = await sdk.MakerModule.getInitFactoryEvent()
+      console.log({
+        ...initFactoryEvent,
       })
     } catch (error) {
       console.log(error)
@@ -70,13 +93,22 @@ describe('warp sdk config', () => {
       pools_id: '',
       admin_cap_id: '',
       config_cap_id: '',
-      lock_manager_id: '',
+      // lock_manager_id: '',
     },
-    xwhaleConfig: {
-      xwhale_manager_id: '',
+    xcetusConfig: {
+      xcetus_manager_id: '',
       lock_manager_id: '',
+      lock_handle_id: "",
       dividend_manager_id: '',
     },
+    boosterConfig: {
+      booster_config_id: "",
+      booster_pool_handle: ''
+    },
+    makerBonusConfig: {
+      maker_config_id: '',
+      maker_pool_handle: ''
+    }
   }
 
   test('sdk Config', async () => {
@@ -102,10 +134,10 @@ describe('warp sdk config', () => {
     try {
       if (sdkOptions.launchpad.ido_display.length > 0) {
         const initFactoryEvent = await sdk.Launchpad.getInitFactoryEvent()
-        const initLockEvent = await sdk.Launchpad.getInitLockEvent()
+        // const initLockEvent = await sdk.Launchpad.getInitLockEvent()
         config.launchpadConfig = {
           ...initFactoryEvent,
-          lock_manager_id: initLockEvent.lock_manager_id,
+          // lock_manager_id: initLockEvent.lock_manager_id,
         }
       }
     } catch (error) {
@@ -113,16 +145,31 @@ describe('warp sdk config', () => {
     }
 
     try {
-      if (sdkOptions.xwhale.xwhale_display.length > 0) {
-        const initFactoryEvent = await sdk.XWhaleModule.getInitFactoryEvent()
-        const lockUpManagerEvent = await sdk.XWhaleModule.getLockUpManagerEvent()
-        const dividendManagerEvent = await sdk.XWhaleModule.getDividendManagerEvent()
-        config.xwhaleConfig = {
+      if (sdkOptions.xcetus.xcetus_display.length > 0) {
+        const initFactoryEvent = await sdk.XCetusModule.getInitFactoryEvent()
+        const lockUpManagerEvent = await sdk.XCetusModule.getLockUpManagerEvent()
+        const dividendManagerEvent = await sdk.XCetusModule.getDividendManagerEvent()
+        config.xcetusConfig = {
           ...initFactoryEvent,
           lock_manager_id: lockUpManagerEvent.lock_manager_id,
+          lock_handle_id: lockUpManagerEvent.lock_handle_id,
           dividend_manager_id: dividendManagerEvent.dividend_manager_id
         }
       }
+    } catch (error) {
+      console.log(error)
+    }
+
+    try {
+      const initFactoryEvent = await sdk.BoosterModule.getInitFactoryEvent()
+      config.boosterConfig =  initFactoryEvent
+    } catch (error) {
+      console.log(error)
+    }
+
+    try {
+      const initFactoryEvent = await sdk.MakerModule.getInitFactoryEvent()
+      config.makerBonusConfig =  initFactoryEvent
     } catch (error) {
       console.log(error)
     }

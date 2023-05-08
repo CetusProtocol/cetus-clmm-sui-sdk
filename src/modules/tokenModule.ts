@@ -6,6 +6,7 @@ import { CachedContent } from '../utils/cachedContent'
 import { extractStructTagFromType } from '../utils/contracts'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
+import { loopToGetAllQueryEvents } from '../utils'
 
 export const cacheTime5min = 5 * 60 * 1000
 export const cacheTime24h = 24 * 60 * 60 * 1000
@@ -125,19 +126,22 @@ export class TokenModule implements IModule {
         const data = await this._sdk.fullClient.getCoinMetadata({
           coinType,
         })
-        const token = {
-          name: data.name,
-          symbol: data.symbol,
-          official_symbol: data.symbol,
-          coingecko_id: '',
-          decimals: data.decimals,
-          project_url: '',
-          logo_url: data.iconUrl as string,
-          address: coinType,
-        }
-        tokenMap[coinType] = token
+        if (data) {
+          const token = {
+            id: data.id,
+            name: data.name,
+            symbol: data.symbol,
+            official_symbol: data.symbol,
+            coingecko_id: '',
+            decimals: data.decimals,
+            project_url: '',
+            logo_url: data.iconUrl as string,
+            address: coinType,
+          }
+          tokenMap[coinType] = token
 
-        this.updateCache(metadataKey, token, cacheTime24h)
+          this.updateCache(metadataKey, token, cacheTime24h)
+        }
       }
     }
 
@@ -275,7 +279,7 @@ export class TokenModule implements IModule {
     })
 
     const previousTx = getObjectPreviousTransactionDigest(packageObject) as string
-    const objects = await this._sdk.fullClient.queryEvents({
+    const objects = await loopToGetAllQueryEvents(this._sdk, {
       query: { Transaction: previousTx },
     })
     const tokenConfigEvent: TokenConfigEvent = {
@@ -323,16 +327,21 @@ export class TokenModule implements IModule {
   private transformData(item: any, isPoolData: boolean): any {
     const token = { ...item }
     if (isPoolData) {
-      token.coin_a_address = extractStructTagFromType(token.coin_a_address).full_address
-      token.coin_b_address = extractStructTagFromType(token.coin_b_address).full_address
+      try {
+        token.coin_a_address = extractStructTagFromType(token.coin_a_address).full_address
+        token.coin_b_address = extractStructTagFromType(token.coin_b_address).full_address
+      } catch (error) {
+        //
+      }
     } else {
       token.address = extractStructTagFromType(token.address).full_address
     }
     if (item.extensions) {
       const extensionsDataArray = item.extensions.contents
+
       for (const item of extensionsDataArray) {
-        const { key } = item.fields
-        let { value } = item.fields
+        const { key } = item
+        let { value } = item
         if (key === 'labels') {
           try {
             value = JSON.parse(decodeURIComponent(Base64.decode(value)))

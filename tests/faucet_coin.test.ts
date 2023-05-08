@@ -12,7 +12,6 @@ import { d } from '../src/utils/numbers'
 import {
   buildSdk,
   buildTestAccount,
-  faucetObjectId,
   buildSKAccount,
   buildWJLaunchPadAccount,
   buildWJLaunchPadAccountLocal,
@@ -20,13 +19,14 @@ import {
 } from './data/init_test_data'
 import 'isomorphic-fetch'
 import { printTransaction, sendTransaction, TransactionUtil } from '../src/utils/transaction-util'
+import { sdkEnv } from './data/config'
 
 const sdk = buildSdk()
 let sendKeypair: Ed25519Keypair
 
 describe('getFaucetEvent test', () => {
   test('getFaucetEvent', async () => {
-    const faucetEvents = await sdk.Resources.getFaucetEvent(faucetObjectId, buildTestAccount().getPublicKey().toSuiAddress())
+    const faucetEvents = await sdk.Resources.getFaucetEvent(sdkEnv.faucet.faucet_display, buildTestAccount().getPublicKey().toSuiAddress())
     console.log('getFaucetEvent', faucetEvents)
   })
   /**
@@ -50,7 +50,7 @@ describe('faucet coin test', () => {
   })
 
   test(' get faucet Coins  ', async () => {
-    const faucetObject = await sdk.fullClient.getObject({ id: faucetObjectId, options: { showPreviousTransaction: true } })
+    const faucetObject = await sdk.fullClient.getObject({ id: sdkEnv.faucet.faucet_display, options: { showPreviousTransaction: true } })
     const faucetTx = getObjectPreviousTransactionDigest(faucetObject)
     console.log('faucetTx: ', faucetTx)
     if (faucetTx === undefined) {
@@ -62,7 +62,7 @@ describe('faucet coin test', () => {
   })
 
   test('faucetCoins', async () => {
-    await mintAll(sdk, sendKeypair, faucetObjectId, 'faucet', 'faucetAll')
+    await mintAll(sdk, sendKeypair, sdkEnv.faucet, 'faucet', 'faucetAll')
   })
 
   test('faucetOneCoin', async () => {
@@ -76,7 +76,7 @@ describe('faucet coin test', () => {
     const tx = new TransactionBlock()
     tx.setGasBudget(20000000)
     tx.moveCall({
-      target: `${faucetObjectId}::${coin.transactionModule}::faucet`,
+      target: `${sdkEnv.faucet.faucet_router}::${coin.transactionModule}::faucet`,
       typeArguments: [],
       arguments: [tx.pure(coin.suplyID)],
     })

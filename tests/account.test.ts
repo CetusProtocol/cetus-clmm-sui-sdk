@@ -2,7 +2,7 @@ import { Ed25519Keypair, getTransactionEffects, RawSigner, SuiEventFilter, Trans
 import {  buildSdk, buildTestAccount, buildTestAccount1, generateAccount } from './data/init_test_data'
 import 'isomorphic-fetch';
 import { printTransaction, sendTransaction } from '../src/utils/transaction-util';
-import { ClmmIntegrateModule } from '../src/types/sui';
+import { ClmmIntegratePoolModule } from '../src/types/sui';
 import { TxBlock } from '../src/utils/tx-block';
 
 describe('account Module', () => {
@@ -75,13 +75,10 @@ describe('account Module', () => {
   test('transferObjects', async () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const tx = new TxBlock()
-    const recipient = "0xf751c72f6462d2c2f4434d085076c85c690a51b584d765bb8863669908835f41"
-    tx.transferObjects(["0xbcb21adaefbe1681d53c01427c11acda32aaf47098638e60b168d57c45490635","0xd8de5488356d657ad449f60eabeca4369228d64312b9ce8e57b7b581e95e627d"], recipient)
+    const recipient = "0x660ea6bc10f2d6c2d40b829850ab746a6ad93c2674537c71e21809b0486254c6"
+    tx.transferObjects(["0xf23891529b0e725e578f6a9900934e6eae09616d922c0b39a8d570338493f738"], recipient)
 
     const resultTxn = await sendTransaction(signer,tx.txBlock)
     console.log(resultTxn);
   })
-
-
-
 })

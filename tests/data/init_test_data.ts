@@ -1,15 +1,15 @@
-import { Ed25519Keypair, fromB64, getCreatedObjects, getObjectId, getObjectPreviousTransactionDigest, getSharedObjectInitialVersion, RawSigner, toB64, TransactionBlock } from '@mysten/sui.js'
+import { Ed25519Keypair, fromB64, getCreatedObjects, getObjectId, getObjectPreviousTransactionDigest, getSharedObjectInitialVersion, RawSigner, toB64, TransactionBlock } from '@mysten/sui.js';
 import { CoinAssist, sendTransaction } from '../../src'
 import { SDK, SdkOptions } from '../../src/sdk'
 import { secretKeyToEd25519Keypair } from '../../src/utils/common'
 import { netConfig, sdkEnv } from './config'
 
 
-export const faucetObjectId = sdkEnv.faucet_router
+export const faucetObjectId = sdkEnv.faucet.faucet_display
 
 const clmm_display = sdkEnv.clmm.clmm_display
 
-export const position_object_id = '0x958e886f4fcde99da46eff40df8d54e6fce5669300fc1e84c06fa42c9a3aad0a'
+export const position_object_id = '0x9fd7da6971c24f9ea5fdee4edaf31c3b27f7a02cc4873302f76ad53970bd6a07'
 export const TokensMapping = {
   SUI: {
     address: '0x2::sui::SUI',
@@ -26,19 +26,22 @@ export const TokensMapping = {
   USDT_USDC_LP: {
     address: `${clmm_display}::pool::Pool<${faucetObjectId}::usdt::USDC, ${faucetObjectId}::usdc::USDT>`,
     decimals: 8,
-    poolObjectId: ['0x7e279224f1dd455860d65fa975cce5208485fd98b8e9a0cb6bd087c6dc9f5e03'],
+    poolObjectId: ['0x771d94ea4f3d631ebedefa3b4ecff02c29a444362b58db63eb9744c85ffbbf54'],
   },
 }
 
 
-export async  function mintAll(sdk: SDK,sendKeypair: Ed25519Keypair , packageId: string,modules: string,funName: string){
-  const objects = await sdk.fullClient.getObject({id: packageId, options: {showPreviousTransaction: true}})
+export async  function mintAll(sdk: SDK,sendKeypair: Ed25519Keypair ,  faucet: {
+  faucet_display: string,
+  faucet_router: string,
+},modules: string,funName: string){
+  const objects = await sdk.fullClient.getObject({id: faucet.faucet_display, options: {showPreviousTransaction: true}})
     const previousTx =   getObjectPreviousTransactionDigest(objects)
     console.log("previousTx",previousTx);
     if(previousTx){
       const txResult = await sdk.Resources.getSuiTransactionResponse(previousTx)
 
-      if(txResult?.effects?.created){
+      if(txResult){
         const faucetCoins = CoinAssist.getFaucetCoins(txResult)
         console.log("faucetCoins: ",faucetCoins);
 
@@ -51,7 +54,7 @@ export async  function mintAll(sdk: SDK,sendKeypair: Ed25519Keypair , packageId:
         const signer = new RawSigner(sendKeypair, sdk.fullClient)
         tx.setGasBudget(300000000)
         tx.moveCall({
-          target: `${packageId}::${modules}::${funName}`,
+          target: `${faucet.faucet_router}::${modules}::${funName}`,
           typeArguments : [],
           arguments: [...sharedObjectIds],
         })
@@ -78,7 +81,7 @@ export async function printSDKConfig(sdk: SDK) {
 
 export async function buildTestPool(sdk: SDK, poolObjectId: string) {
   const pool = await sdk.Resources.getPool(poolObjectId)
-  console.log('buildPool: ', pool)
+  // console.log('buildPool: ', pool)
   return pool
 }
 

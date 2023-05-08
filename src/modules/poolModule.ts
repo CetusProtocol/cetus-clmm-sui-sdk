@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 /* eslint-disable no-return-await */
 /* eslint-disable camelcase */
 /* eslint-disable import/no-unresolved */
@@ -5,13 +6,13 @@ import { DynamicFieldPage } from '@mysten/sui.js/dist/types/dynamic_fields'
 import { normalizeSuiAddress, TransactionArgument, TransactionBlock } from '@mysten/sui.js'
 import { TransactionUtil } from '../utils/transaction-util'
 import { tickScore } from '../math'
-import { asUintN, buildTickData, buildTickDataByEvent } from '../utils/common'
+import { asUintN, buildPositionReward, buildTickData, buildTickDataByEvent, multiGetObjects } from '../utils/common'
 import { extractStructTagFromType, isSortedSymbols } from '../utils/contracts'
 import { TickData } from '../types/clmmpool'
-import { ClmmFetcherModule, ClmmIntegrateModule, CLOCK_ADDRESS, SuiObjectIdType } from '../types/sui'
+import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS, SuiObjectIdType } from '../types/sui'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
-import { CoinPairType } from './resourcesModule'
+import { CoinPairType, PositionReward, Position } from './resourcesModule'
 
 export type CreatePoolParams = {
   tick_spacing: number
@@ -20,21 +21,21 @@ export type CreatePoolParams = {
 } & CoinPairType
 
 export type CreatePoolAddLiquidityParams = {
-  amount_a: number
-  amount_b: number
+  amount_a: number | string
+  amount_b: number | string
   fix_amount_a: boolean
   tick_lower: number
   tick_upper: number
 } & CreatePoolParams
 
-export type FetchTickParams = {
+export type FetchParams = {
   pool_id: SuiObjectIdType
 } & CoinPairType
 
 type GetTickParams = {
   start: number[]
   limit: number
-} & FetchTickParams
+} & FetchParams
 
 export class PoolModule implements IModule {
   protected _sdk: SDK
@@ -99,7 +100,7 @@ export class PoolModule implements IModule {
       ]
 
       tx.moveCall({
-        target: `${clmm.clmm_router}::${ClmmIntegrateModule}::create_pool`,
+        target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::create_pool`,
         typeArguments: [params.coinTypeA, params.coinTypeB],
         arguments: args,
       })
@@ -124,18 +125,21 @@ export class PoolModule implements IModule {
     const allCoinAsset = await this._sdk.Resources.getOwnerCoinAssets(this._sdk.senderAddress)
     tx.setGasBudget(this._sdk.gasConfig.GasBudgetHigh2)
 
-    const primaryCoinAInputs = TransactionUtil.buildCoinInputForAmount(
+    const primaryCoinAInputsR: any = TransactionUtil.buildCoinInputForAmount(
       tx,
       allCoinAsset,
       BigInt(params.amount_a),
       params.coinTypeA
-    ) as TransactionArgument
-    const primaryCoinBInputs = TransactionUtil.buildCoinInputForAmount(
+    )?.transactionArgument
+    const primaryCoinBInputsR: any = TransactionUtil.buildCoinInputForAmount(
       tx,
       allCoinAsset,
       BigInt(params.amount_b),
       params.coinTypeB
-    ) as TransactionArgument
+    )?.transactionArgument
+
+    const primaryCoinAInputs = primaryCoinAInputsR as TransactionArgument
+    const primaryCoinBInputs = primaryCoinBInputsR as TransactionArgument
 
     const primaryCoinInputs: {
       coinInput: TransactionArgument
@@ -171,12 +175,16 @@ export class PoolModule implements IModule {
       tx.pure(asUintN(BigInt(params.tick_lower)).toString()),
       tx.pure(asUintN(BigInt(params.tick_upper)).toString()),
       ...primaryCoinInputs.map((item) => tx.pure(item.coinAmount)),
-      tx.pure(params.fix_amount_a),
-      tx.pure(CLOCK_ADDRESS),
+      // tx.pure(params.fix_amount_a),
+      // tx.pure(CLOCK_ADDRESS),
     ]
+    if (addLiquidityName === 'create_pool_with_liquidity_with_all') {
+      args.push(tx.pure(params.fix_amount_a))
+    }
+    args.push(tx.pure(CLOCK_ADDRESS))
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::${addLiquidityName}`,
+      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::${addLiquidityName}`,
       typeArguments: [params.coinTypeA, params.coinTypeB],
       arguments: args,
     })
@@ -184,7 +192,7 @@ export class PoolModule implements IModule {
     return tx
   }
 
-  async fetchTicks(params: FetchTickParams): Promise<TickData[]> {
+  async fetchTicks(params: FetchParams): Promise<TickData[]> {
     let ticks: TickData[] = []
     let start: number[] = []
     const limit = 512
@@ -218,7 +226,7 @@ export class PoolModule implements IModule {
     const args = [tx.pure(params.pool_id), tx.pure(params.start), tx.pure(params.limit.toString())]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmFetcherModule}::fetch_ticks`,
+      target: `${clmm.clmm_router.cetus}::${ClmmFetcherModule}::fetch_ticks`,
       arguments: args,
       typeArguments,
     })
@@ -239,6 +247,51 @@ export class PoolModule implements IModule {
       }
     })
     return ticks
+  }
+
+  async fetchPositionRewardList(params: FetchParams): Promise<PositionReward[]> {
+    const { clmm, simulationAccount } = this.sdk.sdkOptions
+    const allPosition: PositionReward[] = []
+    let start: SuiObjectIdType[] = []
+    const limit = 512
+
+    while (true) {
+      const typeArguments = [params.coinTypeA, params.coinTypeB]
+
+      const tx = new TransactionBlock()
+      const args = [tx.pure(params.pool_id), tx.pure(start), tx.pure(limit.toString())]
+
+      tx.moveCall({
+        target: `${clmm.clmm_router.cetus}::${ClmmFetcherModule}::fetch_positions`,
+        arguments: args,
+        typeArguments,
+      })
+
+      const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
+        transactionBlock: tx,
+        sender: simulationAccount.address,
+      })
+
+      const positionRewards: PositionReward[] = []
+      simulateRes.events?.forEach((item: any) => {
+        if (extractStructTagFromType(item.type).name === `FetchPositionsEvent`) {
+          item.parsedJson.positions.forEach((item: any) => {
+            const positionReward = buildPositionReward(item)
+            positionRewards.push(positionReward)
+          })
+        }
+      })
+
+      allPosition.push(...positionRewards)
+
+      if (positionRewards.length < limit) {
+        break
+      } else {
+        start = [positionRewards[positionRewards.length - 1].pos_object_id]
+      }
+    }
+
+    return allPosition
   }
 
   async fetchTicksByRpc(tickHandle: string): Promise<TickData[]> {
@@ -276,10 +329,7 @@ export class PoolModule implements IModule {
 
   private async getTicksByRpc(tickObjectId: string[]): Promise<TickData[]> {
     const ticks: TickData[] = []
-    const objectDataResponses = await this.sdk.fullClient.multiGetObjects({
-      ids: tickObjectId,
-      options: { showContent: true, showType: true },
-    })
+    const objectDataResponses = await multiGetObjects(this.sdk, tickObjectId, { showContent: true, showType: true })
     // eslint-disable-next-line no-restricted-syntax
     for (const suiObj of objectDataResponses) {
       ticks.push(buildTickData(suiObj))

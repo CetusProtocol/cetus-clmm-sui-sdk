@@ -1,5 +1,7 @@
 import { Connection, JsonRpcProvider } from '@mysten/sui.js'
+import { BoosterModule } from './modules/boosterModule'
 import { LaunchpadModule } from './modules/launchpadModule'
+import { MakerModule } from './modules/makerModule'
 import { PoolModule } from './modules/poolModule'
 import { PositionModule } from './modules/positionModule'
 import { ResourcesModule } from './modules/resourcesModule'
@@ -7,7 +9,7 @@ import { RewarderModule } from './modules/rewarderModule'
 import { RouterModule } from './modules/routerModule'
 import { SwapModule } from './modules/swapModule'
 import { TokenModule } from './modules/tokenModule'
-import { XWhaleModule } from './modules/xwhaleModule'
+import { XCetusModule } from './modules/xcetusModule'
 import { SuiObjectIdType } from './types/sui'
 import { GasConfig } from './utils/gas_config'
 
@@ -29,36 +31,51 @@ export type SdkOptions = {
   launchpad: {
     ido_display: SuiObjectIdType
     ido_router: SuiObjectIdType
-    lock_display: SuiObjectIdType
-    lock_router: SuiObjectIdType
     config: {
       pools_id: SuiObjectIdType
       admin_cap_id: SuiObjectIdType
-      lock_manager_id: SuiObjectIdType
       config_cap_id: SuiObjectIdType
     }
   }
-  xwhale: {
-    xwhale_display: SuiObjectIdType
-    xwhale_router: SuiObjectIdType
+  xcetus: {
+    xcetus_display: SuiObjectIdType
+    xcetus_router: SuiObjectIdType
     dividends_display: SuiObjectIdType
     dividends_router: SuiObjectIdType
+    cetus_faucet: SuiObjectIdType
+    config: {
+      xcetus_manager_id: SuiObjectIdType
+      lock_manager_id: SuiObjectIdType
+      lock_handle_id: SuiObjectIdType
+      dividend_manager_id: SuiObjectIdType
+    }
+  }
+  booster: {
     booster_display: SuiObjectIdType
     booster_router: SuiObjectIdType
-    whale_faucet: SuiObjectIdType
     config: {
-      xwhale_manager_id: SuiObjectIdType
-      lock_manager_id: SuiObjectIdType
-      dividend_manager_id: SuiObjectIdType
+      booster_config_id: SuiObjectIdType
+      booster_pool_handle: SuiObjectIdType
+    }
+  }
+  maker_bonus: {
+    maker_display: SuiObjectIdType
+    maker_router: SuiObjectIdType
+    config: {
+      maker_config_id: SuiObjectIdType
+      maker_pool_handle: SuiObjectIdType
     }
   }
   clmm: {
     clmm_display: SuiObjectIdType
-    clmm_router: SuiObjectIdType
     config: {
       global_config_id: SuiObjectIdType
       global_vault_id: SuiObjectIdType
       pools_id: SuiObjectIdType
+    }
+    clmm_router: {
+      cetus: SuiObjectIdType
+      deepbook: SuiObjectIdType
     }
   }
 }
@@ -84,7 +101,11 @@ export class SDK {
 
   protected _launchpad: LaunchpadModule
 
-  protected _xwhaleModule: XWhaleModule
+  protected _xcetusModule: XCetusModule
+
+  protected _boosterModule: BoosterModule
+
+  protected _makerModule: MakerModule
 
   protected _senderAddress = ''
 
@@ -106,7 +127,9 @@ export class SDK {
     this._router = new RouterModule(this)
     this._token = new TokenModule(this)
     this._launchpad = new LaunchpadModule(this)
-    this._xwhaleModule = new XWhaleModule(this)
+    this._xcetusModule = new XCetusModule(this)
+    this._boosterModule = new BoosterModule(this)
+    this._makerModule = new MakerModule(this)
     this._gasConfig = new GasConfig(1)
   }
 
@@ -166,7 +189,15 @@ export class SDK {
     return this._launchpad
   }
 
-  get XWhaleModule() {
-    return this._xwhaleModule
+  get XCetusModule() {
+    return this._xcetusModule
+  }
+
+  get BoosterModule() {
+    return this._boosterModule
+  }
+
+  get MakerModule() {
+    return this._makerModule
   }
 }

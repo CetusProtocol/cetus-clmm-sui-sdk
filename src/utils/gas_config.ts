@@ -13,6 +13,8 @@ export class GasConfig {
 
   GasBudgetHigh2 = 240_000_000
 
+  GasBudgetHigh3 = 800_000_000
+
   constructor(price = 1) {
     this.price = price
     this.GasBudgetLow = Number(d(this.GasBudgetLow).mul(this.price).toFixed(0))

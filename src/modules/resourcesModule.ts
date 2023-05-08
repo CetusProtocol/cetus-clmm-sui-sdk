@@ -12,29 +12,42 @@ import {
   TransactionDigest,
 } from '@mysten/sui.js'
 import { CachedContent } from '../utils/cachedContent'
-import { buildPool, buildPosition, buildPositionReward } from '../utils/common'
+import { buildPool, buildPosition, buildPositionReward, multiGetObjects } from '../utils/common'
 import { SuiAddressType, SuiObjectIdType, SuiResource, NFT } from '../types/sui'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { extractStructTagFromType } from '../utils/contracts'
 import { addHexPrefix } from '../utils/hex'
 import { CoinAssist } from '../math/CoinAssist'
+import { loopToGetAllQueryEvents } from '../utils'
 
 export const cacheTime5min = 5 * 60 * 1000
 export const cacheTime24h = 24 * 60 * 60 * 1000
 export const intervalFaucetTime = 12 * 60 * 60 * 1000
 
-export type PositionRewarder = {
-  growth_inside: string
-  amount_owed: string
+export enum PositionStatus {
+  'Deleted' = 'Deleted',
+  'Exists' = 'Exists',
+  'NotExists' = 'NotExists',
 }
+
 export type Position = {
   pos_object_id: SuiObjectIdType
+  owner: SuiObjectIdType
   pool: SuiObjectIdType
   type: SuiAddressType
   coin_type_a: SuiAddressType
   coin_type_b: SuiAddressType
   index: number
+  liquidity: string
+  tick_lower_index: number
+  tick_upper_index: number
+  position_status: PositionStatus
+} & NFT &
+  PositionReward
+
+export type PositionReward = {
+  pos_object_id: SuiObjectIdType
   liquidity: string
   tick_lower_index: number
   tick_upper_index: number
@@ -48,7 +61,7 @@ export type Position = {
   reward_growth_inside_0: string
   reward_growth_inside_1: string
   reward_growth_inside_2: string
-} & NFT
+}
 
 export type CoinPairType = {
   coinTypeA: SuiAddressType
@@ -193,15 +206,15 @@ export class ResourcesModule implements IModule {
       return cacheData.value as FaucetEvent
     }
     const objects = (
-      await this._sdk.fullClient.queryEvents({
+      await loopToGetAllQueryEvents(this._sdk, {
         query: { MoveEventType: `${packageObjectId}::faucet::FaucetEvent` },
       })
-    ).data
+    )?.data
     let findFaucetEvent: FaucetEvent = {
       id: '',
       time: 0,
     }
-    objects.forEach((eventObject) => {
+    objects.forEach((eventObject: any) => {
       if (addHexPrefix(walletAddress) === eventObject.sender) {
         const fields = eventObject.parsedJson
         if (fields) {
@@ -243,10 +256,10 @@ export class ResourcesModule implements IModule {
     const previousTx = getObjectPreviousTransactionDigest(packageObject) as string
 
     const objects = (
-      await this._sdk.fullClient.queryEvents({
+      await loopToGetAllQueryEvents(this._sdk, {
         query: { Transaction: previousTx },
       })
-    ).data
+    )?.data
 
     // console.log('objects: ', objects)
 
@@ -257,7 +270,7 @@ export class ResourcesModule implements IModule {
     }
 
     if (objects.length > 0) {
-      objects.forEach((item) => {
+      objects.forEach((item: any) => {
         const fields = item.parsedJson as any
         if (item.type) {
           switch (extractStructTagFromType(item.type).full_address) {
@@ -291,14 +304,14 @@ export class ResourcesModule implements IModule {
       return cacheData.value as CreatePartnerEvent[]
     }
     const objects = (
-      await this._sdk.fullClient.queryEvents({
+      await loopToGetAllQueryEvents(this._sdk, {
         query: { MoveEventType: `${packageObjectId}::partner::CreatePartnerEvent` },
       })
-    ).data
+    )?.data
     const events: CreatePartnerEvent[] = []
 
     if (objects.length > 0) {
-      objects.forEach((item) => {
+      objects.forEach((item: any) => {
         events.push(item.parsedJson as CreatePartnerEvent)
       })
       this.updateCache(cacheKey, events, cacheTime24h)
@@ -321,12 +334,13 @@ export class ResourcesModule implements IModule {
 
     if (allPools.length === 0) {
       try {
-        const objects = await this._sdk.fullClient.queryEvents({
+        const objects = await loopToGetAllQueryEvents(this._sdk, {
           query: { MoveEventType: `${clmmIntegrate}::factory::CreatePoolEvent` },
         })
+
         // console.log('objects: ', objects)
 
-        objects.data.forEach((object) => {
+        objects.data.forEach((object: any) => {
           const fields = object.parsedJson
           if (fields) {
             allPools.push({
@@ -363,6 +377,7 @@ export class ResourcesModule implements IModule {
   }
 
   async getPools(assignPools: string[] = [], offset = 0, limit = 100): Promise<Pool[]> {
+    // console.log(assignPools)
     const allPool: Pool[] = []
     let poolObjectIds: string[] = []
 
@@ -374,14 +389,12 @@ export class ResourcesModule implements IModule {
         poolObjectIds.push(item.poolAddress)
       })
     }
-    const objectDataResponses = await this.sdk.fullClient.multiGetObjects({
-      ids: poolObjectIds,
-      options: {
-        showContent: true,
-        showType: true,
-      },
+
+    const objectDataResponses: any[] = await multiGetObjects(this._sdk, poolObjectIds, {
+      showContent: true,
+      showType: true,
     })
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const suiObj of objectDataResponses) {
       const pool = buildPool(suiObj)
       allPool.push(pool)
@@ -410,8 +423,12 @@ export class ResourcesModule implements IModule {
     return pool
   }
 
-  async getPositionList(accountAddress: string, assignPoolIds: string[] = []): Promise<Position[]> {
+  buildPositionType() {
     const cetusClmm = this._sdk.sdkOptions.clmm.clmm_display
+    return `${cetusClmm}::position::Position`
+  }
+
+  async getPositionList(accountAddress: string, assignPoolIds: string[] = []): Promise<Position[]> {
     const allPosition: Position[] = []
     let cursor = null
 
@@ -419,7 +436,7 @@ export class ResourcesModule implements IModule {
       // eslint-disable-next-line no-await-in-loop
       const ownerRes: any = await this._sdk.fullClient.getOwnedObjects({
         owner: accountAddress,
-        options: { showType: true, showContent: true, showDisplay: true },
+        options: { showType: true, showContent: true, showDisplay: true, showOwner: true },
         cursor,
         // filter: { Package: cetusClmm },
       })
@@ -428,7 +445,7 @@ export class ResourcesModule implements IModule {
       for (const item of ownerRes.data as any[]) {
         const type = extractStructTagFromType(item.data.type)
 
-        if (type.full_address === `${cetusClmm}::position::Position`) {
+        if (type.full_address === this.buildPositionType()) {
           const position = buildPosition(item)
           const cacheKey = `${position.pos_object_id}_getPositionList`
           this.updateCache(cacheKey, position, cacheTime24h)
@@ -460,6 +477,8 @@ export class ResourcesModule implements IModule {
 
   async getPositionById(positionId: string): Promise<Position> {
     const position = await this.getSipmlePosition(positionId)
+    console.log('position: ', position)
+
     const pool = await this.getPool(position.pool, false)
     const result = await this.updatePositionRewarders(pool.positions_handle, position)
     return result
@@ -467,20 +486,60 @@ export class ResourcesModule implements IModule {
 
   async getSipmlePosition(positionId: string): Promise<Position> {
     const cacheKey = `${positionId}_getPositionList`
-    const cacheData = this._cache[cacheKey]
-    let position: Position | null = null
-    if (cacheData !== undefined && cacheData.getCacheData()) {
-      position = cacheData.value as Position
-    }
 
-    if (position === null) {
+    let position = this.getSipmlePositionByCache(positionId)
+
+    if (position === undefined) {
       const objectDataResponses = await this.sdk.fullClient.getObject({
         id: positionId,
-        options: { showContent: true, showType: true, showDisplay: true },
+        options: { showContent: true, showType: true, showDisplay: true, showOwner: true },
       })
       position = buildPosition(objectDataResponses)
+
+      this.updateCache(cacheKey, position, cacheTime24h)
     }
     return position
+  }
+
+  private getSipmlePositionByCache(positionId: string): Position | undefined {
+    const cacheKey = `${positionId}_getPositionList`
+    const cacheData = this._cache[cacheKey]
+    if (cacheData !== undefined && cacheData.getCacheData()) {
+      return cacheData.value as Position
+    }
+    return undefined
+  }
+
+  async getSipmlePositionList(positionIds: SuiObjectIdType[]): Promise<Position[]> {
+    const positionList: Position[] = []
+    const notFoundIds: SuiObjectIdType[] = []
+
+    positionIds.forEach((id) => {
+      const position = this.getSipmlePositionByCache(id)
+      if (position) {
+        positionList.push(position)
+      } else {
+        notFoundIds.push(id)
+      }
+    })
+
+    if (notFoundIds.length > 0) {
+      const objectDataResponses = await multiGetObjects(this._sdk, notFoundIds, {
+        showOwner: true,
+        showContent: true,
+        showDisplay: true,
+        showType: true,
+      })
+
+      objectDataResponses.forEach((info) => {
+        const position = buildPosition(info)
+        positionList.push(position)
+        const cacheKey = `${position.pos_object_id}_getPositionList`
+        this.updateCache(cacheKey, position, cacheTime24h)
+      })
+    }
+
+    return positionList
   }
 
   private async updatePositionRewarders(positionHandle: string, position: Position): Promise<Position> {
@@ -492,8 +551,14 @@ export class ResourcesModule implements IModule {
         value: position.pos_object_id,
       },
     })
-    const fields = (getObjectFields(res.data as any) as any).value.fields.value
-    return buildPositionReward(fields, position)
+
+    const { fields } = (getObjectFields(res.data as any) as any).value.fields.value
+
+    const positionReward = buildPositionReward(fields)
+    return {
+      ...position,
+      ...positionReward,
+    }
   }
 
   async getOwnerCoinAssets(suiAddress: string, coinType?: string | null): Promise<CoinAsset[]> {
@@ -568,4 +633,7 @@ export class ResourcesModule implements IModule {
     }
     this._cache[key] = cacheData
   }
+}
+function item(item: any): any {
+  throw new Error('Function not implemented.')
 }

@@ -9,18 +9,24 @@ import {
   TransactionEffects,
 } from '@mysten/sui.js'
 import BN from 'bn.js'
-import { SwapParams } from '../modules/swapModule'
-import { TickData } from '../types/clmmpool'
-import { ClmmIntegrateModule, CLOCK_ADDRESS } from '../types/sui'
-import { CoinAsset, CoinPairType, Pool } from '../modules/resourcesModule'
 import { CoinAssist } from '../math/CoinAssist'
+import { SwapParams } from '../modules/swapModule'
+import { SwapWithRouterParams } from '../modules/routerModule'
+import { CoinAsset, CoinPairType, Pool } from '../modules/resourcesModule'
 import { AddLiquidityFixTokenParams, AddLiquidityParams } from '../modules/positionModule'
-import SDK, { adjustForSlippage, asUintN, ClmmPoolUtil, Percentage, SdkOptions, SwapUtils } from '../index'
+import { TickData } from '../types/clmmpool'
+import { ClmmIntegratePoolModule, ClmmIntegrateRouterModule, CLOCK_ADDRESS } from '../types/sui'
+import SDK, { adjustForSlippage, asUintN, ClmmPoolUtil, d, Percentage, SdkOptions, SwapUtils } from '../index'
 
 export function findAdjustCoin(coinPair: CoinPairType): { isAdjustCoinA: boolean; isAdjustCoinB: boolean } {
   const isAdjustCoinA = CoinAssist.isSuiCoin(coinPair.coinTypeA)
   const isAdjustCoinB = CoinAssist.isSuiCoin(coinPair.coinTypeB)
   return { isAdjustCoinA, isAdjustCoinB }
+}
+
+export type BuildCoinInputResult = {
+  transactionArgument: TransactionArgument[]
+  remainCoins: CoinAsset[]
 }
 
 export async function sendTransaction(
@@ -29,7 +35,7 @@ export async function sendTransaction(
   onlyCalculateGas = false
 ): Promise<TransactionEffects | undefined> {
   try {
-    console.log('gasConfig: ', tx.blockData.gasConfig)
+    // console.log('gasConfig: ', tx.blockData.gasConfig)
 
     if (onlyCalculateGas) {
       tx.setSender(await signer.getAddress())
@@ -75,7 +81,7 @@ export class TransactionUtil {
   ): Promise<{ fixAmount: bigint; fixCoinInput?: TransactionArgument; newTx?: TransactionBlock }> {
     tx.setSender(sdk.senderAddress)
     // amount coins
-    const amountCoins = CoinAssist.selectCoinAssetGreaterThanOrEqual(allCoins, amount)
+    const amountCoins = CoinAssist.selectCoinAssetGreaterThanOrEqual(allCoins, amount).selectedCoins
     if (amountCoins.length === 0) {
       throw new Error(`Insufficient balance`)
     }
@@ -93,7 +99,7 @@ export class TransactionUtil {
       allCoins,
       BigInt(estimateGas),
       amountCoins.map((item) => item.coinObjectId)
-    )
+    ).selectedCoins
 
     // There is not enough gas and the amount needs to be adjusted
     if (gasCoins.length === 0) {
@@ -106,7 +112,7 @@ export class TransactionUtil {
       const newTx = new TransactionBlock()
       const primaryCoinAInput = newTx.splitCoins(newTx.gas, [newTx.pure(amount)])
       newTx.setGasBudget(estimateGas + 500)
-      return { fixAmount: amount, fixCoinInput: primaryCoinAInput, newTx }
+      return { fixAmount: amount, fixCoinInput: newTx.makeMoveVec({ objects: [primaryCoinAInput] }), newTx }
     }
     return { fixAmount: amount }
   }
@@ -146,16 +152,26 @@ export class TransactionUtil {
     const { newTx } = newResult
 
     if (fixCoinInput !== undefined && newTx !== undefined) {
-      let primaryCoinAInputs: TransactionArgument | undefined
-      let primaryCoinBInputs: TransactionArgument | undefined
+      let primaryCoinAInputs: TransactionArgument | undefined | any
+      let primaryCoinBInputs: TransactionArgument | undefined | any
 
       if (isAdjustCoinA) {
         params.amount_a = Number(fixAmount)
         primaryCoinAInputs = fixCoinInput
-        primaryCoinBInputs = TransactionUtil.buildCoinInputForAmount(newTx, allCoins, BigInt(params.amount_b), params.coinTypeB)
+        primaryCoinBInputs = TransactionUtil.buildCoinInputForAmount(
+          newTx,
+          allCoins,
+          BigInt(params.amount_b),
+          params.coinTypeB
+        )?.transactionArgument
       } else {
         params.amount_b = Number(fixAmount)
-        primaryCoinAInputs = TransactionUtil.buildCoinInputForAmount(newTx, allCoins, BigInt(params.amount_a), params.coinTypeA)
+        primaryCoinAInputs = TransactionUtil.buildCoinInputForAmount(
+          newTx,
+          allCoins,
+          BigInt(params.amount_a),
+          params.coinTypeA
+        )?.transactionArgument
         primaryCoinBInputs = fixCoinInput
         params = TransactionUtil.fixAddLiquidityFixTokenParams(params, gasEstimateArg.slippage, gasEstimateArg.curSqrtPrice)
 
@@ -184,18 +200,18 @@ export class TransactionUtil {
     const isFixToken = !('delta_liquidity' in params)
 
     let tx = new TransactionBlock()
-    const primaryCoinAInputs = TransactionUtil.buildCoinInputForAmount(
+    const primaryCoinAInputs: any = TransactionUtil.buildCoinInputForAmount(
       tx,
       allCoinAsset,
       BigInt(isFixToken ? params.amount_a : params.max_amount_a),
       params.coinTypeA
-    )
-    const primaryCoinBInputs = TransactionUtil.buildCoinInputForAmount(
+    )?.transactionArgument
+    const primaryCoinBInputs: any = TransactionUtil.buildCoinInputForAmount(
       tx,
       allCoinAsset,
       BigInt(isFixToken ? params.amount_b : params.max_amount_b),
       params.coinTypeB
-    )
+    )?.transactionArgument
 
     if (isFixToken) {
       tx.setGasBudget(sdk.gasConfig.GasBudgetHigh2)
@@ -321,7 +337,7 @@ export class TransactionUtil {
         ]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::${functionName}`,
+      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::${functionName}`,
       typeArguments,
       arguments: args,
     })
@@ -382,7 +398,7 @@ export class TransactionUtil {
     }
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::${functionName}`,
+      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::${functionName}`,
       typeArguments,
       arguments: args,
     })
@@ -419,9 +435,7 @@ export class TransactionUtil {
       tx
     )
 
-    const { fixAmount } = newResult
-    const { fixCoinInput } = newResult
-    const { newTx } = newResult
+    const { fixAmount, fixCoinInput, newTx } = newResult
 
     if (fixCoinInput !== undefined && newTx !== undefined) {
       if (params.by_amount_in) {
@@ -445,12 +459,12 @@ export class TransactionUtil {
   static buildSwapTransaction(sdk: SDK, params: SwapParams, allCoinAsset: CoinAsset[]): TransactionBlock {
     let tx = new TransactionBlock()
     tx.setGasBudget(sdk.gasConfig.GasBudgetHigh2)
-    const primaryCoinInputs = TransactionUtil.buildCoinInputForAmount(
+    const primaryCoinInputs: any = TransactionUtil.buildCoinInputForAmount(
       tx,
       allCoinAsset,
       BigInt(params.by_amount_in ? params.amount : params.amount_limit),
       params.a2b ? params.coinTypeA : params.coinTypeB
-    )
+    )?.transactionArgument
 
     tx = TransactionUtil.buildSwapTransactionArgs(tx, params, sdk.sdkOptions, primaryCoinInputs as TransactionArgument)
     return tx
@@ -512,7 +526,7 @@ export class TransactionUtil {
         ]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegrateModule}::${functionName}`,
+      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::${functionName}`,
       typeArguments,
       arguments: args,
     })
@@ -559,7 +573,7 @@ export class TransactionUtil {
     }
 
     const allCoins = await sdk.Resources.getOwnerCoinAssets(sdk.senderAddress, coinType)
-    const primaryCoinInput = TransactionUtil.buildCoinInputForAmount(tx, allCoins, amount, coinType)
+    const primaryCoinInput: any = TransactionUtil.buildCoinInputForAmount(tx, allCoins, amount, coinType)!.transactionArgument
 
     return primaryCoinInput
   }
@@ -570,12 +584,13 @@ export class TransactionUtil {
     amount: bigint,
     coinType: string,
     buildVector = true
-  ): TransactionArgument | undefined {
+  ): BuildCoinInputResult | undefined {
     const coinAssets: CoinAsset[] = CoinAssist.getCoinAssets(coinType, allCoins)
 
     if (amount === BigInt(0)) {
       return undefined
     }
+    // console.log(coinAssets)
     const amountTotal = CoinAssist.calculateTotalBalance(coinAssets)
     if (amountTotal < amount) {
       throw new Error(`The amount(${amountTotal}) is Insufficient balance for ${coinType} , expect ${amount} `)
@@ -584,17 +599,26 @@ export class TransactionUtil {
     if (CoinAssist.isSuiCoin(coinType)) {
       const amountCoin = tx.splitCoins(tx.gas, [tx.pure(amount.toString())])
       if (buildVector) {
-        return tx.makeMoveVec({ objects: [amountCoin] })
+        return {
+          transactionArgument: tx.makeMoveVec({ objects: [amountCoin] }),
+          remainCoins: allCoins,
+        }
       }
-      return amountCoin
+      return {
+        transactionArgument: amountCoin,
+        remainCoins: allCoins,
+      }
     }
-
-    const coinObjectIds = CoinAssist.selectCoinObjectIdGreaterThanOrEqual(coinAssets, amount)
+    const selectedCoinsResult = CoinAssist.selectCoinObjectIdGreaterThanOrEqual(coinAssets, amount)
+    const coinObjectIds = selectedCoinsResult.objectArray
     if (buildVector) {
-      return tx.makeMoveVec({ objects: coinObjectIds.map((id) => tx.object(id)) })
+      return {
+        transactionArgument: tx.makeMoveVec({ objects: coinObjectIds.map((id) => tx.object(id)) }),
+        remainCoins: selectedCoinsResult.remainCoins,
+      }
     }
     const [primaryCoinA, ...mergeCoinAs] = coinObjectIds
-    const primaryCoinAInput = tx.object(primaryCoinA)
+    const primaryCoinAInput: any = tx.object(primaryCoinA)
 
     if (mergeCoinAs.length > 0) {
       tx.mergeCoins(
@@ -603,7 +627,10 @@ export class TransactionUtil {
       )
     }
 
-    return primaryCoinAInput
+    return {
+      transactionArgument: primaryCoinAInput,
+      remainCoins: selectedCoinsResult.remainCoins,
+    }
   }
 
   public static async calculationTxGas(sdk: JsonRpcProvider | RawSigner, tx: TransactionBlock): Promise<number> {
@@ -621,5 +648,161 @@ export class TransactionUtil {
 
     const estimateGas = Number(gasUsed.computationCost) + Number(gasUsed.storageCost) - Number(gasUsed.storageRebate)
     return estimateGas
+  }
+
+  // -------------------------------------router--------------------------------------------------//
+  public static buildRouterSwapTransaction(
+    sdk: SDK,
+    params: SwapWithRouterParams,
+    byAmountIn: boolean,
+    allCoinAsset: CoinAsset[]
+  ): TransactionBlock {
+    const tx = new TransactionBlock()
+    tx.setGasBudget(sdk.gasConfig.GasBudgetHigh3)
+    const { clmm } = sdk.sdkOptions
+    const global_config_id = clmm.config?.global_config_id
+    let coinAssets: CoinAsset[] = allCoinAsset
+
+    for (let i = 0; i < params.paths.length; i += 1) {
+      if (params.paths[i].poolAddress.length === 1) {
+        const swapParams = {
+          pool_id: params.paths[i].poolAddress[0],
+          a2b: params.paths[i].a2b[0],
+          byAmountIn,
+          amount: byAmountIn ? params.paths[i].amountIn.toString() : params.paths[i].amountOut.toString(),
+          amount_limit: adjustForSlippage(
+            new BN(params.paths[i].rawAmountLimit[0]),
+            Percentage.fromDecimal(d(params.priceSplitPoint)),
+            !byAmountIn
+          ).toString(),
+          swap_partner: '',
+          coinTypeA: params.paths[i].coinType[0],
+          coinTypeB: params.paths[i].coinType[1],
+        }
+        const buildCoinResult = TransactionUtil.buildCoinInputForAmount(
+          tx,
+          coinAssets,
+          BigInt(byAmountIn ? params.paths[i].amountIn.toString() : swapParams.amount_limit),
+          swapParams.coinTypeA
+        )
+        const primaryCoinInput = buildCoinResult?.transactionArgument
+        coinAssets = buildCoinResult!.remainCoins
+
+        const functionName = swapParams.a2b ? 'swap_a2b' : 'swap_b2a'
+        const sqrtPriceLimit = SwapUtils.getDefaultSqrtPriceLimit(swapParams.a2b)
+        const args: any = [
+          tx.object(global_config_id),
+          tx.object(swapParams.pool_id),
+          primaryCoinInput!,
+          tx.pure(byAmountIn),
+          tx.pure(swapParams.amount),
+          tx.pure(swapParams.amount_limit),
+          tx.pure(sqrtPriceLimit.toString()),
+          tx.object(CLOCK_ADDRESS),
+        ]
+        const typeArguments = swapParams.a2b ? [swapParams.coinTypeA, swapParams.coinTypeB] : [swapParams.coinTypeB, swapParams.coinTypeA]
+        tx.moveCall({
+          target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::${functionName}`,
+          typeArguments,
+          arguments: args,
+        })
+      } else {
+        const amount_0 = byAmountIn ? params.paths[i].amountIn : params.paths[i].rawAmountLimit[0]
+        const amount_1 = byAmountIn ? params.paths[i].rawAmountLimit[0] : params.paths[i].amountOut
+
+        const swapParams = {
+          pool_0_id: params.paths[i].poolAddress[0],
+          pool_1_id: params.paths[i].poolAddress[1],
+          a2b_0: params.paths[i].a2b[0],
+          a2b_1: params.paths[i].a2b[1],
+          byAmountIn,
+          amount_0,
+          amount_1,
+          amount_limit_0: adjustForSlippage(
+            new BN(params.paths[i].rawAmountLimit[0]),
+            Percentage.fromDecimal(d(params.priceSplitPoint)),
+            !byAmountIn
+          ).toString(),
+          amount_limit_1: adjustForSlippage(
+            new BN(params.paths[i].rawAmountLimit[1]),
+            Percentage.fromDecimal(d(params.priceSplitPoint)),
+            !byAmountIn
+          ).toString(),
+          swap_partner: '',
+          coinTypeA: params.paths[i].coinType[0],
+          coinTypeB: params.paths[i].coinType[1],
+          coinTypeC: params.paths[i].coinType[2],
+        }
+
+        const buildCoinResult = TransactionUtil.buildCoinInputForAmount(
+          tx,
+          coinAssets,
+          BigInt(byAmountIn ? swapParams.amount_0.toString() : swapParams.amount_limit_0),
+          swapParams.coinTypeA
+        )
+
+        const primaryCoinInput = buildCoinResult?.transactionArgument
+        coinAssets = buildCoinResult!.remainCoins
+
+        let functionName = ''
+        if (swapParams.a2b_0) {
+          if (swapParams.a2b_1) {
+            functionName = 'router_swap_ab_bc_in_a'
+          } else {
+            functionName = 'router_swap_ab_cb_in_a'
+          }
+        } else if (swapParams.a2b_1) {
+          functionName = 'router_swap_ba_bc_in_a'
+        } else {
+          functionName = 'router_swap_ba_cb_in_a'
+        }
+        const sqrtPriceLimit0 = SwapUtils.getDefaultSqrtPriceLimit(params.paths[i].a2b[0])
+        const sqrtPriceLimit1 = SwapUtils.getDefaultSqrtPriceLimit(params.paths[i].a2b[1])
+        const args: any = [
+          tx.object(global_config_id),
+          tx.object(swapParams.pool_0_id),
+          tx.object(swapParams.pool_1_id),
+          primaryCoinInput!,
+          tx.pure(byAmountIn),
+          tx.pure(swapParams.amount_0.toString()),
+          tx.pure(swapParams.amount_1.toString()),
+          tx.pure(swapParams.amount_limit_0),
+          tx.pure(swapParams.amount_limit_1),
+          tx.pure(sqrtPriceLimit0.toString()),
+          tx.pure(sqrtPriceLimit1.toString()),
+          tx.object(CLOCK_ADDRESS),
+        ]
+        const typeArguments = [swapParams.coinTypeA, swapParams.coinTypeB, swapParams.coinTypeC]
+        tx.moveCall({
+          target: `${clmm.clmm_router.cetus}::${ClmmIntegrateRouterModule}::${functionName}`,
+          typeArguments,
+          arguments: args,
+        })
+      }
+    }
+
+    return tx
+  }
+
+  static buildCoinTypePair(coinTypes: string[], partitionQuantities: number[]): string[][] {
+    const coinTypePair: string[][] = []
+    if (coinTypes.length === 2) {
+      const pair: string[] = []
+      pair.push(coinTypes[0], coinTypes[1])
+      coinTypePair.push(pair)
+    } else {
+      const directPair: string[] = []
+      directPair.push(coinTypes[0], coinTypes[coinTypes.length - 1])
+      coinTypePair.push(directPair)
+      for (let i = 1; i < coinTypes.length - 1; i += 1) {
+        if (partitionQuantities[i - 1] === 0) {
+          continue
+        }
+        const pair: string[] = []
+        pair.push(coinTypes[0], coinTypes[i], coinTypes[coinTypes.length - 1])
+        coinTypePair.push(pair)
+      }
+    }
+    return coinTypePair
   }
 }

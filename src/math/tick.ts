@@ -251,7 +251,7 @@ export function getTickDataFromUrlData(ticks: any) {
       objectId: tick.objectId,
       index: Number(asIntN(BigInt(tick.index)).toString()),
       sqrtPrice: tick.sqrtPrice,
-      liquidityNet: new BN(asIntN(BigInt(tick.liquidityNet.toString())).toString()),
+      liquidityNet: new BN(BigInt.asIntN(128, BigInt(BigInt(tick.liquidityNet.toString()))).toString()),
       liquidityGross: tick.liquidityGross,
       feeGrowthOutsideA: tick.feeGrowthOutsideA,
       feeGrowthOutsideB: tick.feeGrowthOutsideB,

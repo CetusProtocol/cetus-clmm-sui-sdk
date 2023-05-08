@@ -7,7 +7,9 @@ describe('token Module', () => {
      const tokenConfig = sdk.sdkOptions.token.config
 
     test('getTokenListByCoinTypes', async () => {
-      const tokenMap =  await sdk.Token.getTokenListByCoinTypes(["0x0ac4240fe7e1d45a5996cb82d5269517951788482707ed28bee92dfa29c357d2::whale::WHALE"])
+      const tokenMap =  await sdk.Token.getTokenListByCoinTypes(["0xde093aecdfbce6e49461bc2a3f463611e4b90b580bc8ae83701d03e97afcc291::xcetus::XCETUS"])
+
+      
       console.log("tokenMap: ",tokenMap);
 
     })
@@ -37,14 +39,12 @@ describe('token Module', () => {
     test('getWarpPoolList', async () => {
       const lp_list =  await sdk.Token.getWarpPoolList()
       console.log("lp_list: ",lp_list);
-
     })
 
     test('getOwnerWarpPoolList', async () => {
       const {pool_list_owner, coin_list_owner} = tokenConfig
       const lp_list =  await sdk.Token.getOwnerWarpPoolList(pool_list_owner,coin_list_owner)
       console.log("lp_list: ",lp_list);
-
     })
 
 })

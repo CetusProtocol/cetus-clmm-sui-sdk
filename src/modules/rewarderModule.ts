@@ -4,9 +4,11 @@
 /* eslint-disable camelcase */
 import BN from 'bn.js'
 import { TransactionBlock } from '@mysten/sui.js'
-import { ClmmIntegrateModule, SuiAddressType, SuiObjectIdType, CLOCK_ADDRESS } from '../types/sui'
+import { type } from 'superstruct'
+import { asIntN, asUintN } from '../utils'
+import { ClmmIntegratePoolModule, SuiAddressType, SuiObjectIdType, CLOCK_ADDRESS } from '../types/sui'
 import { getRewardInTickRange } from '../utils/tick'
-import { MathUtil, ZERO } from '../math/utils'
+import { MathUtil, ONE, ZERO } from '../math/utils'
 import { CoinPairType, Pool, Position } from './resourcesModule'
 import { TickData } from '../types/clmmpool'
 import { SDK } from '../sdk'
@@ -18,6 +20,11 @@ export type CollectRewarderParams = {
   collect_fee: boolean //
   rewarder_coin_types: SuiAddressType[]
 } & CoinPairType
+
+export type RewarderAmountOwed = {
+  amount_owed: BN
+  coin_address: string
+}
 
 export class RewarderModule implements IModule {
   protected _sdk: SDK
@@ -116,7 +123,7 @@ export class RewarderModule implements IModule {
     return rewarderAmount
   }
 
-  private posRewardersAmountInternal(pool: Pool, position: Position, tickLower: TickData, tickUpper: TickData) {
+  private posRewardersAmountInternal(pool: Pool, position: Position, tickLower: TickData, tickUpper: TickData): RewarderAmountOwed[] {
     const tickLowerIndex = position.tick_lower_index
     const tickUpperIndex = position.tick_upper_index
     const rewardersInside = getRewardInTickRange(pool, tickLower, tickUpper, tickLowerIndex, tickUpperIndex, this.growthGlobal)
@@ -125,8 +132,13 @@ export class RewarderModule implements IModule {
     const AmountOwed = []
 
     if (rewardersInside.length > 0) {
-      const growthDelta_0 = MathUtil.subUnderflowU128(rewardersInside[0], new BN(position.reward_growth_inside_0))
-      const amountOwed_0 = MathUtil.checkMulShiftRight(new BN(position.liquidity), growthDelta_0, 64, 256)
+      let growthDelta_0 = MathUtil.subUnderflowU128(rewardersInside[0], new BN(position.reward_growth_inside_0))
+
+      if (growthDelta_0.gt(new BN('3402823669209384634633745948738404'))) {
+        growthDelta_0 = ONE
+      }
+
+      const amountOwed_0 = MathUtil.checkMulShiftRight(new BN(position.liquidity), growthDelta_0, 64, 128)
       growthInside.push(rewardersInside[0])
       AmountOwed.push({
         amount_owed: new BN(position.reward_amount_owed_0).add(amountOwed_0),
@@ -135,9 +147,12 @@ export class RewarderModule implements IModule {
     }
 
     if (rewardersInside.length > 1) {
-      const growthDelta_1 = MathUtil.subUnderflowU128(rewardersInside[1], new BN(position.reward_growth_inside_1))
+      let growthDelta_1 = MathUtil.subUnderflowU128(rewardersInside[1], new BN(position.reward_growth_inside_1))
+      if (growthDelta_1.gt(new BN('3402823669209384634633745948738404'))) {
+        growthDelta_1 = ONE
+      }
 
-      const amountOwed_1 = MathUtil.checkMulShiftRight(new BN(position.liquidity), growthDelta_1, 64, 256)
+      const amountOwed_1 = MathUtil.checkMulShiftRight(new BN(position.liquidity), growthDelta_1, 64, 128)
       growthInside.push(rewardersInside[1])
 
       AmountOwed.push({
@@ -147,9 +162,14 @@ export class RewarderModule implements IModule {
     }
 
     if (rewardersInside.length > 2) {
-      const growthDelta_2 = MathUtil.subUnderflowU128(rewardersInside[2], new BN(position.reward_growth_inside_2))
-      const amountOwed_2 = MathUtil.checkMulShiftRight(new BN(position.liquidity), growthDelta_2, 64, 256)
+      let growthDelta_2 = MathUtil.subUnderflowU128(rewardersInside[2], new BN(position.reward_growth_inside_2))
+      if (growthDelta_2.gt(new BN('3402823669209384634633745948738404'))) {
+        growthDelta_2 = ONE
+      }
+
+      const amountOwed_2 = MathUtil.checkMulShiftRight(new BN(position.liquidity), growthDelta_2, 64, 128)
       growthInside.push(rewardersInside[2])
+
       AmountOwed.push({
         amount_owed: new BN(position.reward_amount_owed_2).add(amountOwed_2),
         coin_address: pool.rewarder_infos[2].coinAddress,
@@ -188,7 +208,7 @@ export class RewarderModule implements IModule {
 
     if (params.collect_fee) {
       tx.moveCall({
-        target: `${clmm.clmm_router}::${ClmmIntegrateModule}::collect_fee`,
+        target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::collect_fee`,
         typeArguments,
         arguments: [tx.object(clmm.config.global_config_id), tx.object(params.pool_id), tx.object(params.pos_id)],
       })
@@ -196,7 +216,7 @@ export class RewarderModule implements IModule {
 
     params.rewarder_coin_types.forEach((type) => {
       tx.moveCall({
-        target: `${clmm.clmm_router}::${ClmmIntegrateModule}::collect_reward`,
+        target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::collect_reward`,
         typeArguments: [...typeArguments, type],
         arguments: [
           tx.object(clmm.config.global_config_id),

@@ -3,22 +3,32 @@
 import {
   Ed25519Keypair,
   getMoveObjectType,
+  getObjectDeletedResponse,
   getObjectDisplay,
   getObjectFields,
   getObjectId,
+  getObjectNotExistsResponse,
+  getObjectOwner,
   ObjectContentFields,
   ObjectType,
+  PaginatedObjectsResponse,
+  PaginationArguments,
   Secp256k1Keypair,
+  SuiAddress,
+  SuiObjectDataFilter,
+  SuiObjectDataOptions,
   SuiObjectResponse,
+  SuiObjectResponseQuery,
 } from '@mysten/sui.js'
 import BN from 'bn.js'
 import { fromB64, fromHEX } from '@mysten/bcs'
 import { MathUtil } from '../math'
-import { NFT } from '../types/sui'
-import { Pool, Position, Rewarder } from '../modules/resourcesModule'
+import { NFT, SuiObjectIdType } from '../types/sui'
+import { Pool, Position, Rewarder, PositionReward, PositionStatus } from '../modules/resourcesModule'
 import { extractStructTagFromType } from './contracts'
 import { TickData } from '../types/clmmpool'
 import { d, decimalsMultiplier } from './numbers'
+import SDK from '../main'
 
 export function toDecimalsAmount(amount: number | string, decimals: number | string): number {
   const mul = decimalsMultiplier(d(decimals))
@@ -115,9 +125,6 @@ export function buildPool(objects: SuiObjectResponse): Pool {
 }
 
 export function buildPosition(objects: SuiObjectResponse): Position {
-  const type = getMoveObjectType(objects) as ObjectType
-  let fields = getObjectFields(objects) as ObjectContentFields
-
   let nft: NFT = {
     creator: '',
     description: '',
@@ -127,26 +134,18 @@ export function buildPosition(objects: SuiObjectResponse): Position {
     project_url: '',
   }
 
-  if ('nft' in fields) {
-    fields = fields.nft.fields
-    nft.description = fields.description
-    nft.name = fields.name
-    nft.link = fields.url
-  } else {
-    nft = buildNFT(objects)
-  }
-
-  const possition: Position = {
+  let position = {
     ...nft,
-    pos_object_id: getObjectId(objects),
-    type,
-    coin_type_a: fields.coin_type_a.fields.name,
-    coin_type_b: fields.coin_type_b.fields.name,
-    liquidity: fields.liquidity,
-    tick_lower_index: asIntN(BigInt(fields.tick_lower_index.fields.bits)),
-    tick_upper_index: asIntN(BigInt(fields.tick_upper_index.fields.bits)),
-    index: fields.index,
-    pool: fields.pool,
+    pos_object_id: '',
+    owner: '',
+    type: '',
+    coin_type_a: '',
+    coin_type_b: '',
+    liquidity: '',
+    tick_lower_index: 0,
+    tick_upper_index: 0,
+    index: 0,
+    pool: '',
     reward_amount_owed_0: '0',
     reward_amount_owed_1: '0',
     reward_amount_owed_2: '0',
@@ -157,14 +156,66 @@ export function buildPosition(objects: SuiObjectResponse): Position {
     fee_owed_a: '0',
     fee_growth_inside_b: '0',
     fee_owed_b: '0',
+    position_status: PositionStatus.Exists,
   }
 
-  return possition
+  let fields = getObjectFields(objects) as ObjectContentFields
+  if (fields) {
+    const type = getMoveObjectType(objects) as ObjectType
+    const ownerWarp = getObjectOwner(objects) as {
+      AddressOwner: string
+    }
+
+    if ('nft' in fields) {
+      fields = fields.nft.fields
+      nft.description = fields.description
+      nft.name = fields.name
+      nft.link = fields.url
+    } else {
+      nft = buildNFT(objects)
+    }
+
+    position = {
+      ...nft,
+      pos_object_id: fields.id.id,
+      owner: ownerWarp.AddressOwner,
+      type,
+      coin_type_a: fields.coin_type_a.fields.name,
+      coin_type_b: fields.coin_type_b.fields.name,
+      liquidity: fields.liquidity,
+      tick_lower_index: asIntN(BigInt(fields.tick_lower_index.fields.bits)),
+      tick_upper_index: asIntN(BigInt(fields.tick_upper_index.fields.bits)),
+      index: fields.index,
+      pool: fields.pool,
+      reward_amount_owed_0: '0',
+      reward_amount_owed_1: '0',
+      reward_amount_owed_2: '0',
+      reward_growth_inside_0: '0',
+      reward_growth_inside_1: '0',
+      reward_growth_inside_2: '0',
+      fee_growth_inside_a: '0',
+      fee_owed_a: '0',
+      fee_growth_inside_b: '0',
+      fee_owed_b: '0',
+      position_status: PositionStatus.Exists,
+    }
+  }
+
+  const deletedResponse = getObjectDeletedResponse(objects)
+  if (deletedResponse) {
+    position.pos_object_id = deletedResponse.objectId
+    position.position_status = PositionStatus.Deleted
+  }
+  const objectNotExistsResponse = getObjectNotExistsResponse(objects)
+  if (objectNotExistsResponse) {
+    position.pos_object_id = objectNotExistsResponse
+    position.position_status = PositionStatus.NotExists
+  }
+
+  return position
 }
 
-export function buildPositionReward(objects: any, simplePosition: Position): Position {
-  const fields = getObjectFields(objects) as ObjectContentFields
-
+export function buildPositionReward(fields: any): PositionReward {
   const rewarders = {
     reward_amount_owed_0: '0',
     reward_amount_owed_1: '0',
@@ -175,8 +226,7 @@ export function buildPositionReward(objects: any, simplePosition: Position): Pos
   }
 
   fields.rewards.forEach((item: any, index: number) => {
-    const { amount_owned } = item.fields
-    const { growth_inside } = item.fields
+    const { amount_owned, growth_inside } = 'fields' in item ? item.fields : item
     if (index === 0) {
       rewarders.reward_amount_owed_0 = amount_owned
       rewarders.reward_growth_inside_0 = growth_inside
@@ -189,14 +239,16 @@ export function buildPositionReward(objects: any, simplePosition: Position): Pos
     }
   })
 
-  const possition: Position = {
-    ...simplePosition,
+  const possition: PositionReward = {
     liquidity: fields.liquidity,
+    tick_lower_index: asIntN(BigInt(fields.tick_lower_index.fields.bits)),
+    tick_upper_index: asIntN(BigInt(fields.tick_upper_index.fields.bits)),
     ...rewarders,
     fee_growth_inside_a: fields.fee_growth_inside_a,
     fee_owed_a: fields.fee_owned_a,
     fee_growth_inside_b: fields.fee_growth_inside_b,
     fee_owed_b: fields.fee_owned_b,
+    pos_object_id: fields.position_id,
   }
   return possition
 }
@@ -253,4 +305,79 @@ export function buildTickDataByEvent(fields: any): TickData {
   }
 
   return tick
+}
+
+export async function loopToGetAllQueryEvents(sdk: any, params: any): Promise<any> {
+  let result: any = []
+  let cursor = null
+
+  while (true) {
+    // eslint-disable-next-line no-await-in-loop
+    const res: any = await sdk.fullClient.queryEvents({
+      ...params,
+      cursor,
+    })
+    if (res.data) {
+      result = [...result, ...res.data]
+      if (res.hasNextPage) {
+        cursor = res.nextCursor
+      } else {
+        break
+      }
+    } else {
+      break
+    }
+  }
+
+  return { data: result }
+}
+
+export async function getOwnedObjects(
+  sdk: SDK,
+  owner: SuiAddress,
+  params: PaginationArguments<PaginatedObjectsResponse['nextCursor']> & SuiObjectResponseQuery
+): Promise<any> {
+  let result: any = []
+  let cursor = null
+
+  while (true) {
+    // eslint-disable-next-line no-await-in-loop
+    const res: any = await sdk.fullClient.getOwnedObjects({
+      owner,
+      ...params,
+      cursor,
+    })
+    if (res.data) {
+      result = [...result, ...res.data]
+      if (res.hasNextPage) {
+        cursor = res.nextCursor
+      } else {
+        break
+      }
+    } else {
+      break
+    }
+  }
+
+  return { data: result }
+}
+
+export async function multiGetObjects(sdk: SDK, ids: SuiObjectIdType[], options?: SuiObjectDataOptions, limit = 50): Promise<any[]> {
+  let objectDataResponses: any[] = []
+
+  try {
+    // eslint-disable-next-line no-plusplus
+    for (let i = 0; i < Math.ceil(ids.length / limit); i++) {
+      // eslint-disable-next-line no-await-in-loop
+      const res = await sdk.fullClient.multiGetObjects({
+        ids: ids.slice(i * limit, limit * (i + 1)),
+        options,
+      })
+      objectDataResponses = [...objectDataResponses, ...res]
+    }
+  } catch (error) {
+    console.log(error)
+  }
+
+  return objectDataResponses
 }

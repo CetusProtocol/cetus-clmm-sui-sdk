@@ -1,7 +1,7 @@
 import { TickMath } from '../src/math/tick'
 import BN from 'bn.js'
 import { RawSigner, Ed25519Keypair } from '@mysten/sui.js'
-import { buildSdk, buildTestAccount, buildTestPool, buildTestPosition, position_object_id, TokensMapping } from './data/init_test_data'
+import { buildSdk, buildTestAccount, buildTestPool, buildTestPosition, position_object_id, TokensMapping } from './data/init_test_data';
 import { Position } from '../src/modules/resourcesModule'
 import { ClmmPoolUtil } from '../src/math/clmm'
 import { AddLiquidityFixTokenParams, RemoveLiquidityParams } from '../src/modules/positionModule'
@@ -10,6 +10,7 @@ import { adjustForCoinSlippage } from '../src/math/position'
 import 'isomorphic-fetch';
 import { printTransaction, sendTransaction, TransactionUtil } from '../src/utils/transaction-util';
 import { tuple } from 'superstruct'
+import { d } from '../src';
 
 let sendKeypair: Ed25519Keypair
 
@@ -22,7 +23,7 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('open_and_add_liquidity_fix_token', async () => {
-    const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectId[0]
+    const poolObjectId =   TokensMapping.USDT_USDC_LP.poolObjectId[0]
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const pool = await buildTestPool(sdk, poolObjectId)
     const lowerTick = TickMath.getPrevInitializableTickIndex(
@@ -33,7 +34,7 @@ describe('Position add Liquidity Module', () => {
       new BN(pool.current_tick_index).toNumber(),
       new BN(pool.tickSpacing).toNumber()
     )
-    const coinAmount = new BN(40)
+    const coinAmount = new BN(100000000)
     const fix_amount_a = false
     const slippage = 0.05
     const curSqrtPrice = new BN(pool.current_sqrt_price)
@@ -81,13 +82,13 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('add_liquidity_fix_token', async () => {
-    const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectId[0]
+    const poolObjectId =   TokensMapping.USDT_USDC_LP.poolObjectId[0]
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const pool = await buildTestPool(sdk, poolObjectId)
     const position = (await buildTestPosition(sdk, position_object_id)) as Position
     const lowerTick = position.tick_lower_index
     const upperTick = position.tick_upper_index
-    const coinAmount = new BN(50)
+    const coinAmount = new BN(500)
     const fix_amount_a = true
     const slippage = 0.05
     const curSqrtPrice = new BN(pool.current_sqrt_price)
@@ -136,7 +137,8 @@ describe('Position  Module', () => {
   })
 
   test('getCoinAmountFromLiquidity', async () => {
-    const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectId[0]
+    const poolObjectId = "0x7e279224f1dd455860d65fa975cce5208485fd98b8e9a0cb6bd087c6dc9f5e03";// TokensMapping.USDT_USDC_LP.poolObjectId[0]
+    const position_object_id = "0xf1b99f796fdd41ce3e7e9bbef7e3f840b44f4c9e5ca99b8df47e91037968452f"
     const pool = await buildTestPool(sdk, poolObjectId)
     const position = (await buildTestPosition(sdk, position_object_id)) as Position
     const curSqrtPrice = new BN(pool.current_sqrt_price)
@@ -144,7 +146,7 @@ describe('Position  Module', () => {
     const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_lower_index)
     const upperSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_upper_index)
     const coinAmounts = ClmmPoolUtil.getCoinAmountFromLiquidity(
-      new BN(position.liquidity),
+      new BN(Number(d(position.liquidity).mul(0.25))),
       curSqrtPrice,
       lowerSqrtPrice,
       upperSqrtPrice,
@@ -189,7 +191,6 @@ describe('Position  Module', () => {
 
     printTransaction(removeLiquidityTransactionPayload)
 
-
     const transferTxn = await sendTransaction(signer, removeLiquidityTransactionPayload)
     console.log('removeLiquidity: ', transferTxn)
   })
@@ -224,7 +225,7 @@ describe('Position  Module', () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectId[0]
     const pool = await buildTestPool(sdk, poolObjectId)
-    const position_object_id = "0xdc02a15b8d8d329cae14543d0bf19eb40d5ddffbceceffbbb7098dc18958ac6f"
+    const position_object_id = "0x9fd7da6971c24f9ea5fdee4edaf31c3b27f7a02cc4873302f76ad53970bd6a07"
     const position = (await buildTestPosition(sdk, position_object_id)) as Position
 
     const lowerTick = Number(position.tick_lower_index)

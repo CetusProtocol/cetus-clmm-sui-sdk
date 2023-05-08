@@ -1,125 +1,218 @@
 import BN from 'bn.js'
-import { buildSdk, buildTestPool, TokensMapping } from './data/init_test_data'
+import { buildSdk, buildTestAccount, buildTestPool, TokensMapping } from './data/init_test_data'
 import { TokenInfo } from '../src/modules/tokenModule'
+import { CoinProvider, OnePath } from '../src/modules/routerModule'
+import { printTransaction, sendTransaction, TransactionUtil } from '../src'
+import { RawSigner } from '@mysten/sui.js'
 
-describe('Rewarder Module', () => {
+describe('Router Module', () => {
   const sdk = buildSdk()
+  const sendKeypair = buildTestAccount()
+  sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()
 
-  test('swap module', async () => {
-    const USDC = 'USDC'
-    const USDT = 'USDT'
-    const ETH = 'ETH'
-    const SUI = 'SUI'
+  const USDC = '0x4d892ceccd1497b9be7701e09d51c580bc83f22c9c97050821b373a77d0d9a9e::usdc::USDC'
+  const USDT = '0x4d892ceccd1497b9be7701e09d51c580bc83f22c9c97050821b373a77d0d9a9e::usdt::USDT'
+  const ETH = '0x4d892ceccd1497b9be7701e09d51c580bc83f22c9c97050821b373a77d0d9a9e::eth::ETH'
+  const SUI = '0x2::sui::SUI'
+  const BTC = '0x4d892ceccd1497b9be7701e09d51c580bc83f22c9c97050821b373a77d0d9a9e::btc::BTC'
 
-    const tokens: TokenInfo[] = [
+  const tokens: CoinProvider = {
+    coins: [
       {
         address: '0x2::sui::SUI',
-        coingecko_id: '',
         decimals: 9,
-        logo_url: 'https://archive.cetus.zone/assets/image/icon_sui.png',
-        name: 'SUI Token',
-        official_symbol: 'SUI',
-        project_url: '',
-        symbol: 'SUI',
       },
       {
         address: '0x4d892ceccd1497b9be7701e09d51c580bc83f22c9c97050821b373a77d0d9a9e::eth::ETH',
-        coingecko_id: 'weth',
         decimals: 8,
-        logo_url: 'https://app.cetus.zone/image/coins/eth.png',
-        name: 'Ethereum',
-        official_symbol: 'ETH',
-        project_url: '',
-        symbol: 'ETH',
       },
       {
         address: '0x4d892ceccd1497b9be7701e09d51c580bc83f22c9c97050821b373a77d0d9a9e::btc::BTC',
-        coingecko_id: 'wrapped-bitcoin',
         decimals: 8,
-        logo_url: 'https://app.cetus.zone/image/coins/btc.png',
-        name: 'Bitcoin',
-        official_symbol: 'BTC',
-        project_url: '',
-        symbol: 'BTC',
       },
       {
         address: '0x4d892ceccd1497b9be7701e09d51c580bc83f22c9c97050821b373a77d0d9a9e::usdt::USDT',
-        coingecko_id: 'tether',
         decimals: 6,
-        logo_url: 'https://app.cetus.zone/image/coins/usdt.png',
-        name: 'Tether USD',
-        official_symbol: 'USDT',
-        project_url: '',
-        symbol: 'USDT',
       },
       {
         address: '0x4d892ceccd1497b9be7701e09d51c580bc83f22c9c97050821b373a77d0d9a9e::usdc::USDC',
-        coingecko_id: 'usd-coin',
         decimals: 6,
-        logo_url: 'https://app.cetus.zone/image/coins/usdc.png',
-        name: 'USD Coin',
-        official_symbol: 'USDC',
-        project_url: '',
-        symbol: 'USDC',
       },
     ]
+  }
 
-    const path = {
-      paths: [
-        {
-          base: ETH,
-          quote: USDC,
-          addressMap: new Map([[60, '0x426e0572eb4aca5b50a4e2667a6f3b8c49fa42d631d6ca8ba7357fe5a85c5748']]),
-        },
-        {
-          base: ETH,
-          quote: USDT,
-          addressMap: new Map([[2, '0x9d36249e5a1f6f79e577c19cdb37d1fdcee981fd7a1594bcf181b1c0abf80d8e']]),
-        },
-        {
-          base: USDT,
-          quote: USDC,
-          addressMap: new Map([
-            [2, '0x2e6f7683bab8e02c94298a3a8c1c63d679a19eaa6fb2ecf9368ec661dda5fe05'],
-            [60, '0xd127a768ef457ba1121570f7b46c4722e02a6b8581f9379636e2c030086a28ce'],
-            [10, '0x723f1d1b1f1fa50c64b692b1b45b7417e9092351882e79bda777b7b10623a5f0'],
-          ]),
-        },
-        {
-          base: SUI,
-          quote: USDC,
-          addressMap: new Map([[2, '0x6a73a8d0c16d8b4d1988c54f1f2c9c5e48439eb6f6edc690c9117efda7e97184']]),
-        },
-      ],
-    }
+  const path0 = {
+    paths: [
+      {
+        base: USDC,
+        quote: ETH,
+        addressMap: new Map([
+          [2500, '0xfd184ddbb8c94c319209fe2e66462396e088f3d97cf3fcce8783d1fb5d6b92c4'],
+          [10000, '0xfb1c5433dade825b7cb2f39a48876000afcb64ab778937f6b68f0b6c38b6b0b5'],
+          // [100, '0xd3036becc5b0c01fff5f15a51a633106153891a0d7150b2d4324b39ab54042c8'],
+        ]),
+      },
+      {
+        base: ETH,
+        quote: USDT,
+        addressMap: new Map([
+          [100, '0xb2ed4e98998b90e5d1bc3a0a8c81d7f94d847fe37665b2c5bd1203c8b0337ee9'],
+          [500, '0x9cb978eff75f5e0754c2f4e148cea952956c9bc4b082680dc91a1dff3e30b609'],
+          [2500, '0x69c1556b73f44b81c6392b27b3fe8fbfb80e483a35ef199bdb9cc6ac67a7c2ba'],
+        ]),
+      },
+      {
+        base: ETH,
+        quote: BTC,
+        addressMap: new Map([
+          [2000, '0xd5f572b65a3625099d097f2dd3032f038fa79638f2e0d1044124d110493af67e'],
+        ]),
+      },
+      {
+        base: BTC,
+        quote: USDC,
+        addressMap: new Map(
+          [
+            [2500, '0x6cec33d399439d341216f24860e130b69ce30a802cc633fa29b088a8aa2f1453'],
+          ]
+        ),
+      }, 
+      {
+        base: USDT,
+        quote: USDC,
+        addressMap: new Map([
+          [100, '0x7e279224f1dd455860d65fa975cce5208485fd98b8e9a0cb6bd087c6dc9f5e03'],
+          [500, '0x4ec79e658f4ce15371b8946a79c09c8fc46fcb948ccd87142ae3d02a195ac874'],
+          [2500, '0xda21c1f4d1bbb2c4ddaf1966266e83e7c853acead10655ca2ff59532cebd6745'],
+        ]),
+      },
+      {
+        base: SUI,
+        quote: USDC,
+        addressMap: new Map(
+          [
+            [2500, '0xcfa5914edd8ed9e60006e36dd01d880ffc65acdc13a67d2432b66855b3e1b6ba'],
+          ]
+        ),
+      },
+    ],
+  }
 
-    await sdk.Router.setCoinList(tokens)
-    await sdk.Router.loadGraph()
+  const path1 = {
+    paths: [
+      {
+        base: USDC,
+        quote: ETH,
+        addressMap: new Map([
+          [100, '0x092c6d323002e100838187334f568a94716b72da5eb2a95947b4f6ddf0bf6dfd'],
+          [500, '0xce6449b40d8c16253468a7a567cacb101712c054f43a9d2646c28a8e34a70204'],
+          [2500, '0xeaf8f3756dba3a2b22e1a7a5bd1843ffc29a76812216292e9c762c327a639c1b'],
+        ]),
+      },
+      {
+        base: ETH,
+        quote: USDT,
+        addressMap: new Map([
+          [500, '0x824a3569a3e25c1e5406de600e3985cdcd894f94d8b59f2ae92f6b5cbfc02cc2'],
+          [100, '0xebe7f1860190d8a9d275d0c03400360d8b61d452299ca027cef1493777480d97'],
+          [2500, '0x83d8514cf8b1d33e5d4e78f1f4752cd4407afdd18b2268f836311f98b1b61508'],
+        ]),
+      },
+      // {
+      //   base: ETH,
+      //   quote: BTC,
+      //   addressMap: new Map([
+      //     // [2000, '0xd5f572b65a3625099d097f2dd3032f038fa79638f2e0d1044124d110493af67e'],
+      //   ]),
+      // },
+      // {
+      //   base: BTC,
+      //   quote: USDC,
+      //   addressMap: new Map(
+      //     [
+      //       // [2500, '0x6cec33d399439d341216f24860e130b69ce30a802cc633fa29b088a8aa2f1453'],
+      //     ]
+      //   ),
+      // }, 
+      {
+        base: USDT,
+        quote: USDC,
+        addressMap: new Map([
+          [100, '0x7b9d0f7e1ba6de8eefaa259da9f992e00aa8c22310b71ffabf2784e5b018a173'],
+          [200, '0x056ee86d09bf768168394e76b2137cf567c99ebe43bb5820d817cc213b9fa0cd'],
+          [500, '0x3382012b8e35c8745e1d163728f44d162c3d1799ec4f8e432da18e46bbbe5987'],
+          [2500, '0x8aba0a4ea6ec440ba5cb75dad9f47492dab7fe37d6c5275a17c6df55ae88283b'],
+        ]),
+      },
+      // {
+      //   base: SUI,
+      //   quote: USDC,
+      //   addressMap: new Map(
+      //     [
+      //       // [2500, '0xcfa5914edd8ed9e60006e36dd01d880ffc65acdc13a67d2432b66855b3e1b6ba'],
+      //     ]
+      //   ),
+      // },
+    ],
+  }
 
-    const currentPool = await buildTestPool(sdk, TokensMapping.USDT_USDC_LP.poolObjectId[0])
-    const a2b = true
+  test('router module => testnet', async () => {
+    sdk.Router.addCoinProvider(tokens)
+    sdk.Router.addPathProvider(path1)
+    sdk.Router.setCoinList()
+    sdk.Router.loadGraph()
+
+    // const byAmountIn = true
     const byAmountIn = true
-    const amount = new BN('100000000')
+    // const amount = new BN('1000000000')
+    const amount = new BN('1000000')
+    // const amount = new BN('10000000000000000')
+    // const amount = new BN('10000000')
+    // const amount = new BN('10000000000')
 
-    const tickdatas = await sdk.Pool.fetchTicksByRpc(currentPool.ticks_handle)
+    // const result = await sdk.Router.price(SUI,  ETH, amount, byAmountIn, 100, '')
+    // console.log(result)
 
-    const res = await sdk.Swap.calculateRates({
-      decimalsA: 8,
-      decimalsB: 6,
-      a2b,
-      byAmountIn,
-      amount,
-      swapTicks: tickdatas,
-      currentPool,
-    })
-
-    console.log('calculateRates0', {
-      estimatedAmountIn: res.estimatedAmountIn.toString(),
-      estimatedAmountOut: res.estimatedAmountOut.toString(),
-      estimatedEndSqrtprice: res.estimatedEndSqrtPrice.toString(),
-      isExceed: res.isExceed,
-      a2b,
-      byAmountIn,
-    })
+    const result: any  = await sdk.Router.price(USDT, USDC, amount, byAmountIn, 1, '')
+    console.log(result?.amountIn.toString(), result?.amountOut.toString())
+    logPath(result.paths)
+    if (!result?.isExceed) {
+      const allCoinAsset = await sdk.Resources.getOwnerCoinAssets(sdk.senderAddress)
+      const routerPayload = TransactionUtil.buildRouterSwapTransaction(sdk, sdk.Router.getCreateTxParams(), byAmountIn, allCoinAsset)
+      printTransaction(routerPayload)
+      const signer = new RawSigner(sendKeypair, sdk.fullClient)
+      const transferTxn = await sendTransaction(signer, routerPayload)
+      console.log('router: ', transferTxn)
+      console.log(result?.amountIn.toString(), result?.amountOut.toString())
+    }
   })
 })
+
+function logPath(paths: OnePath[]) {
+  for (const path of paths) {
+    const limitArr: string[] = []
+    for(const limit of path.rawAmountLimit) {
+      limitArr.push(limit.toString())
+    }
+    const poolAdderss: string[] = []
+    for(const pool of path.poolAddress) {
+      poolAdderss.push(pool)
+    }
+    const a2b: boolean[] = [] 
+    for (const a2bi of path.a2b) {
+      a2b.push(a2bi)
+    }
+    const coinType: string[] = []
+    for (const coin of path.coinType) {
+      coinType.push(coin)
+    }
+    console.log('path: %s\nrawAmountLimit: %s\npoolAddress: %s\na2b: %s\nCoinType: %s', {
+      amountIn: path.amountIn.toString(),
+      amountOut: path.amountOut.toString(),
+      poolAddress: path.poolAddress,
+      a2b: path.a2b,
+      isExceed: path.isExceed,
+      coinType: path.coinType
+    }, limitArr, poolAdderss, a2b, coinType)
+  }
+}

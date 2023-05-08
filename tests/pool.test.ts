@@ -21,12 +21,12 @@ describe('Pool Module', () => {
 
   test('getPoolImmutables', async () => {
     const poolImmutables = await sdk.Resources.getPoolImmutables()
-    console.log('getPoolImmutables', poolImmutables)
+    console.log('getPoolImmutables', poolImmutables, '###length###', poolImmutables.length)
   })
 
   test('getAllPool', async () => {
    const allPool = await sdk.Resources.getPools([])
-   console.log('getAllPool', allPool)
+   console.log('getAllPool', allPool,'###length###', allPool.length)
   })
 
   test('getSiginlePool', async () => {
@@ -35,8 +35,13 @@ describe('Pool Module', () => {
   })
 
   test('getPositionList', async () => {
-    const res = await sdk.Resources.getPositionList(buildTestAccount().getPublicKey().toSuiAddress())
+    const res = await sdk.Resources.getPositionList(buildTestAccount().getPublicKey().toSuiAddress(),[TokensMapping.USDT_USDC_LP.poolObjectId[0]])
     console.log('getPositionList####', res)
+  })
+
+  test('getPositionById', async () => {
+    const res = await sdk.Resources.getPositionById('0x0e75bdb37804b049f40d43c8314a885d66a5a11755686555286dd62d38754f3b')
+    console.log('getPositionById###', res)
   })
 
   test('getSipmlePosition', async () => {
@@ -46,10 +51,23 @@ describe('Pool Module', () => {
 
 
   test('getPositionInfo', async () => {
-    const pool = await sdk.Resources.getPool("0x55a97eac7f868b6503b78e7f518445acc7f6446544443fe3b7a3c6e87ba1bb24")
-    const res = await sdk.Resources.getPosition(pool.positions_handle, "0x09121eb74fa36126d84306fe3b25dc527a05488ab74349283834b2a143d0fc43")
+    const pool = await sdk.Resources.getPool(TokensMapping.USDT_USDC_LP.poolObjectId[0])
+    const res = await sdk.Resources.getPosition(pool.positions_handle, "0x545d43936d9e8bad18fe4034b39cfbcf664fc79300358b5beedbb76936d3b7e8")
     console.log('getPosition####', res)
   })
+
+  test('fetchPositionRewardList', async () => {
+    const pool = await sdk.Resources.getPool("0xf71b517fe0f57a4e3be5b00a90c40f461058f5ae7a4bb65fe1abf3bfdd20dcf7")
+    const res = await sdk.Pool.fetchPositionRewardList({
+      pool_id: pool.poolAddress,
+      coinTypeA: pool.coinTypeA,
+      coinTypeB: pool.coinTypeB
+    })
+
+    console.log('getPosition####', res)
+
+  })
+
 
   test('doCreatPools', async () => {
     const signer = new RawSigner(buildTestAccount(), sdk.fullClient)
@@ -83,8 +101,8 @@ describe('Pool Module', () => {
 
     const signer = new RawSigner(buildTestAccount(), sdk.fullClient)
     sdk.senderAddress = buildTestAccount().getPublicKey().toSuiAddress()
-    const initialize_sqrt_price = TickMath.priceToSqrtPriceX64(d(0.005), 6, 9).toString()
-    const tick_spacing = 60
+    const initialize_sqrt_price = TickMath.priceToSqrtPriceX64(d(1), 6, 6).toString()
+    const tick_spacing = 2
     const current_tick_index = TickMath.sqrtPriceX64ToTickIndex(new BN(initialize_sqrt_price))
 
     const lowerTick = TickMath.getPrevInitializableTickIndex(new BN(current_tick_index).toNumber(), new BN(tick_spacing).toNumber())
@@ -134,7 +152,7 @@ describe('Pool Module', () => {
     const args = [tx.pure(sdk.sdkOptions.clmm.config!.global_config_id), tx.pure('2'), tx.pure('1')]
 
     tx.moveCall({
-      target: `${sdk.sdkOptions.clmm.clmm_router}::config_script::add_fee_tier`,
+      target: `${sdk.sdkOptions.clmm.clmm_router.cetus}::config_script::add_fee_tier`,
       typeArguments: [],
       arguments: args,
     })

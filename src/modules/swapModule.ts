@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
 import BN from 'bn.js'
 import { TransactionBlock } from '@mysten/sui.js'
-import { Percentage } from '../math'
+import { Percentage, U64_MAX, ZERO } from '../math'
 import { findAdjustCoin, TransactionUtil } from '../utils/transaction-util'
 import { extractStructTagFromType } from '../utils/contracts'
 import { ClmmFetcherModule, SuiObjectIdType } from '../types/sui'
@@ -64,6 +64,24 @@ export type PreSwapParams = {
   amount: string
 } & CoinPairType
 
+export type PreSwapWithMultiPoolParams = {
+  poolAddresses: string[]
+  decimalsA: number
+  decimalsB: number
+  a2b: boolean
+  byAmountIn: boolean
+  amount: string
+} & CoinPairType
+
+export type TransPreSwapWithMultiPoolParams = {
+  poolAddress: string
+  decimalsA: number
+  decimalsB: number
+  a2b: boolean
+  byAmountIn: boolean
+  amount: string
+} & CoinPairType
+
 export class SwapModule implements IModule {
   protected _sdk: SDK
 
@@ -77,6 +95,73 @@ export class SwapModule implements IModule {
     return this._sdk
   }
 
+  async preSwapWithMultiPool(params: PreSwapWithMultiPoolParams) {
+    const { clmm, simulationAccount } = this.sdk.sdkOptions
+    const tx = new TransactionBlock()
+
+    const typeArguments = [params.coinTypeA, params.coinTypeB]
+    for (let i = 0; i < params.poolAddresses.length; i += 1) {
+      const args = [tx.pure(params.poolAddresses[i]), tx.pure(params.a2b), tx.pure(params.byAmountIn), tx.pure(params.amount)]
+      tx.moveCall({
+        target: `${clmm.clmm_router.cetus}::${ClmmFetcherModule}::calculate_swap_result`,
+        arguments: args,
+        typeArguments,
+      })
+    }
+
+    const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: simulationAccount.address,
+    })
+
+    const valueData: any = simulateRes.events?.filter((item: any) => {
+      return extractStructTagFromType(item.type).name === `CalculatedSwapResultEvent`
+    })
+    if (valueData.length === 0) {
+      return null
+    }
+
+    if (valueData.length !== params.poolAddresses.length) {
+      throw new Error('valueData.length !== params.pools.length')
+    }
+
+    let tempMaxAmount = params.byAmountIn ? ZERO : U64_MAX
+    let tempIndex = 0
+    for (let i = 0; i < valueData.length; i += 1) {
+      if (valueData[i].parsedJson.data.is_exceed) {
+        continue
+      }
+
+      if (params.byAmountIn) {
+        const amount = new BN(valueData[i].parsedJson.data.amount_out)
+        if (amount.gt(tempMaxAmount)) {
+          tempIndex = i
+          tempMaxAmount = amount
+        }
+      } else {
+        const amount = new BN(valueData[i].parsedJson.data.amount_out)
+        if (amount.lt(tempMaxAmount)) {
+          tempIndex = i
+          tempMaxAmount = amount
+        }
+      }
+    }
+
+    return this.transformSwapWithMultiPoolData(
+      {
+        poolAddress: params.poolAddresses[tempIndex],
+        decimalsA: params.decimalsA,
+        decimalsB: params.decimalsB,
+        a2b: params.a2b,
+        byAmountIn: params.byAmountIn,
+        amount: params.amount,
+        coinTypeA: params.coinTypeA,
+        coinTypeB: params.coinTypeB,
+      },
+      valueData[tempIndex].parsedJson.data
+    )
+  }
+
   async preswap(params: PreSwapParams) {
     const { clmm, simulationAccount } = this.sdk.sdkOptions
 
@@ -86,7 +171,7 @@ export class SwapModule implements IModule {
     const args = [tx.pure(params.pool.poolAddress), tx.pure(params.a2b), tx.pure(params.by_amount_in), tx.pure(params.amount)]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmFetcherModule}::calculate_swap_result`,
+      target: `${clmm.clmm_router.cetus}::${ClmmFetcherModule}::calculate_swap_result`,
       arguments: args,
       typeArguments,
     })
@@ -107,12 +192,10 @@ export class SwapModule implements IModule {
 
   // eslint-disable-next-line class-methods-use-this
   private transformSwapData(params: PreSwapParams, data: any) {
-    const prePrice = TickMath.sqrtPriceX64ToPrice(new BN(params.pool.current_sqrt_price), params.decimalsA, params.decimalsB).toNumber()
-    const afterPrice = TickMath.sqrtPriceX64ToPrice(new BN(data.after_sqrt_price), params.decimalsA, params.decimalsB).toNumber()
-
-    const priceImpactPct = (Math.abs(prePrice - afterPrice) / prePrice) * 100
     const estimatedAmountIn = data.amount_in && data.fee_amount ? new BN(data.amount_in).add(new BN(data.fee_amount)).toString() : ''
     return {
+      poolAddress: params.pool.poolAddress,
+      currentSqrtPrice: params.current_sqrt_price,
       estimatedAmountIn,
       estimatedAmountOut: data.amount_out,
       estimatedEndSqrtPrice: data.after_sqrt_price,
@@ -121,7 +204,22 @@ export class SwapModule implements IModule {
       amount: params.amount,
       aToB: params.a2b,
       byAmountIn: params.by_amount_in,
-      priceImpactPct,
+    }
+  }
+
+  // eslint-disable-next-line class-methods-use-this
+  private transformSwapWithMultiPoolData(params: TransPreSwapWithMultiPoolParams, data: any) {
+    const estimatedAmountIn = data.amount_in && data.fee_amount ? new BN(data.amount_in).add(new BN(data.fee_amount)).toString() : ''
+    return {
+      poolAddress: params.poolAddress,
+      estimatedAmountIn,
+      estimatedAmountOut: data.amount_out,
+      estimatedEndSqrtPrice: data.after_sqrt_price,
+      estimatedFeeAmount: data.fee_amount,
+      isExceed: data.is_exceed,
+      amount: params.amount,
+      aToB: params.a2b,
+      byAmountIn: params.byAmountIn,
     }
   }
 
