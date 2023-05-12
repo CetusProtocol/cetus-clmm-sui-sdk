@@ -19,20 +19,17 @@ yarn add @cetusprotocol/cetus-sui-clmm-sdk
 
 ```bash
 const SDKConfig = {
-  devnet:  {
-      // ...
-  },
   testnet:  {
      clmmConfig: {
-      pools_id: '0xc8407fc5dfec8d7b7014ee4d244dbe4eb456bfa6a7878e88c9d4bc947b2c2d87',
-      global_config_id: '0x43e2925f7c5bed04b612cc66c53a850e280a46704ce12cd2f25420b537e23f9d',
-      global_vault_id: '0x435c9725c4026206002a5a4004762316a53891f21a10c695311074482e52757e'
+      pools_id: '0xc090b101978bd6370def2666b7a31d7d07704f84e833e108a969eda86150e8cf',
+      global_config_id: '0x6f4149091a5aea0e818e7243a13adcfb403842d670b9a2089de058512620687a',
+      global_vault_id: '0xf3114a74d54cbe56b3e68f9306661c043ede8c6615f0351b0c3a93ce895e1699'
     },
     tokenConfig: {
-      coin_registry_id: '0xde9a5123749136ca9fe05b88777e322f2161fe4aa71e9c575d5e27a31b815d40',
-      pool_registry_id: '0x7b7b399344838363ec96611f133c77b98042404559e326fd289885b88848a3c5',
-      coin_list_owner: '0xc93e168a9361b5443fef27dbbb95a023337c6bfd082fdd920d658f4f9147d801',
-      pool_list_owner: '0x36d796de9529007373fd2e34311511a8ca4eaef2bf7ea65f65ab68a1bc1de092'
+      coin_registry_id: '',
+      pool_registry_id: '',
+      coin_list_owner: '',
+      pool_list_owner: ''
     },
   },
   mainnet: {
@@ -50,27 +47,24 @@ const SDKConfig = {
   }
 }
 export const netConfig = {
-  devnet: {
-    // ...
-  },
   testnet: {
-    fullRpcUrl: rpcUrlConfigs[3],
+    fullRpcUrl: 'https://fullnode.testnet.sui.io',
     faucetURL: '',
     faucet: {
-      faucet_display: '0x4d892ceccd1497b9be7701e09d51c580bc83f22c9c97050821b373a77d0d9a9e',
-      faucet_router: '0xff3004dc90fee6f7027040348563feb866a61c8bb53049cc444c1746db8b218d',
+      faucet_display: '',
+      faucet_router: '',
     },
     simulationAccount: {
-      address: '0x5f9d2fb717ba2433f7723cf90bdbf90667001104915001d0af0cccb52b67c1e8',
+      address: '',
     },
     token: {
-      token_display: '0xc7c40602f81eee198f472e14c87cb9c7186496064adba06cef1768c8b1785512',
+      token_display: '',
       config: SDKConfig.testnet.tokenConfig,
     },
     clmm: {
-      clmm_display: '0x837dddad95c6741474cde3e414a2eebccbeae81d0b378f193d00381bdaf0da62',
+      clmm_display: '0x0868b71c0cba55bf0faf6c40df8c179c67a4d0ba0e79965b68b3d72d7dfbf666',
       clmm_router: {
-        cetus: '0x32ba8c0298964e26161b3b44375ac39eeab6b29207e00c5f44368426096eb902',
+        cetus: '0x3a86c278225173d4795f44ecf8cfe29326d701be42b57454b05be76ad97227a7',
         deepbook: '',
       },
       config: SDKConfig.testnet.clmmConfig,

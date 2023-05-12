@@ -2,7 +2,6 @@ import { RawSigner, TransactionBlock } from '@mysten/sui.js'
 import BN from 'bn.js'
 import {
   buildSdk,
-  printSDKConfig,
   buildTestAccount,
   TokensMapping,
   position_object_id,

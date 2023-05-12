@@ -1,15 +1,16 @@
-import { Ed25519Keypair, fromB64, getCreatedObjects, getObjectId, getObjectPreviousTransactionDigest, getSharedObjectInitialVersion, RawSigner, toB64, TransactionBlock } from '@mysten/sui.js';
+import { Ed25519Keypair, fromB64, getCreatedObjects, getObjectId, getObjectPreviousTransactionDigest, getSharedObjectInitialVersion, RawSigner, toB64, TransactionBlock } from '@mysten/sui.js'
 import { CoinAssist, sendTransaction } from '../../src'
 import { SDK, SdkOptions } from '../../src/sdk'
 import { secretKeyToEd25519Keypair } from '../../src/utils/common'
-import { netConfig, sdkEnv } from './config'
+import { buildSdkOptions, currSdkEnv } from './config'
 
 
+const sdkEnv = buildSdkOptions()
 export const faucetObjectId = sdkEnv.faucet.faucet_display
 
 const clmm_display = sdkEnv.clmm.clmm_display
 
-export const position_object_id = '0x9fd7da6971c24f9ea5fdee4edaf31c3b27f7a02cc4873302f76ad53970bd6a07'
+export const position_object_id = '0x74055642637856f8e8ea2a9724be86250a4fa2b87969ba663aabfcf4c99db33c'
 export const TokensMapping = {
   SUI: {
     address: '0x2::sui::SUI',
@@ -26,7 +27,7 @@ export const TokensMapping = {
   USDT_USDC_LP: {
     address: `${clmm_display}::pool::Pool<${faucetObjectId}::usdt::USDC, ${faucetObjectId}::usdc::USDT>`,
     decimals: 8,
-    poolObjectId: ['0x771d94ea4f3d631ebedefa3b4ecff02c29a444362b58db63eb9744c85ffbbf54'],
+    poolObjectId: ['0x6e20639f49444fa8ff6012ce3f7b6064517c0ad7bda5730a0557ad1b1bded372'],
   },
 }
 
@@ -34,7 +35,7 @@ export const TokensMapping = {
 export async  function mintAll(sdk: SDK,sendKeypair: Ed25519Keypair ,  faucet: {
   faucet_display: string,
   faucet_router: string,
-},modules: string,funName: string){
+},funName: string){
   const objects = await sdk.fullClient.getObject({id: faucet.faucet_display, options: {showPreviousTransaction: true}})
     const previousTx =   getObjectPreviousTransactionDigest(objects)
     console.log("previousTx",previousTx);
@@ -46,18 +47,18 @@ export async  function mintAll(sdk: SDK,sendKeypair: Ed25519Keypair ,  faucet: {
         console.log("faucetCoins: ",faucetCoins);
 
         const tx = new  TransactionBlock()
-        const sharedObjectIds = faucetCoins.map((coin) => {
-          return tx.object(coin.suplyID)
-        })
-
-
         const signer = new RawSigner(sendKeypair, sdk.fullClient)
-        tx.setGasBudget(300000000)
-        tx.moveCall({
-          target: `${faucet.faucet_router}::${modules}::${funName}`,
-          typeArguments : [],
-          arguments: [...sharedObjectIds],
+
+        faucetCoins.forEach((coin) => {
+          tx.moveCall({
+            target: `${faucet.faucet_router}::${coin.transactionModule}::${funName}`,
+            typeArguments : [],
+            arguments: [tx.object(coin.suplyID)],
+          })
         })
+
+        tx.setGasBudget(30000000)
+
         const result =  await sendTransaction(signer , tx)
         console.log("result: ",result);
       }
@@ -67,21 +68,14 @@ export async  function mintAll(sdk: SDK,sendKeypair: Ed25519Keypair ,  faucet: {
 export function buildSdk(): SDK {
   const sdk =  new SDK(sdkEnv)
   sdk.gasConfig = sdkEnv.gasConfig
+  console.log(`currSdkEnv: ${currSdkEnv} ; fullRpcUrl: ${sdk.sdkOptions.fullRpcUrl}`)
   return sdk
 }
 
-export async function printSDKConfig(sdk: SDK) {
-  const initEventConfig = await sdk.Resources.getInitEvent()
-  const tokenConfig = await sdk.Token.getTokenConfigEvent()
-  console.log('printSDKConfig: ', {
-    initEventConfig,
-    tokenConfig,
-  })
-}
 
 export async function buildTestPool(sdk: SDK, poolObjectId: string) {
   const pool = await sdk.Resources.getPool(poolObjectId)
-  // console.log('buildPool: ', pool)
+  console.log('buildPool: ', pool)
   return pool
 }
 
@@ -92,57 +86,14 @@ export async function buildTestPosition(sdk: SDK, posObjectId: string) {
 }
 
 
-// 64d3ff30a4ef6af64a7b510dae8c5f89015bdefc
+// 0xcd0247d0b67e53dde69b285e7a748e3dc390e8a5244eb9dd9c5c53d95e4cf0aa
 export function buildTestAccount(): Ed25519Keypair {
-  const mnemonics = 'east whip forward system hour enforce innocent identify predict escape immense main'
+  const mnemonics = ''
   const testAccountObject = Ed25519Keypair.deriveKeypair(mnemonics)
   console.log(' Address: ', testAccountObject.getPublicKey().toSuiAddress())
 
   return testAccountObject
 }
-// 57ea9026ef905e69e6238b66f405146f5a88472d
-export function buildTestAccount1(): Ed25519Keypair {
-  const mnemonics = 'garden naive sibling glow thumb spawn spare claw nasty choice hero south'
-  const testAccountObject = Ed25519Keypair.deriveKeypair(mnemonics)
-  console.log('toSuiAddress', testAccountObject.getPublicKey().toSuiAddress())
-  return testAccountObject
-}
-// 0xa4a8171e745f2bd73313c58e53ee0dc223f9aec2a99a65eb7a2a46b93f4b501b
-export function buildTestAccount2(): Ed25519Keypair {
-  const mnemonics = 'brain awful gentle history because detail undo squeeze night lend news pull'
-  const testAccountObject = Ed25519Keypair.deriveKeypair(mnemonics)
-  console.log('toSuiAddress', testAccountObject.getPublicKey().toSuiAddress())
-  return testAccountObject
-}
-
-// daidai 0xe0c0bb644ffa16ea656a5e36c265f3d7c24001baf8ef152d7ecff280e66665b5
-export function buildTestAccount3(): Ed25519Keypair {
-  const mnemonics = 'analyst tower pave same control sand denial equal online turtle erode result'
-  const testAccountObject = Ed25519Keypair.deriveKeypair(mnemonics)
-  console.log('toSuiAddress', testAccountObject.getPublicKey().toSuiAddress())
-  return testAccountObject
-}
-
-// 6d49ddaaacf57fc92a2bd0f4d30da78b23f03772
-export function buildWJLaunchPadAccount(): Ed25519Keypair {
-  const testAccountObject = secretKeyToEd25519Keypair("b05df387a460bee9fdc96e30068faf2956316696e4ffc1b0717733e2f22a6c05")
-  console.log('wj Address: ', testAccountObject.getPublicKey().toSuiAddress())
-  return testAccountObject
-}
-
-export function buildWJLaunchPadAccountLocal(): Ed25519Keypair {
-  const testAccountObject = secretKeyToEd25519Keypair("d8f0e38dcd1c649225c039d9cf7acce62f6b61bc623b9429a2d306edbbf9224b")
-  console.log('wj Address local: ', testAccountObject.getPublicKey().toSuiAddress())
-  return testAccountObject
-}
-
-
-export function buildSKAccount(): Ed25519Keypair {
-  const testAccountObject = secretKeyToEd25519Keypair("ac9b1e48ac96ac187b952b1c6f4094e2d00ba8f4f4dedd9906d8ea39a4d98042")
-  console.log('sk Address: ', testAccountObject.getPublicKey().toSuiAddress())
-  return testAccountObject
-}
-
 
 export function generateAccount(): Ed25519Keypair {
   const keypair =  Ed25519Keypair.generate()

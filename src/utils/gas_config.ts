@@ -1,6 +1,6 @@
 import { d } from './numbers'
 
-export class GasConfig {
+class GasConfig {
   price = 1
 
   GasBudgetLow = 60_000_000
@@ -24,3 +24,5 @@ export class GasConfig {
     this.GasBudgetHigh2 = Number(d(this.GasBudgetHigh2).mul(this.price).toFixed(0))
   }
 }
+
+export default GasConfig

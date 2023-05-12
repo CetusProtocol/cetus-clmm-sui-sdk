@@ -3,7 +3,6 @@ import { LaunchpadPool, LaunchpadPoolActivityState } from '../src/types/luanchpa
 import {
   buildSdk,
   buildTestAccount,
-  buildWJLaunchPadAccount,
   mintAll,
 } from './data/init_test_data'
 import { creatPoolList, tokenList } from './data/launchpad_pool_data'
@@ -26,7 +25,7 @@ describe('launch pad Module', () => {
 
   beforeEach(async () => {
     sendKeypair = buildTestAccount()
-    launchPadKeypair = buildWJLaunchPadAccount()
+    launchPadKeypair = buildTestAccount()
     sdk.Token.updateCache('getAllRegisteredTokenList', tokenList, cacheTime24h)
   })
 

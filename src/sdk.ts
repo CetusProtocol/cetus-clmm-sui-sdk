@@ -11,7 +11,7 @@ import { SwapModule } from './modules/swapModule'
 import { TokenModule } from './modules/tokenModule'
 import { XCetusModule } from './modules/xcetusModule'
 import { SuiObjectIdType } from './types/sui'
-import { GasConfig } from './utils/gas_config'
+import GasConfig from './utils/gas_config'
 
 export type SdkOptions = {
   fullRpcUrl: string
