@@ -11,7 +11,6 @@ import { SwapModule } from './modules/swapModule'
 import { TokenModule } from './modules/tokenModule'
 import { XCetusModule } from './modules/xcetusModule'
 import { SuiObjectIdType } from './types/sui'
-import GasConfig from './utils/gas_config'
 
 export type SdkOptions = {
   fullRpcUrl: string
@@ -31,10 +30,12 @@ export type SdkOptions = {
   launchpad: {
     ido_display: SuiObjectIdType
     ido_router: SuiObjectIdType
+    config_display: SuiObjectIdType
     config: {
       pools_id: SuiObjectIdType
       admin_cap_id: SuiObjectIdType
       config_cap_id: SuiObjectIdType
+      config_pools_id: SuiObjectIdType
     }
   }
   xcetus: {
@@ -109,8 +110,6 @@ export class SDK {
 
   protected _senderAddress = ''
 
-  protected _gasConfig: GasConfig
-
   constructor(options: SdkOptions) {
     this._sdkOptions = options
     this._fullClient = new JsonRpcProvider(
@@ -130,7 +129,6 @@ export class SDK {
     this._xcetusModule = new XCetusModule(this)
     this._boosterModule = new BoosterModule(this)
     this._makerModule = new MakerModule(this)
-    this._gasConfig = new GasConfig(1)
   }
 
   get senderAddress() {
@@ -139,14 +137,6 @@ export class SDK {
 
   set senderAddress(value: string) {
     this._senderAddress = value
-  }
-
-  set gasConfig(value: GasConfig) {
-    this._gasConfig = value
-  }
-
-  get gasConfig() {
-    return this._gasConfig
   }
 
   get Swap() {

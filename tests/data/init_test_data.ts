@@ -1,5 +1,4 @@
 import { Ed25519Keypair, fromB64, getCreatedObjects, getObjectId, getObjectPreviousTransactionDigest, getSharedObjectInitialVersion, RawSigner, toB64, TransactionBlock } from '@mysten/sui.js'
-import { CoinAssist, sendTransaction } from '../../src'
 import { SDK, SdkOptions } from '../../src/sdk'
 import { secretKeyToEd25519Keypair } from '../../src/utils/common'
 import { buildSdkOptions, currSdkEnv } from './config'
@@ -67,7 +66,6 @@ export async  function mintAll(sdk: SDK,sendKeypair: Ed25519Keypair ,  faucet: {
 
 export function buildSdk(): SDK {
   const sdk =  new SDK(sdkEnv)
-  sdk.gasConfig = sdkEnv.gasConfig
   console.log(`currSdkEnv: ${currSdkEnv} ; fullRpcUrl: ${sdk.sdkOptions.fullRpcUrl}`)
   return sdk
 }
