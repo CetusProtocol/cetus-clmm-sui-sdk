@@ -21,7 +21,7 @@ export const poolList = [
     tick_spacing: 60 ,
     fee_rate: 0.25 /100 * 1000000 ,
     uri: '',
-    hasCreat: true,
+    hasCreat: false,
   },
   {
     coin_type_a: `0x2::sui::SUI`,
@@ -55,7 +55,7 @@ export const poolList = [
     tick_spacing: 60 ,
     fee_rate: 0.25 /100 * 1000000 ,
     uri: '',
-    hasCreat: false,
+    hasCreat: true,
   },
 
 ]

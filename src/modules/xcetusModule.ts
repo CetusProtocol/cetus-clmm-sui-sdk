@@ -2,6 +2,7 @@
 /* eslint-disable camelcase */
 import { getMoveObjectType, getObjectFields, ObjectContentFields, ObjectType, TransactionArgument, TransactionBlock } from '@mysten/sui.js'
 import Decimal from 'decimal.js'
+import { CoinAsset } from '../types'
 import { XCetusUtil } from '../utils/xcetus'
 import {
   CancelRedeemParams,
@@ -13,31 +14,25 @@ import {
   LockUpManagerEvent,
   LockCetus,
   RedeemLockParams,
-  RedeemParams,
   REDEEM_NUM_MULTIPER,
   VeNFT,
   VeNFTDividendInfo,
   XcetusInitEvent,
   XcetusManager,
   XcetusRouterModule,
+  RedeemXcetusParams,
 } from '../types/xcetus_type'
 import { buildNFT, TransactionUtil, loopToGetAllQueryEvents, getOwnedObjects } from '../utils'
 import { SuiResource, SuiAddressType, CLOCK_ADDRESS, SuiObjectIdType } from '../types/sui'
-import { CachedContent } from '../utils/cachedContent'
+import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils/cachedContent'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
-import { CoinAsset } from './resourcesModule'
 import { d } from '../utils/numbers'
 import { extractStructTagFromType } from '../utils/contracts'
 
-export const cacheTime5min = 5 * 60 * 1000
-export const cacheTime24h = 24 * 60 * 60 * 1000
-export const intervalFaucetTime = 12 * 60 * 60 * 1000
-
-function getFutureTime(interval: number) {
-  return Date.parse(new Date().toString()) + interval
-}
-
+/**
+ * Helper class to help interact with xcetus with a router interface.
+ */
 export class XCetusModule implements IModule {
   protected _sdk: SDK
 
@@ -51,14 +46,21 @@ export class XCetusModule implements IModule {
     return this._sdk
   }
 
+  /**
+   * Gets the VeNFT object for the specified account address.
+   *
+   * @param accountAddress The address of the account that owns the VeNFT object.
+   * @param forceRefresh Indicates whether to refresh the cache of the VeNFT object.
+   * @returns A Promise that resolves to the VeNFT object or `undefined` if the object is not found.
+   */
   async getOwnerVeNFT(accountAddress: SuiAddressType, forceRefresh = true): Promise<VeNFT | undefined> {
     const { xcetus } = this.sdk.sdkOptions
 
     const cacheKey = `${accountAddress}_getLockUpManagerEvent`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<VeNFT>(cacheKey, forceRefresh)
 
-    if (!forceRefresh && cacheData !== undefined && cacheData.getCacheData()) {
-      return cacheData.value as VeNFT
+    if (cacheData !== undefined) {
+      return cacheData
     }
     let veNFT: VeNFT | undefined
     const filterType = `${xcetus.xcetus_router}::xcetus::VeNFT`
@@ -88,6 +90,12 @@ export class XCetusModule implements IModule {
     return veNFT
   }
 
+  /**
+   * Gets the list of LockCetus objects owned by the specified account address.
+   *
+   * @param accountAddress The address of the account that owns the LockCetus objects.
+   * @returns A Promise that resolves to a list of LockCetus objects.
+   */
   async getOwnerLockCetuss(accountAddress: SuiAddressType): Promise<LockCetus[]> {
     const { xcetus } = this.sdk.sdkOptions
     const lockCetuss: LockCetus[] = []
@@ -113,6 +121,12 @@ export class XCetusModule implements IModule {
     return lockCetuss
   }
 
+  /**
+   * Gets the LockCetus object with the specified ID.
+   *
+   * @param lock_id The ID of the LockCetus object.
+   * @returns A Promise that resolves to the LockCetus object or `undefined` if the object is not found.
+   */
   async getLockCetus(lock_id: SuiObjectIdType): Promise<LockCetus | undefined> {
     const result = await this._sdk.fullClient.getObject({ id: lock_id, options: { showType: true, showContent: true } })
 
@@ -124,8 +138,14 @@ export class XCetusModule implements IModule {
     return undefined
   }
 
+  /**
+   * Gets the list of Cetus coins owned by the specified account address.
+   *
+   * @param accountAddress The address of the account that owns the Cetus coins.
+   * @returns A Promise that resolves to a list of CoinAsset objects.
+   */
   async getOwnerCetusCoins(accountAddress: SuiAddressType): Promise<CoinAsset[]> {
-    const coins = await this._sdk.Resources.getOwnerCoinAssets(accountAddress, this.buileCetusCoinType())
+    const coins = await this._sdk.getOwnerCoinAssets(accountAddress, this.buileCetusCoinType())
     return coins
   }
 
@@ -137,7 +157,6 @@ export class XCetusModule implements IModule {
     const { xcetus } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetLow)
 
     tx.moveCall({
       target: `${xcetus.xcetus_router}::${XcetusRouterModule}::mint_venft`,
@@ -166,7 +185,6 @@ export class XCetusModule implements IModule {
     )) as TransactionArgument
 
     if (params.venft_id === undefined) {
-      tx.setGasBudget(this._sdk.gasConfig.GasBudgetHigh)
       tx.moveCall({
         target: `${xcetus.xcetus_router}::${XcetusRouterModule}::mint_and_convert`,
         typeArguments: [],
@@ -178,7 +196,6 @@ export class XCetusModule implements IModule {
         ],
       })
     } else {
-      tx.setGasBudget(this._sdk.gasConfig.GasBudgetLow)
       tx.moveCall({
         target: `${xcetus.xcetus_router}::${XcetusRouterModule}::convert`,
         typeArguments: [],
@@ -205,7 +222,6 @@ export class XCetusModule implements IModule {
     const { xcetus } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetLow)
 
     tx.moveCall({
       target: `${xcetus.xcetus_router}::${XcetusRouterModule}::redeem_lock`,
@@ -228,11 +244,10 @@ export class XCetusModule implements IModule {
    * @param params
    * @returns
    */
-  redeemPayload(params: RedeemParams): TransactionBlock {
+  redeemPayload(params: RedeemXcetusParams): TransactionBlock {
     const { xcetus } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetLow)
 
     tx.moveCall({
       target: `${xcetus.xcetus_router}::${XcetusRouterModule}::redeem`,
@@ -253,7 +268,6 @@ export class XCetusModule implements IModule {
     const { xcetus } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetLow)
 
     bonus_types.forEach((coin) => {
       tx.moveCall({
@@ -278,7 +292,6 @@ export class XCetusModule implements IModule {
     const { xcetus } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetLow)
 
     tx.moveCall({
       target: `${xcetus.xcetus_router}::${XcetusRouterModule}::cancel_redeem_lock`,
@@ -295,6 +308,11 @@ export class XCetusModule implements IModule {
     return tx
   }
 
+  /**
+   * Gets the init factory event.
+   *
+   * @returns A Promise that resolves to the init factory event.
+   */
   async getInitFactoryEvent(): Promise<XcetusInitEvent> {
     const { xcetus_display } = this.sdk.sdkOptions.xcetus
 
@@ -317,14 +335,19 @@ export class XCetusModule implements IModule {
     return initEvent
   }
 
+  /**
+   * Gets the lock up manager event.
+   *
+   * @returns A Promise that resolves to the lock up manager event.
+   */
   async getLockUpManagerEvent(): Promise<LockUpManagerEvent> {
     const { xcetus_display } = this.sdk.sdkOptions.xcetus
 
     const cacheKey = `${xcetus_display}_getLockUpManagerEvent`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<LockUpManagerEvent>(cacheKey)
 
-    if (cacheData !== undefined && cacheData.getCacheData()) {
-      return cacheData.value as LockUpManagerEvent
+    if (cacheData !== undefined) {
+      return cacheData
     }
 
     const lockEventObjects = (
@@ -355,18 +378,22 @@ export class XCetusModule implements IModule {
       })
     }
 
-    initEvent.lock_handle_id = await this.getLockInfoHandle()
+    initEvent.lock_handle_id = await this.getLockInfoHandle(initEvent.lock_manager_id)
     return initEvent
   }
 
-  async getLockInfoHandle(): Promise<string> {
-    const { lock_manager_id } = this.sdk.sdkOptions.xcetus.config
-
+  /**
+   * Gets the lock info handle.
+   *
+   * @param lockManagerId The ID of the lock manager.
+   * @returns A Promise that resolves to the lock info handle.
+   */
+  async getLockInfoHandle(lock_manager_id: string): Promise<string> {
     const cacheKey = `${lock_manager_id}_getLockInfoHandle`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<string>(cacheKey)
 
-    if (cacheData !== undefined && cacheData.getCacheData()) {
-      return cacheData.value as string
+    if (cacheData !== undefined) {
+      return cacheData
     }
     let lockInfoHandle = ''
     const lockObjects = await this.sdk.fullClient.getObject({ id: lock_manager_id, options: { showContent: true } })
@@ -379,14 +406,19 @@ export class XCetusModule implements IModule {
     return lockInfoHandle
   }
 
+  /**
+   * Gets the dividend manager event.
+   *
+   * @returns A Promise that resolves to the dividend manager event.
+   */
   async getDividendManagerEvent(): Promise<DividendManagerEvent> {
     const { dividends_display } = this.sdk.sdkOptions.xcetus
 
     const cacheKey = `${dividends_display}_getDividendManagerEvent`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<DividendManagerEvent>(cacheKey)
 
-    if (cacheData !== undefined && cacheData.getCacheData()) {
-      return cacheData.value as DividendManagerEvent
+    if (cacheData !== undefined) {
+      return cacheData
     }
 
     const lockEventObjects = (
@@ -409,14 +441,20 @@ export class XCetusModule implements IModule {
     return initEvent
   }
 
+  /**
+   * Gets the dividend manager object.
+   *
+   * @param forceRefresh Whether to force a refresh of the cache.
+   * @returns A Promise that resolves to the dividend manager object.
+   */
   async getDividendManager(forceRefresh = false): Promise<DividendManager> {
     const { dividend_manager_id } = this.sdk.sdkOptions.xcetus.config
 
     const cacheKey = `${dividend_manager_id}_getDividendManager`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<DividendManager>(cacheKey, forceRefresh)
 
-    if (!forceRefresh && cacheData !== undefined && cacheData.getCacheData()) {
-      return cacheData.value as DividendManager
+    if (cacheData !== undefined) {
+      return cacheData
     }
     const objects = await this._sdk.fullClient.getObject({ id: dividend_manager_id, options: { showContent: true } })
     const fields = getObjectFields(objects)
@@ -425,6 +463,11 @@ export class XCetusModule implements IModule {
     return dividendManager
   }
 
+  /**
+   * Gets the Xcetus manager object.
+   *
+   * @returns A Promise that resolves to the Xcetus manager object.
+   */
   async getXcetusManager(): Promise<XcetusManager> {
     const { xcetus } = this.sdk.sdkOptions
 
@@ -447,6 +490,13 @@ export class XCetusModule implements IModule {
     return xcetusManager
   }
 
+  /**
+   * Gets the VeNFT dividend information for the specified VeNFT dividend handle and VeNFT ID.
+   *
+   * @param venft_dividends_handle The VeNFT dividend handle.
+   * @param venft_id The VeNFT ID.
+   * @returns A Promise that resolves to the VeNFT dividend information or undefined if an error occurs.
+   */
   async getVeNFTDividendInfo(venft_dividends_handle: string, venft_id: SuiObjectIdType): Promise<VeNFTDividendInfo | undefined> {
     try {
       const venft_dividends = await this._sdk.fullClient.getDynamicFieldObject({
@@ -465,6 +515,13 @@ export class XCetusModule implements IModule {
     }
   }
 
+  /**
+   * Calculates the redeem number for the specified amount and lock day.
+   *
+   * @param redeemAmount The amount to redeem.
+   * @param lockDay The number of days to lock the amount for.
+   * @returns A Promise that resolves to an object with the amount out and percent.
+   */
   async redeemNum(redeemAmount: string | number, lock_day: number): Promise<{ amountOut: string; percent: string }> {
     if (BigInt(redeemAmount) === BigInt(0)) {
       return { amountOut: '0', percent: '0' }
@@ -488,6 +545,13 @@ export class XCetusModule implements IModule {
     return { amountOut: d(percent).mul(d(redeemAmount)).round().toString(), percent: percent.toString() }
   }
 
+  /**
+   * Reverses the redeem number for the specified amount and lock day.
+   *
+   * @param amount The amount to redeem.
+   * @param lockDay The number of days to lock the amount for.
+   * @returns A Promise that resolves to an object with the reversed amount and percent.
+   */
   async reverseRedeemNum(amount: string | number, lock_day: number): Promise<{ amountOut: string; percent: string }> {
     if (BigInt(amount) === BigInt(0)) {
       return { amountOut: '0', percent: '0' }
@@ -507,14 +571,20 @@ export class XCetusModule implements IModule {
     return { amountOut: d(amount).div(percent).toFixed(0, Decimal.ROUND_UP), percent: percent.toString() }
   }
 
+  /**
+   * Gets the XCetus amount for the specified lock ID.
+   *
+   * @param lockId The ID of the lock.
+   * @returns A Promise that resolves to the XCetus amount.
+   */
   async getXCetusAmount(lock_id: string): Promise<string> {
     const { lock_handle_id } = this._sdk.sdkOptions.xcetus.config
 
     const cacheKey = `${lock_id}_getXCetusAmount`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<string>(cacheKey)
 
-    if (cacheData !== undefined && cacheData.getCacheData()) {
-      return cacheData.value as string
+    if (cacheData !== undefined) {
+      return cacheData
     }
 
     try {
@@ -537,6 +607,33 @@ export class XCetusModule implements IModule {
     return '0'
   }
 
+  /**
+   * Gets the amount of XCetus and lock for the specified VENFT.
+   *
+   * @param nftHandleId The ID of the NFT handle.
+   * @param veNftId The ID of the VENFT.
+   * @returns A Promise that resolves to an object with the XCetus amount and lock amount.
+   */
+  async getVeNftAmount(nft_handle_id: string, ve_nft_id: string): Promise<{ xcetus_amount: string; lock_amount: string }> {
+    try {
+      const response = await this.sdk.fullClient.getDynamicFieldObject({
+        parentId: nft_handle_id,
+        name: {
+          type: '0x2::object::ID',
+          value: ve_nft_id,
+        },
+      })
+      const fields = getObjectFields(response)
+      if (fields) {
+        const { lock_amount, xcetus_amount } = fields.value.fields.value.fields
+        return { lock_amount, xcetus_amount }
+      }
+    } catch (error) {
+      //
+    }
+    return { lock_amount: '0', xcetus_amount: '0' }
+  }
+
   private updateCache(key: string, data: SuiResource, time = cacheTime5min) {
     let cacheData = this._cache[key]
     if (cacheData) {
@@ -546,5 +643,14 @@ export class XCetusModule implements IModule {
       cacheData = new CachedContent(data, getFutureTime(time))
     }
     this._cache[key] = cacheData
+  }
+
+  private getCache<T>(key: string, forceRefresh = false): T | undefined {
+    const cacheData = this._cache[key]
+    if (!forceRefresh && cacheData?.isValid()) {
+      return cacheData.value as T
+    }
+    delete this._cache[key]
+    return undefined
   }
 }

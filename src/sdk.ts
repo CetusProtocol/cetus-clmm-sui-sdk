@@ -1,16 +1,17 @@
-import { Connection, JsonRpcProvider } from '@mysten/sui.js'
+import { Connection, JsonRpcProvider, PaginatedCoins } from '@mysten/sui.js'
 import { BoosterModule } from './modules/boosterModule'
 import { LaunchpadModule } from './modules/launchpadModule'
 import { MakerModule } from './modules/makerModule'
 import { PoolModule } from './modules/poolModule'
 import { PositionModule } from './modules/positionModule'
-import { ResourcesModule } from './modules/resourcesModule'
 import { RewarderModule } from './modules/rewarderModule'
 import { RouterModule } from './modules/routerModule'
 import { SwapModule } from './modules/swapModule'
 import { TokenModule } from './modules/tokenModule'
 import { XCetusModule } from './modules/xcetusModule'
 import { SuiObjectIdType } from './types/sui'
+import { extractStructTagFromType, patchFixSuiObjectId } from './utils'
+import { CoinAsset } from './types'
 
 export type SdkOptions = {
   fullRpcUrl: string
@@ -73,6 +74,7 @@ export type SdkOptions = {
       global_config_id: SuiObjectIdType
       global_vault_id: SuiObjectIdType
       pools_id: SuiObjectIdType
+      admin_cap_id?: SuiObjectIdType
     }
     clmm_router: {
       cetus: SuiObjectIdType
@@ -89,8 +91,6 @@ export class SDK {
   protected _position: PositionModule
 
   protected _swap: SwapModule
-
-  protected _resources: ResourcesModule
 
   protected _rewarder: RewarderModule
 
@@ -119,7 +119,6 @@ export class SDK {
       })
     )
     this._swap = new SwapModule(this)
-    this._resources = new ResourcesModule(this)
     this._pool = new PoolModule(this)
     this._position = new PositionModule(this)
     this._rewarder = new RewarderModule(this)
@@ -129,6 +128,8 @@ export class SDK {
     this._xcetusModule = new XCetusModule(this)
     this._boosterModule = new BoosterModule(this)
     this._makerModule = new MakerModule(this)
+
+    patchFixSuiObjectId(this._sdkOptions)
   }
 
   get senderAddress() {
@@ -145,10 +146,6 @@ export class SDK {
 
   get fullClient() {
     return this._fullClient
-  }
-
-  get Resources() {
-    return this._resources
   }
 
   get sdkOptions() {
@@ -189,5 +186,47 @@ export class SDK {
 
   get MakerModule() {
     return this._makerModule
+  }
+
+  /**
+   * Gets all coin assets for the given owner and coin type.
+   *
+   * @param suiAddress The address of the owner.
+   * @param coinType The type of the coin.
+   * @returns an array of coin assets.
+   */
+  async getOwnerCoinAssets(suiAddress: string, coinType?: string | null): Promise<CoinAsset[]> {
+    const allCoinAsset: CoinAsset[] = []
+    let nextCursor: string | null = null
+
+    while (true) {
+      // eslint-disable-next-line no-await-in-loop
+      const allCoinObject: PaginatedCoins = await (coinType
+        ? this.fullClient.getCoins({
+            owner: suiAddress,
+            coinType,
+            cursor: nextCursor,
+          })
+        : this.fullClient.getAllCoins({
+            owner: suiAddress,
+            cursor: nextCursor,
+          }))
+
+      allCoinObject.data.forEach((coin: any) => {
+        if (BigInt(coin.balance) > 0) {
+          allCoinAsset.push({
+            coinAddress: extractStructTagFromType(coin.coinType).source_address,
+            coinObjectId: coin.coinObjectId,
+            balance: BigInt(coin.balance),
+          })
+        }
+      })
+      nextCursor = allCoinObject.nextCursor
+
+      if (!allCoinObject.hasNextPage) {
+        break
+      }
+    }
+    return allCoinAsset
   }
 }

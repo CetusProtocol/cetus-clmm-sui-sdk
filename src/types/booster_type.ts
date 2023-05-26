@@ -1,5 +1,4 @@
-import { type } from 'superstruct'
-import { CoinPairType, Position } from '../modules/resourcesModule'
+import { CoinPairType, Position } from './clmm_type'
 import { SuiAddressType, SuiObjectIdType } from './sui'
 
 export const BoosterRouterModule = 'router'
@@ -21,14 +20,19 @@ export type BoosterPoolState = {
   // the minimum rewarder percent which is used when the lock time ends but the `Position` has not been redeemed.
   basic_percent: number
   // hold the CoinA which is used for mint xwhale rewarder.
-  balance: string
+  balances: {
+    balances_handle: SuiObjectIdType
+    size: number
+  }
   // the rewarder config about this `BoosterPool`, stores the information about the rewarder percent in different lock days.
   // the config k,v multiper is 10000. For example, k is 12%, here the store value is 1200.
   config: LockMultiplier[]
+  // lock_nft_id -> LockPositionInfo. store the lock position info.
   lock_positions: {
     lock_positions_handle: SuiObjectIdType
     size: number
   }
+  pool_id: SuiObjectIdType
   is_open: boolean
   index: number
 }
@@ -41,7 +45,6 @@ export type LockMultiplier = {
 }
 
 export type LockPositionInfo = {
-  id: SuiObjectIdType
   type: SuiAddressType
   // clmm position id
   position_id: SuiObjectIdType
@@ -53,18 +56,18 @@ export type LockPositionInfo = {
   end_time: number
   // the previous settlement starting point(clmm position point)
   growth_rewarder: string
-  // xwhale rewarder owned
-  xcetus_owned: SuiObjectIdType
+  // rewarder owned
+  rewarder_owned: SuiObjectIdType
   // is or not be settled
   is_settled: boolean
 }
 
 export type LockNFT = {
   locked_nft_id: SuiObjectIdType
-  locked_time: number
-  end_lock_time: number
   lock_clmm_position: Position
 }
+
+export type BoosterPositionInfo = LockNFT & LockPositionInfo
 
 export type LockPositionParams = {
   clmm_position_id: SuiObjectIdType

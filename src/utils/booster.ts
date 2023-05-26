@@ -28,7 +28,6 @@ export class BoosterUtil {
 
   static buildPoolState(data: any): BoosterPoolState {
     const fields = getObjectFields(data) as ObjectContentFields
-
     const lockMultipliers: LockMultiplier[] = []
 
     fields.config.fields.contents.forEach((item: any) => {
@@ -40,7 +39,10 @@ export class BoosterUtil {
 
     const pool: BoosterPoolState = {
       basic_percent: Number(d(fields.basic_percent).div(CONFIG_PERCENT_MULTIPER)),
-      balance: fields.balance,
+      balances: {
+        balances_handle: fields.balances.fields.id.id,
+        size: fields.balances.fields.size,
+      },
       config: lockMultipliers,
       lock_positions: {
         lock_positions_handle: fields.lock_positions.fields.id.id,
@@ -48,56 +50,43 @@ export class BoosterUtil {
       },
       is_open: fields.is_open,
       index: Number(fields.index),
+      pool_id: getObjectId(data) as string,
     }
 
     return pool
   }
 
-  static buildLockNFT(data: any): LockNFT | undefined {
+  static buildLockNFT(data: any): LockNFT {
     const locked_nft_id = extractStructTagFromType(getObjectId(data)).address
 
-    const fields = getObjectFields(data) as ObjectContentFields
-    if (fields) {
-      const lock_clmm_position = buildPosition(data)
-      const lockNFT: LockNFT = {
-        lock_clmm_position,
-        locked_nft_id,
-        locked_time: Number(fields.locked_time),
-        end_lock_time: Number(fields.end_lock_time),
-      }
-
-      return lockNFT
+    const lock_clmm_position = buildPosition(data)
+    const lockNFT: LockNFT = {
+      lock_clmm_position,
+      locked_nft_id,
     }
 
-    return undefined
+    return lockNFT
   }
 
-  static buildLockPositionInfo(data: any): LockPositionInfo | undefined {
-    const id = extractStructTagFromType(getObjectId(data)).address
-
+  static buildLockPositionInfo(data: any): LockPositionInfo {
     const fields = getObjectFields(data) as ObjectContentFields
 
-    if (fields) {
-      const { value } = fields.value.fields
-      const lockNFT: LockPositionInfo = {
-        id,
-        type: value.type,
-        position_id: value.fields.position_id,
-        start_time: Number(value.fields.start_time),
-        lock_period: Number(value.fields.lock_period),
-        end_time: Number(value.fields.end_time),
-        growth_rewarder: value.fields.growth_rewarder,
-        xcetus_owned: value.fields.xcetus_owned,
-        is_settled: value.fields.is_settled,
-      }
-
-      return lockNFT
+    const { value } = fields.value.fields
+    const lockNFT: LockPositionInfo = {
+      type: value.type,
+      position_id: value.fields.position_id,
+      start_time: Number(value.fields.start_time),
+      lock_period: Number(value.fields.lock_period),
+      end_time: Number(value.fields.end_time),
+      growth_rewarder: value.fields.growth_rewarder,
+      rewarder_owned: value.fields.rewarder_owned,
+      is_settled: value.fields.is_settled,
     }
 
-    return undefined
+    return lockNFT
   }
 
-  static isLocked(lock: LockNFT): boolean {
-    return lock.end_lock_time > Date.parse(new Date().toString()) / 1000
+  static isLocked(lock: LockPositionInfo): boolean {
+    return lock.end_time > Date.parse(new Date().toString()) / 1000
   }
 }

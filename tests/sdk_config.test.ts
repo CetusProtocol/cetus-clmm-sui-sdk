@@ -1,12 +1,13 @@
 import { buildSdk } from './data/init_test_data'
 import 'isomorphic-fetch'
 
+const sdk = buildSdk()
+
 describe('sdk config', () => {
-  const sdk = buildSdk()
 
   test('clmmConfig', async () => {
     try {
-      const initEvent = await sdk.Resources.getInitEvent()
+      const initEvent = await sdk.Pool.getInitEvent()
       console.log('clmmConfig ', initEvent)
     } catch (error) {
       console.log(error)
@@ -24,11 +25,12 @@ describe('sdk config', () => {
 
   test('launchpadConfig', async () => {
     try {
-     const initFactoryEvent = await sdk.Launchpad.getInitFactoryEvent()
-      // const initLockEvent = await sdk.Launchpad.getInitLockEvent()
+      const initFactoryEvent = await sdk.Launchpad.getInitFactoryEvent()
+      const initConfigEvent = await sdk.Launchpad.getInitConfigEvent()
+
       console.log('launchpadConfig ', {
-       ...initFactoryEvent,
-        // lock_manager_id: initLockEvent.lock_manager_id,
+        ...initFactoryEvent,
+        ...initConfigEvent
       })
     } catch (error) {
       console.log(error)
@@ -37,14 +39,14 @@ describe('sdk config', () => {
 
   test('xcetusConfig', async () => {
     try {
-       const initFactoryEvent = await sdk.XCetusModule.getInitFactoryEvent()
-       const lockUpManagerEvent = await sdk.XCetusModule.getLockUpManagerEvent()
+      const initFactoryEvent = await sdk.XCetusModule.getInitFactoryEvent()
+      const lockUpManagerEvent = await sdk.XCetusModule.getLockUpManagerEvent()
       const dividendManagerEvent = await sdk.XCetusModule.getDividendManagerEvent()
       console.log({
-         ...initFactoryEvent,
-         lock_manager_id: lockUpManagerEvent.lock_manager_id,
-         lock_handle_id: lockUpManagerEvent.lock_handle_id,
-        dividend_manager_id: dividendManagerEvent.dividend_manager_id
+        ...initFactoryEvent,
+        lock_manager_id: lockUpManagerEvent.lock_manager_id,
+        lock_handle_id: lockUpManagerEvent.lock_handle_id,
+        dividend_manager_id: dividendManagerEvent.dividend_manager_id,
       })
     } catch (error) {
       console.log(error)
@@ -75,13 +77,12 @@ describe('sdk config', () => {
 })
 
 describe('warp sdk config', () => {
-  const sdk = buildSdk()
-
-  const config =  {
+  const config = {
     clmmConfig: {
       pools_id: '',
       global_config_id: '',
       global_vault_id: '',
+      admin_cap_id: ''
     },
     tokenConfig: {
       coin_registry_id: '',
@@ -93,33 +94,33 @@ describe('warp sdk config', () => {
       pools_id: '',
       admin_cap_id: '',
       config_cap_id: '',
-      // lock_manager_id: '',
+      config_pools_id:''
     },
     xcetusConfig: {
       xcetus_manager_id: '',
       lock_manager_id: '',
-      lock_handle_id: "",
+      lock_handle_id: '',
       dividend_manager_id: '',
     },
     boosterConfig: {
-      booster_config_id: "",
-      booster_pool_handle: ''
+      booster_config_id: '',
+      booster_pool_handle: '',
     },
     makerBonusConfig: {
       maker_config_id: '',
-      maker_pool_handle: ''
-    }
+      maker_pool_handle: '',
+    },
   }
 
   test('sdk Config', async () => {
     const sdkOptions = sdk.sdkOptions
     try {
       if (sdkOptions.clmm.clmm_display.length > 0) {
-        const initEvent = await sdk.Resources.getInitEvent()
+        const initEvent = await sdk.Pool.getInitEvent()
         config.clmmConfig = initEvent
       }
     } catch (error) {
-      console.log(error)
+      console.log('clmmConfig', error)
     }
 
     try {
@@ -128,20 +129,20 @@ describe('warp sdk config', () => {
         config.tokenConfig = tokenConfig
       }
     } catch (error) {
-      console.log(error)
+      console.log('tokenConfig', error)
     }
 
     try {
       if (sdkOptions.launchpad.ido_display.length > 0) {
         const initFactoryEvent = await sdk.Launchpad.getInitFactoryEvent()
-        // const initLockEvent = await sdk.Launchpad.getInitLockEvent()
+        const initConfigEvent = await sdk.Launchpad.getInitConfigEvent()
         config.launchpadConfig = {
           ...initFactoryEvent,
-          // lock_manager_id: initLockEvent.lock_manager_id,
+          ...initConfigEvent
         }
       }
     } catch (error) {
-      console.log(error)
+      console.log('launchpadConfig', error)
     }
 
     try {
@@ -153,25 +154,29 @@ describe('warp sdk config', () => {
           ...initFactoryEvent,
           lock_manager_id: lockUpManagerEvent.lock_manager_id,
           lock_handle_id: lockUpManagerEvent.lock_handle_id,
-          dividend_manager_id: dividendManagerEvent.dividend_manager_id
+          dividend_manager_id: dividendManagerEvent.dividend_manager_id,
         }
       }
     } catch (error) {
-      console.log(error)
+      console.log('xcetusConfig', error)
     }
 
     try {
-      const initFactoryEvent = await sdk.BoosterModule.getInitFactoryEvent()
-      config.boosterConfig =  initFactoryEvent
+      if (sdkOptions.booster.booster_display.length > 0) {
+        const initFactoryEvent = await sdk.BoosterModule.getInitFactoryEvent()
+        config.boosterConfig = initFactoryEvent
+      }
     } catch (error) {
-      console.log(error)
+      console.log('boosterConfig', error)
     }
 
     try {
-      const initFactoryEvent = await sdk.MakerModule.getInitFactoryEvent()
-      config.makerBonusConfig =  initFactoryEvent
+      if (sdkOptions.maker_bonus.maker_display.length > 0) {
+        const initFactoryEvent = await sdk.MakerModule.getInitFactoryEvent()
+        config.makerBonusConfig = initFactoryEvent
+      }
     } catch (error) {
-      console.log(error)
+      console.log('makerBonusConfig', error)
     }
 
     console.log(config)

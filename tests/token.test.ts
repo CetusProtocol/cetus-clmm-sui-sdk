@@ -7,11 +7,8 @@ describe('token Module', () => {
      const tokenConfig = sdk.sdkOptions.token.config
 
     test('getTokenListByCoinTypes', async () => {
-      const tokenMap =  await sdk.Token.getTokenListByCoinTypes(["0xde093aecdfbce6e49461bc2a3f463611e4b90b580bc8ae83701d03e97afcc291::xcetus::XCETUS"])
-
-      
+      const tokenMap =  await sdk.Token.getTokenListByCoinTypes(["0x6864a6f921804860930db6ddbe2e16acdf8504495ea7481637a1c8b9a8fe54b::cetus::CETUS"])
       console.log("tokenMap: ",tokenMap);
-
     })
 
     test('getAllRegisteredTokenList', async () => {

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { ObjectId, SuiMoveObject, SuiTransactionBlockResponse } from '@mysten/sui.js'
-import { FaucetCoin, CoinAsset } from '../modules/resourcesModule'
-import { extractStructTagFromType } from '../utils/contracts'
+import { CoinAsset, FaucetCoin } from '../types'
+import { extractStructTagFromType, normalizeCoinType } from '../utils/contracts'
 import { SuiAddressType } from '../types/sui'
 // import BN from 'bn.js'
 
@@ -77,7 +77,7 @@ export class CoinAssist {
   public static getCoinAssets(coinType: string, allSuiObjects: CoinAsset[]): CoinAsset[] {
     const coins: CoinAsset[] = []
     allSuiObjects.forEach((anObj) => {
-      if (anObj.coinAddress === coinType) {
+      if (normalizeCoinType(anObj.coinAddress) === normalizeCoinType(coinType)) {
         coins.push(anObj)
       }
     })

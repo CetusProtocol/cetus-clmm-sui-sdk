@@ -1,6 +1,6 @@
 import BN from 'bn.js'
+import { Pool } from '../types/clmm_type'
 import { ClmmpoolData, TickData, transClmmpoolDataWithoutTicks } from '../types/clmmpool'
-import { Pool } from '../modules/resourcesModule'
 import { computeSwapStep, SwapStepResult } from './clmm'
 import { SwapUtils } from './swap'
 import { ZERO } from './utils'

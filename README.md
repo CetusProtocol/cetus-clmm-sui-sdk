@@ -6,9 +6,16 @@
 ### Install
 
 - Our published package can be found here [NPM](https://www.npmjs.com/package/@cetusprotocol/cetus-sui-clmm-sdk).
+- To install the cetus-sui-clmm-sdk, simply add @cetusprotocol/cetus-sui-clmm-sdk into your package.json
 
 ```bash
 yarn add @cetusprotocol/cetus-sui-clmm-sdk
+```
+
+Or
+
+```bash
+npm  install @cetusprotocol/cetus-sui-clmm-sdk
 ```
 
 ### Usage
@@ -26,10 +33,10 @@ const SDKConfig = {
       global_vault_id: '0xf3114a74d54cbe56b3e68f9306661c043ede8c6615f0351b0c3a93ce895e1699'
     },
     tokenConfig: {
-      coin_registry_id: '',
-      pool_registry_id: '',
-      coin_list_owner: '',
-      pool_list_owner: ''
+     coin_registry_id: '0xb52e4b2bef6fe50b91680153c3cf3e685de6390f891bea1c4b6d524629f1f1a9',
+     pool_registry_id: '0x68a66a7d44840481e2fa9dce43293a31dced955acc086ce019853cb6e6ab774f',
+     coin_list_owner: '0x1370c41dce1d5fb02b204288c67f0369d4b99f70df0a7bddfdcad7a2a49e3ba2',
+     pool_list_owner: '0x48bf04dc68a2b9ffe9a901a4903b2ce81157dec1d83b53d0858da3f482ff2539'
     },
   },
   mainnet: {
@@ -103,8 +110,6 @@ export const netConfig = {
 ```ts
 // init global sdk object
 const sdk = new SDK(netConfig.devnet)
-// set GasBudget config default gas rate is 1
-sdk.gasConfig = new GasConfig(1)
 // When connecting the wallet, set the wallet address
 sdk.senderAddress = ""
 
@@ -152,20 +157,20 @@ const poolList =  await sdk.Token.getOwnerPoolList(pool_list_owner,coin_list_own
 const assignPools = [''] // query assign pool , if is empty else query all pool
 const offset = 0  // optional paging cursor
 const limit = 10  // maximum number of items per page
-const pools = await sdk.Resources.getPools(assignPools, offset, limit)
+const pools = await sdk.Pool.getPools(assignPools, offset, limit)
 
 //Fetch all clmm pools (only contain immutable info)
-const poolImmutables = await sdk.Resources.getPoolImmutables(assignPools, offset, limit)
+const poolImmutables = await sdk.Pool.getPoolImmutables(assignPools, offset, limit)
 
 //Fetch clmm pool by poolAddress
-const pool = await sdk.Resources.getPool(poolAddress)
+const pool = await sdk.Pool.getPool(poolAddress)
 
 //Fetch clmm position list of accountAddress for assign poolIds (not contains position rewarders)
-const pool = sdk.Resources.getPositionList(accountAddress, assignPoolIds)
+const pool = sdk.Position.getPositionList(accountAddress, assignPoolIds)
 
 //Fetch clmm position by position_object_id  (contains position rewarders)
-sdk.Resources.getPosition(pool.positions_handle, position_object_id)
-sdk.Resources.getPositionById(position_object_id)
+sdk.Position.getPosition(pool.positions_handle, position_object_id)
+sdk.Position.getPositionById(position_object_id)
 ```
 
 ##### 4.2 create clmm pool and add liquidity
@@ -257,7 +262,7 @@ code example for this guide can be found [position.test.ts](https://github.com/C
 const sendKeypair = buildTestAccount()
 const signer = new RawSigner(sendKeypair, sdk.fullClient)
 //  Fetch pool data
-const pool = await sdk.Resources.getPool(poolAddress)
+const pool = await sdk.Pool.getPool(poolAddress)
 //  build lowerTick and  upperTick
 const lowerTick = TickMath.getPrevInitializableTickIndex(new BN(pool.current_tick_index).toNumber()
       ,new BN(pool.tickSpacing).toNumber())
@@ -316,9 +321,9 @@ const addLiquidityPayload = sdk.Position.createAddLiquidityTransactionPayload(
 const sendKeypair = buildTestAccount()
 const signer = new RawSigner(sendKeypair, sdk.fullClient)
 //  Fetch pool data
-const pool = await sdk.Resources.getPool(poolAddress)
+const pool = await sdk.Pool.getPool(poolAddress)
 //  Fetch position data
-const position = await sdk.Resources.getPositionInfo(position_object_id)
+const position = await sdk.Position.getPositionInfo(position_object_id)
 //  build position lowerTick and upperTick
 const lowerTick = position.tick_lower_index
 const upperTick = position.tick_upper_index
@@ -372,15 +377,15 @@ console.log('add_liquidity_fix_token: ', transferTxn)
 const sendKeypair = buildTestAccount()
 const signer = new RawSigner(sendKeypair, sdk.fullClient)
 // Fetch pool data
-const pool = await sdk.Resources.getPool(poolAddress)
+const pool = await sdk.Pool.getPool(poolAddress)
 // Fetch position data
-const position = await sdk.Resources.getPositionInfo(position_object_id)
+const position = await sdk.Position.getPositionInfo(position_object_id)
 // build tick data
 const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_lower_index)
 const upperSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_upper_index)
 const ticksHandle = pool.ticks_handle
-const tickLower = await sdk.Resources.getTickDataByIndex(ticksHandle, position.tick_lower_index)
-const tickUpper = await sdk.Resources.getTickDataByIndex(ticksHandle, position.tick_upper_index)
+const tickLower = await sdk.Pool.getTickDataByIndex(ticksHandle, position.tick_lower_index)
+const tickUpper = await sdk.Pool.getTickDataByIndex(ticksHandle, position.tick_upper_index)
 // input liquidity amount for remove
 const liquidity = new BN(10000)
 // slippage value
@@ -416,15 +421,15 @@ console.log('removeLiquidity: ', transferTxn)
 const sendKeypair = buildTestAccount()
 const signer = new RawSigner(sendKeypair, sdk.fullClient)
 // Fetch pool data
-const pool = await sdk.Resources.getPool(poolAddress)
+const pool = await sdk.Pool.getPool(poolAddress)
 // Fetch position data
-const position = await sdk.Resources.getPositionInfo(position_object_id)
+const position = await sdk.Position.getPositionInfo(position_object_id)
 // build tick data
 const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_lower_index)
 const upperSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_upper_index)
 const ticksHandle = pool.ticks_handle
-const tickLower = await sdk.Resources.getTickDataByIndex(ticksHandle, position.tick_lower_index)
-const tickUpper = await sdk.Resources.getTickDataByIndex(ticksHandle, position.tick_upper_index)
+const tickLower = await sdk.Pool.getTickDataByIndex(ticksHandle, position.tick_lower_index)
+const tickUpper = await sdk.Pool.getTickDataByIndex(ticksHandle, position.tick_upper_index)
 // input liquidity amount for remove
 const liquidity = new BN(position.liquidity)
 // slippage value
@@ -436,11 +441,7 @@ const coinAmounts = ClmmPoolUtil.getCoinAmountFromLiquidity(liquidity, curSqrtPr
 const { tokenMaxA, tokenMaxB } = adjustForCoinSlippage(coinAmounts, slippageTolerance, false)
 // get all rewarders of position
 const rewards: any[] = await sdk.Rewarder.posRewardersAmount(poolObjectId,pool.positions_handle, position_object_id)
-const rewardCoinTypes = rewards.filter((item) => {
-    if(Number(item.amount_owed) > 0){
-      return item.coin_address as string
-    }
-  })
+const rewardCoinTypes = rewards.filter((item) => Number(item.amount_owed) > 0).map((item)=> item.coin_address)
 // build close position payload
 const closePositionTransactionPayload = sdk.Position.closePositionTransactionPayload({
       coinTypeA: pool.coinTypeA,
@@ -463,7 +464,7 @@ console.log('close position: ', transferTxn)
 const sendKeypair = buildTestAccount()
 const signer = new RawSigner(sendKeypair, sdk.fullClient)
 // fetch pool data
-const pool = await sdk.Resources.getPool(poolAddress)
+const pool = await sdk.Pool.getPool(poolAddress)
 // build tick range
 const lowerTick = TickMath.getPrevInitializableTickIndex(
       new BN(pool.current_tick_index).toNumber(),
@@ -496,9 +497,9 @@ console.log('open position: ', getTransactionEffects(transferTxn))
 const sendKeypair = buildTestAccount()
 const signer = new RawSigner(sendKeypair, sdk.fullClient)
 // Fetch pool data
-const pool = await sdk.Resources.getPool(poolAddress)
+const pool = await sdk.Pool.getPool(poolAddress)
 // Fetch position data
-const position =  await sdk.Resources.getPosition(position_object_id)
+const position =  await sdk.Position.getPosition(position_object_id)
 
 // build collect fee Payload
 const removeLiquidityPayload = (await sdk.Position.collectFeeTransactionPayload(
@@ -523,9 +524,9 @@ console.log('collect_fee: ', transferTxn)
 const sendKeypair = buildTestAccount()
 const signer = new RawSigner(sendKeypair, sdk.fullClient)
 // Fetch coin assets of sendKeypair
-const allCoinAsset = await sdk.Resources.getOwnerCoinAssets(sendKeypair.getPublicKey().toSuiAddress())
+const allCoinAsset = await sdk.getOwnerCoinAssets(sendKeypair.getPublicKey().toSuiAddress())
 //  Fetch pool data
-const pool = await sdk.Resources.getPool(poolAddress)
+const pool = await sdk.Pool.getPool(poolAddress)
 //  Fetch ticks data
 const tickdatas = await sdk.Pool.fetchTicksByRpc(pool.ticks_handle)
 // Whether the swap direction is token a to token b
@@ -578,12 +579,10 @@ const swapPayload = sdk.Swap.createSwapTransactionPayload(
 const sendKeypair = buildTestAccount()
 const signer = new RawSigner(sendKeypair, sdk.fullClient)
 // Fetch pool data
-const pool = await sdk.Resources.getPool(poolAddress)
+const pool = await sdk.Pool.getPool(poolAddress)
 // Fetch all rewarder for position
 const rewards: any[] = await sdk.Rewarder.posRewardersAmount(pool.poolAddress, poolObjectId)
-const rewardCoinTypes = rewards.map((item) => {
-      return item.coin_address as string
-    })
+const rewardCoinTypes = rewards.filter((item) => Number(item.amount_owed) > 0).map((item)=> item.coin_address)
 
 // build collect rewarder Payload
 const collectRewarderParams: CollectRewarderParams = {
@@ -607,7 +606,7 @@ console.log('result: ', getTransactionEffects(transferTxn))
 ```ts
 // Fetch tick by index from table
 const ticksHandle = pool.ticks_handle
-const tickLower = await sdk.Resources.getTickDataByIndex(ticksHandle,position.tick_lower_index)
+const tickLower = await sdk.Pool.getTickDataByIndex(ticksHandle,position.tick_lower_index)
 // Fetch all tick data by rpc
 const tickdatas = await sdk.Pool.fetchTicksByRpc(ticksHandle)
 // Fetch all tick data by contart

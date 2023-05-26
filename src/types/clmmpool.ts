@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
 import BN from 'bn.js'
-import { Pool } from '../modules/resourcesModule'
 import { ZERO } from '../math/utils'
+import { Pool } from './clmm_type'
 
 export type TickData = {
   objectId: string

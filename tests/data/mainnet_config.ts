@@ -38,8 +38,8 @@ export const mainnet = {
   fullRpcUrl: 'https://fullnode.mainnet.sui.io',
   faucetURL: '',
   faucet: {
-    faucet_display: '0x4d892ceccd1497b9be7701e09d51c580bc83f22c9c97050821b373a77d0d9a9e',
-    faucet_router: '0xff3004dc90fee6f7027040348563feb866a61c8bb53049cc444c1746db8b218d',
+    faucet_display: '0x0588cff9a50e0eaf4cd50d337c1a36570bc1517793fd3303e1513e8ad4d2aa96',
+    faucet_router: '0x0588cff9a50e0eaf4cd50d337c1a36570bc1517793fd3303e1513e8ad4d2aa96',
   },
   simulationAccount: {
     address: '0x326ce9894f08dcaa337fa232641cc34db957aec9ff6614c1186bc9a7508df0bb',
@@ -51,7 +51,7 @@ export const mainnet = {
   clmm: {
     clmm_display: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb',
     clmm_router: {
-      cetus: '0x2eeaab737b37137b94bfa8f841f92e36a153641119da3456dec1926b9960d9be',
+      cetus: '0xe18f7c41e055692946d2bbaf1531af76d297473d2c2c110a0840befec5960be1',
       deepbook: '',
     },
     config: SDKConfig.clmmConfig,

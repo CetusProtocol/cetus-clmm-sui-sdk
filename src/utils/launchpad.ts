@@ -9,8 +9,15 @@ import {
   SuiObjectResponse,
 } from '@mysten/sui.js'
 import BN, { min } from 'bn.js'
+import { Base64 } from 'js-base64'
 import { SDK } from '../sdk'
-import { CONST_DENOMINATOR, LaunchpadPool, LaunchpadPoolActivityState, LaunchpadPoolState, PurchaseMark } from '../types/luanchpa_type'
+import {
+  CONST_DENOMINATOR,
+  LaunchpadPool,
+  LaunchpadPoolActivityState,
+  LaunchpadPoolConfig,
+  LaunchpadPoolState,
+} from '../types/luanchpa_type'
 import { composeType, extractStructTagFromType } from './contracts'
 import { d } from './numbers'
 
@@ -167,6 +174,7 @@ export class LauncpadUtil {
    */
   static async calculatePoolPrice(sdk: SDK, pool: LaunchpadPool) {
     const coinInfos = await sdk.Token.getTokenListByCoinTypes([pool.coin_type_sale, pool.coin_type_raise])
+
     const saleDecimals = coinInfos[pool.coin_type_sale].decimals
     const raiseDecimals = coinInfos[pool.coin_type_raise].decimals
 
@@ -272,5 +280,32 @@ export class LauncpadUtil {
       d(userStakeAmount).sub(overrecruitReverseAmount).div(pool.current_price)
     }
     return '0'
+  }
+
+  static buildLaunchPadPoolConfig(objects: SuiObjectResponse): LaunchpadPoolConfig {
+    const fields = getObjectFields(objects) as ObjectContentFields
+    const item = fields.value.fields
+
+    const pool: LaunchpadPoolConfig = {
+      ...item,
+      id: fields.id.id,
+    }
+    const social_medias: {
+      name: string
+      link: string
+    }[] = []
+    item.social_media.fields.contents.forEach((item: any) => {
+      social_medias.push({
+        name: item.fields.value.fields.name,
+        link: item.fields.value.fields.link,
+      })
+    })
+    pool.social_media = social_medias
+    try {
+      pool.regulation = decodeURIComponent(Base64.decode(pool.regulation).replace(/%/g, '%25'))
+    } catch (error) {
+      pool.regulation = Base64.decode(pool.regulation)
+    }
+    return pool
   }
 }

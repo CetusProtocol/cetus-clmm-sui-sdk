@@ -1,4 +1,4 @@
-import Decimal from 'decimal.js'
+/* eslint-disable camelcase */
 import { DividendManager, LockCetus, ONE_DAY_SECONDS, VeNFT, VeNFTDividendInfo } from '../types/xcetus_type'
 import { extractStructTagFromType } from './contracts'
 import { d } from './numbers'
@@ -97,14 +97,13 @@ export class XCetusUtil {
     return lock.locked_until_time > Date.parse(new Date().toString()) / 1000
   }
 
-  static getNextStartTime(dividendManager: DividendManager) {
-    const currentTime = Date.parse(new Date().toString()) / 1000
+  static getNextStartTime(dividendManager: DividendManager): number {
+    const currentTime = Date.now() / 1000
+    const { start_time, interval_day } = dividendManager
 
-    const currentPeriod = d(currentTime)
-      .sub(dividendManager.start_time)
-      .div(d(dividendManager.interval_day).mul(24 * 3600))
-      .toFixed(0, Decimal.ROUND_UP)
-    const nextStartTime = d(dividendManager.start_time).add(d(currentPeriod).mul(24 * 3600))
+    const currentPeriod = Math.ceil((currentTime - start_time) / (interval_day * ONE_DAY_SECONDS))
+    const nextStartTime = start_time + currentPeriod * interval_day * ONE_DAY_SECONDS
+
     return nextStartTime
   }
 }

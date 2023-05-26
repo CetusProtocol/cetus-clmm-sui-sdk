@@ -2,14 +2,23 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable camelcase */
 import { getMoveObjectType, getObjectFields, ObjectType, TransactionBlock } from '@mysten/sui.js'
-import BN from 'bn.js'
-import { d, extractStructTagFromType, getOwnedObjects, loopToGetAllQueryEvents, multiGetObjects } from '../utils'
+import { RewarderAmountOwed } from '../types'
+import {
+  d,
+  extractStructTagFromType,
+  getDynamicFields,
+  getFutureTime,
+  getOwnedObjects,
+  loopToGetAllQueryEvents,
+  multiGetObjects,
+} from '../utils'
 import { BoosterUtil } from '../utils/booster'
 import {
   BoosterInitEvent,
   BoosterPool,
   BoosterPoolImmutables,
   BoosterPoolState,
+  BoosterPositionInfo,
   BoosterRouterModule,
   CancelParams,
   LockNFT,
@@ -18,19 +27,13 @@ import {
   RedeemParams,
 } from '../types/booster_type'
 import { SuiResource, SuiObjectIdType, CLOCK_ADDRESS, SuiAddressType } from '../types/sui'
-import { CachedContent } from '../utils/cachedContent'
+import { CachedContent, cacheTime24h, cacheTime5min } from '../utils/cachedContent'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
-import { RewarderAmountOwed } from './rewarderModule'
 
-export const cacheTime5min = 5 * 60 * 1000
-export const cacheTime24h = 24 * 60 * 60 * 1000
-export const intervalFaucetTime = 12 * 60 * 60 * 1000
-
-function getFutureTime(interval: number) {
-  return Date.parse(new Date().toString()) + interval
-}
-
+/**
+ * Helper class to help interact with booster pools with a router interface.
+ */
 export class BoosterModule implements IModule {
   protected _sdk: SDK
 
@@ -44,19 +47,25 @@ export class BoosterModule implements IModule {
     return this._sdk
   }
 
+  /**
+   * Gets a list of booster pool immutables.
+   *
+   * @param forceRefresh Whether to force a refresh of the cache.
+   * @returns array of PoolImmutable objects.
+   */
   async getPoolImmutables(forceRefresh = false): Promise<BoosterPoolImmutables[]> {
     const { booster } = this._sdk.sdkOptions
     const cacheKey = `${booster.booster_display}_getPoolImmutables`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<BoosterPoolImmutables[]>(cacheKey, forceRefresh)
 
     const allPool: BoosterPoolImmutables[] = []
 
-    if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
-      allPool.push(...(cacheData.value as BoosterPoolImmutables[]))
+    if (cacheData !== undefined) {
+      allPool.push(...cacheData)
     } else {
       const simplePoolIds: SuiObjectIdType[] = []
-      const result = await this._sdk.fullClient.getDynamicFields({ parentId: booster.config.booster_pool_handle })
-      result.data?.forEach((item) => {
+      const result = await getDynamicFields(this._sdk, booster.config.booster_pool_handle)
+      result.data?.forEach((item: any) => {
         simplePoolIds.push(item.objectId)
       })
       const simpleDatas = await multiGetObjects(this._sdk, simplePoolIds, {
@@ -66,25 +75,29 @@ export class BoosterModule implements IModule {
       for (const item of simpleDatas) {
         const fields = getObjectFields(item)
         if (fields) {
-          allPool.push(BoosterUtil.buildPoolImmutables(fields))
+          const poolImmutables = BoosterUtil.buildPoolImmutables(fields)
+          this.updateCache(`${poolImmutables.pool_id}_getPoolImmutable`, poolImmutables, cacheTime24h)
+          allPool.push(poolImmutables)
         }
       }
     }
+    this.updateCache(cacheKey, allPool, cacheTime24h)
     return allPool
   }
 
+  /**
+   * Gets a pool immutables by its object ID.
+   *
+   * @param poolObjectId The object ID of the pool to get.
+   * @returns A promise that resolves to a Pool object.
+   */
   async getPoolImmutable(poolObjectId: SuiObjectIdType): Promise<BoosterPoolImmutables> {
     const { booster } = this._sdk.sdkOptions
-    const cacheKey = `${booster}_getPoolImmutables`
-    const cacheData = this._cache[cacheKey]
+    const cacheKey = `${poolObjectId}_getPoolImmutable`
+    const cacheData = this.getCache<BoosterPoolImmutables>(cacheKey)
 
-    if (cacheData !== undefined && cacheData.getCacheData()) {
-      const poolImmutableool = (cacheData.value as BoosterPoolImmutables[]).filter((item) => {
-        return poolObjectId === item.pool_id
-      })
-      if (poolImmutableool.length > 0) {
-        return poolImmutableool[0]
-      }
+    if (cacheData !== undefined) {
+      return cacheData
     }
     const result = await this._sdk.fullClient.getDynamicFieldObject({
       parentId: booster.config.booster_pool_handle,
@@ -94,10 +107,16 @@ export class BoosterModule implements IModule {
       },
     })
     const fields = getObjectFields(result)
-
-    return BoosterUtil.buildPoolImmutables(fields)
+    const poolImmutables = BoosterUtil.buildPoolImmutables(fields)
+    this.updateCache(cacheKey, poolImmutables, cacheTime24h)
+    return poolImmutables
   }
 
+  /**
+   * Gets a list of booster pools.
+   *
+   * @returns array of Pool objects.
+   */
   async getPools(): Promise<BoosterPool[]> {
     const allPool: BoosterPool[] = []
     const poolImmutables = await this.getPoolImmutables()
@@ -106,36 +125,39 @@ export class BoosterModule implements IModule {
       return item.pool_id
     })
     const objectDataResponses = await multiGetObjects(this._sdk, poolObjectIds, { showType: true, showContent: true })
-    let index = 0
     for (const suiObj of objectDataResponses) {
       const poolState = BoosterUtil.buildPoolState(suiObj)
 
       if (poolState) {
         const pool = {
-          ...poolImmutables[index],
+          ...(await this.getPoolImmutable(poolState.pool_id)),
           ...poolState,
         }
         allPool.push(pool)
         const cacheKey = `${pool.pool_id}_getPoolObject`
         this.updateCache(cacheKey, pool, cacheTime24h)
       }
-      index += 1
     }
 
     return allPool
   }
 
+  /**
+   * Gets a pool by its object ID.
+   *
+   * @param poolObjectId The object ID of the pool to get.
+   * @param forceRefresh Whether to force a refresh of the cache.
+   * @returns A promise that resolves to a Pool object.
+   */
   async getPool(poolObjectId: string, forceRefresh = true): Promise<BoosterPool> {
     const cacheKey = `${poolObjectId}_getPoolObject`
-    const cacheData = this._cache[cacheKey]
-
+    const cacheData = this.getCache<BoosterPoolState>(cacheKey, forceRefresh)
     const poolImmutables = await this.getPoolImmutable(poolObjectId)
 
-    if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
-      const poolState = cacheData.value as BoosterPoolState
+    if (cacheData !== undefined) {
       return {
         ...poolImmutables,
-        ...poolState,
+        ...cacheData,
       }
     }
     const objects = await this._sdk.fullClient.getObject({
@@ -161,6 +183,11 @@ export class BoosterModule implements IModule {
     return ''
   }
 
+  /**
+   * Gets the initial factory event
+   *
+   * @returns  the initial factory event.
+   */
   async getInitFactoryEvent(): Promise<BoosterInitEvent> {
     const { booster_display } = this.sdk.sdkOptions.booster
 
@@ -187,11 +214,25 @@ export class BoosterModule implements IModule {
     return initEvent
   }
 
-  async getOwnerLockNfts(accountAddress: SuiAddressType, clmm_pool_id?: string): Promise<LockNFT[]> {
+  /**
+   * Gets the booster positions for the given account address.
+   *
+   * @param {SuiAddressType} accountAddress The account address to get the booster positions for.
+   * @param {string} clmm_pool_id The ID of the CLMM pool.
+   * @param {string} lock_positions_handle The handle of the lock positions.
+   * @returns {Promise<BoosterPositionInfo[]>} A promise that resolves to an array of booster position information objects.
+   */
+  async getOwnerBoosterPositions(
+    accountAddress: SuiAddressType,
+    clmm_pool_id: string,
+    lock_positions_handle: string
+  ): Promise<BoosterPositionInfo[]> {
     const { booster } = this.sdk.sdkOptions
-    const lockCetuss: LockNFT[] = []
+    const lockNfts: LockNFT[] = []
 
-    const filterType = `${booster.booster_display}::lock_nft::LockNFT<${this._sdk.Resources.buildPositionType()}>`
+    const boosterList: BoosterPositionInfo[] = []
+
+    const filterType = `${booster.booster_display}::lock_nft::LockNFT<${this._sdk.Position.buildPositionType()}>`
 
     const ownerRes: any = await getOwnedObjects(this._sdk, accountAddress, {
       options: { showType: true, showContent: true, showOwner: true },
@@ -203,35 +244,77 @@ export class BoosterModule implements IModule {
       if (type === filterType) {
         if (item.data) {
           const lockCetus = BoosterUtil.buildLockNFT(item)
+          this.updateCache(`${lockCetus.locked_nft_id}_getBoosterPositionById`, lockCetus, cacheTime24h)
           if (lockCetus) {
             if (clmm_pool_id === undefined || clmm_pool_id === lockCetus.lock_clmm_position.pool) {
-              lockCetuss.push(lockCetus)
+              lockNfts.push(lockCetus)
             }
           }
         }
       }
     }
 
-    return lockCetuss
+    const infos = await this.getLockPositionInfos(
+      lock_positions_handle,
+      lockNfts.map((item) => item.locked_nft_id)
+    )
+
+    for (const nft of lockNfts) {
+      for (const info of infos) {
+        if (nft.lock_clmm_position.pos_object_id === info.position_id) {
+          boosterList.push({ ...nft, ...info })
+          break
+        }
+      }
+    }
+
+    return boosterList
   }
 
-  async getLockNftById(locked_nft_id: SuiObjectIdType): Promise<LockNFT | undefined> {
-    const result = await this._sdk.fullClient.getObject({
-      id: locked_nft_id,
-      options: { showContent: true, showOwner: true },
-    })
-    return BoosterUtil.buildLockNFT(result)
+  /**
+   * Get booster position information based on the locked NFT ID
+   * @param lock_positions_handle
+   * @param locked_nft_id
+   * @returns
+   */
+  async getBoosterPosition(lock_positions_handle: SuiObjectIdType, locked_nft_id: SuiObjectIdType): Promise<BoosterPositionInfo> {
+    const cacheKey = `${locked_nft_id}_getBoosterPositionById`
+    const cacheData = this.getCache<LockNFT>(cacheKey)
+
+    let lockNFT: LockNFT
+    if (cacheData !== undefined) {
+      lockNFT = cacheData
+    } else {
+      const result = await this._sdk.fullClient.getObject({
+        id: locked_nft_id,
+        options: { showContent: true, showOwner: true },
+      })
+      lockNFT = BoosterUtil.buildLockNFT(result)
+      this.updateCache(cacheKey, lockNFT, cacheTime24h)
+    }
+
+    const lockPositionInfo = await this.getLockPositionInfo(lock_positions_handle, locked_nft_id)
+
+    return {
+      ...lockNFT,
+      ...lockPositionInfo,
+    }
   }
 
+  /**
+   * Gets the lock position information objects for the given lock positions handle and lock NFT IDs.
+   *
+   * @param {SuiObjectIdType} lock_positions_handle The handle of the lock positions.
+   * @param {SuiObjectIdType[]} lock_nft_ids An array of lock NFT IDs.
+   * @returns {Promise<LockPositionInfo[]>} A promise that resolves to an array of lock position information objects.
+   */
   async getLockPositionInfos(lock_positions_handle: SuiObjectIdType, lock_nft_ids: SuiObjectIdType[] = []): Promise<LockPositionInfo[]> {
-    const result = await this._sdk.fullClient.getDynamicFields({
-      parentId: lock_positions_handle,
-    })
+    const result = await getDynamicFields(this._sdk, lock_positions_handle)
     // console.log(result.data)
 
     const objectIds: SuiObjectIdType[] = []
     const positionList: LockPositionInfo[] = []
-    result.data?.forEach((item) => {
+    result.data?.forEach((item: any) => {
       if (lock_nft_ids.length > 0) {
         if (lock_nft_ids.includes(item.name.value)) {
           objectIds.push(item.objectId)
@@ -252,7 +335,14 @@ export class BoosterModule implements IModule {
     return positionList
   }
 
-  async getLockPositionInfo(lock_positions_handle: SuiObjectIdType, lock_nft_id: SuiObjectIdType): Promise<LockPositionInfo | undefined> {
+  /**
+   * Gets the lock position information for the given lock positions handle and lock NFT ID.
+   *
+   * @param {SuiObjectIdType} lock_positions_handle The handle of the lock positions.
+   * @param {SuiObjectIdType} lock_nft_id The ID of the lock NFT.
+   * @returns {Promise<LockPositionInfo>} A promise that resolves to the lock position information object.
+   */
+  async getLockPositionInfo(lock_positions_handle: SuiObjectIdType, lock_nft_id: SuiObjectIdType): Promise<LockPositionInfo> {
     const result = await this._sdk.fullClient.getDynamicFieldObject({
       parentId: lock_positions_handle,
       name: {
@@ -263,11 +353,14 @@ export class BoosterModule implements IModule {
     return BoosterUtil.buildLockPositionInfo(result)
   }
 
-  async getLockPositionInfoById(id: SuiObjectIdType): Promise<LockPositionInfo | undefined> {
-    const result = await this._sdk.fullClient.getObject({ id, options: { showContent: true } })
-    return BoosterUtil.buildLockPositionInfo(result)
-  }
-
+  /**
+   * Calculates the XCetus rewarder for the given CLMM rewarders, booster pool, and lock position information.
+   *
+   * @param {RewarderAmountOwed[]} clmmRewarders The CLMM rewarders.
+   * @param {BoosterPool} boosterPool The booster pool.
+   * @param {LockPositionInfo} lockPositionInfo The lock position information.
+   * @returns {string} The XCetus rewarder.
+   */
   calculateXCetusRewarder(clmmRewarders: RewarderAmountOwed[], boosterPool: BoosterPool, lockPositionInfo: LockPositionInfo) {
     let multiplier = boosterPool.basic_percent
     let rewarder_now = '0'
@@ -280,28 +373,27 @@ export class BoosterModule implements IModule {
     })
 
     if (!lockPositionInfo.is_settled) {
-      boosterPool.config.forEach((item) => {
+      boosterPool.config.forEach((item: any) => {
         if (item.lock_day === lockPositionInfo.lock_period) {
           multiplier = item.multiplier
         }
       })
     }
-
     const xcetus_amount = d(rewarder_now).sub(lockPositionInfo.growth_rewarder).mul(multiplier)
-    const xcetus_reward_amount = d(lockPositionInfo.xcetus_owned).add(xcetus_amount)
-    return new BN(xcetus_reward_amount.toString())
+    const xcetus_reward_amount = d(lockPositionInfo.rewarder_owned).add(xcetus_amount)
+    return xcetus_reward_amount.toString()
   }
 
   /**
-   * lock position
-   * @param params
-   * @returns
+   * Creates a transaction block for locking a position.
+   *
+   * @param {LockPositionParams} params The parameters for the lock position.
+   * @returns {TransactionBlock} The transaction block.
    */
   lockPositionPayload(params: LockPositionParams): TransactionBlock {
     const { booster, clmm } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetMiddle)
 
     tx.moveCall({
       target: `${booster.booster_router}::${BoosterRouterModule}::lock_position`,
@@ -321,15 +413,15 @@ export class BoosterModule implements IModule {
   }
 
   /**
-   * Cancel lock
-   * @param params
-   * @returns
+   * Creates a transaction block for canceling a lock position.
+   *
+   * @param {CancelParams} params The parameters for the cancel lock position.
+   * @returns {TransactionBlock} The transaction block.
    */
   canceLockPositionPayload(params: CancelParams): TransactionBlock {
     const { booster } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetMiddle)
 
     tx.moveCall({
       target: `${booster.booster_router}::${BoosterRouterModule}::cancel_lock`,
@@ -354,7 +446,6 @@ export class BoosterModule implements IModule {
     const { booster, clmm, xcetus } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetMiddle)
 
     tx.moveCall({
       target: `${booster.booster_router}::${BoosterRouterModule}::redeem`,
@@ -384,5 +475,14 @@ export class BoosterModule implements IModule {
       cacheData = new CachedContent(data, getFutureTime(time))
     }
     this._cache[key] = cacheData
+  }
+
+  private getCache<T>(key: string, forceRefresh = false): T | undefined {
+    const cacheData = this._cache[key]
+    if (!forceRefresh && cacheData?.isValid()) {
+      return cacheData.value as T
+    }
+    delete this._cache[key]
+    return undefined
   }
 }

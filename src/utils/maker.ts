@@ -1,10 +1,9 @@
 /* eslint-disable camelcase */
-import { getObjectFields, getObjectId, ObjectContentFields } from '@mysten/sui.js'
+import { getObjectFields, ObjectContentFields } from '@mysten/sui.js'
 import { MakerPoolImmutables, MakerPoolState, RewarderMultiplier, PoolBonusInfo, MarkerPosition } from '../types/maker_type'
 import { extractStructTagFromType } from './contracts'
-import { CONFIG_PERCENT_MULTIPER, LockNFT, LockPositionInfo } from '../types/booster_type'
+import { CONFIG_PERCENT_MULTIPER } from '../types/booster_type'
 import { d } from './numbers'
-import { buildPosition } from './common'
 
 export class MakerUtil {
   static buildPoolImmutables(data: any): MakerPoolImmutables {
@@ -55,50 +54,6 @@ export class MakerUtil {
     }
 
     return pool
-  }
-
-  static buildLockNFT(data: any): LockNFT | undefined {
-    const locked_nft_id = extractStructTagFromType(getObjectId(data)).address
-
-    const fields = getObjectFields(data) as ObjectContentFields
-    if (fields) {
-      const lock_clmm_position = buildPosition(data)
-      const lockNFT: LockNFT = {
-        lock_clmm_position,
-        locked_nft_id,
-        locked_time: Number(fields.locked_time),
-        end_lock_time: Number(fields.end_lock_time),
-      }
-
-      return lockNFT
-    }
-
-    return undefined
-  }
-
-  static buildLockPositionInfo(data: any): LockPositionInfo | undefined {
-    const id = extractStructTagFromType(getObjectId(data)).address
-
-    const fields = getObjectFields(data) as ObjectContentFields
-
-    if (fields) {
-      const { value } = fields.value.fields
-      const lockNFT: LockPositionInfo = {
-        id,
-        type: value.type,
-        position_id: value.fields.position_id,
-        start_time: Number(value.fields.start_time),
-        lock_period: Number(value.fields.lock_period),
-        end_time: Number(value.fields.end_time),
-        growth_rewarder: value.fields.growth_rewarder,
-        xcetus_owned: value.fields.xcetus_owned,
-        is_settled: value.fields.is_settled,
-      }
-
-      return lockNFT
-    }
-
-    return undefined
   }
 
   static buildMarkerPositions(data: any): MarkerPosition[] {

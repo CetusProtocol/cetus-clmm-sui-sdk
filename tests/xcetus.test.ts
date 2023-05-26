@@ -7,15 +7,13 @@ import { d } from '../src/utils/numbers';
 
 let sendKeypair: Ed25519Keypair
 
-const venft_id = "0x2c94a4dd607def65a56a35f0d206a8b6cbf66368b76f2373dac50ec7c3dcc84e"
+const venft_id = "0xa9670d8d3282f0460b18e8d646658de8913f05e2549b29498585674503f097fd"
 
 describe('launch pad Module', () => {
   const sdk = buildSdk()
 
   beforeEach(async () => {
     sendKeypair = buildTestAccount()
-    console.log("env: " , sdk.sdkOptions.fullRpcUrl);
-
   })
 
 
@@ -23,7 +21,7 @@ describe('launch pad Module', () => {
     await mintAll(sdk,sendKeypair,{
       faucet_display: sdk.sdkOptions.xcetus.cetus_faucet,
       faucet_router: sdk.sdkOptions.xcetus.cetus_faucet
-    },"cetus","faucet" )
+    },"faucet" )
   })
 
 
@@ -42,9 +40,8 @@ describe('launch pad Module', () => {
   })
 
   test('getOwnerVeNFT', async () => {
-    const nfts = await sdk.XCetusModule.getOwnerVeNFT(sendKeypair.getPublicKey().toSuiAddress())
-    console.log("nfts: ",nfts);
-
+     const ownerVeNFT = await sdk.XCetusModule.getOwnerVeNFT(sendKeypair.getPublicKey().toSuiAddress())
+     console.log("ownerVeNFT: ",ownerVeNFT);
   })
 
   test('getOwnerCetusCoins', async () => {
@@ -57,7 +54,7 @@ describe('launch pad Module', () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()
     const payload = await sdk.XCetusModule.convertPayload({
-      amount: '30000',
+      amount: '10000000000',
       venft_id
     })
 
@@ -84,8 +81,8 @@ describe('launch pad Module', () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const payload =  sdk.XCetusModule.redeemLockPayload({
       venft_id: venft_id,
-      amount: '100',
-      lock_day: 15
+      amount: '2000000000',
+      lock_day: 30
     })
 
     const tx = await sendTransaction(signer,payload)
@@ -101,14 +98,14 @@ describe('launch pad Module', () => {
 
 
   test('getLockCetus', async () => {
-    const lockCetus = await sdk.XCetusModule.getLockCetus("0xe47a382ad73627e15f23f0bf49f078a3ada18090bad4411d381a2a891bb218e2")
+    const lockCetus = await sdk.XCetusModule.getLockCetus("0x6c7cb48929308e7213747c0710ea38db89e3067aa7c80645a0b41dca596fa375")
     console.log("lockCetus: ",lockCetus);
   })
 
 
   test('redeemPayload', async () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
-    const lock_id = "0x907a5c7523f7cc17cb43b75af3bbdfc15ffa65bc2b2b0ca0e3e5a5cd64e819de"
+    const lock_id = "0x6c7cb48929308e7213747c0710ea38db89e3067aa7c80645a0b41dca596fa375"
     const lockCetus = await sdk.XCetusModule.getLockCetus(lock_id)
     console.log('lockCetus: ',lockCetus);
 
@@ -130,7 +127,7 @@ describe('launch pad Module', () => {
 
   test('cancelRedeemPayload', async () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
-    const lock_id = "0xe47a382ad73627e15f23f0bf49f078a3ada18090bad4411d381a2a891bb218e2"
+    const lock_id = "0x6c7cb48929308e7213747c0710ea38db89e3067aa7c80645a0b41dca596fa375"
     const lockCetus = await sdk.XCetusModule.getLockCetus(lock_id)
     console.log('lockCetus: ',lockCetus);
 
@@ -147,24 +144,37 @@ describe('launch pad Module', () => {
 
   /**-------------------------------------xWHALE Holder Rewards--------------------------------------- */
   test('get my share', async () => {
-    const nfts = await sdk.XCetusModule.getOwnerVeNFT(sendKeypair.getPublicKey().toSuiAddress())
-    console.log("nfts: ",nfts);
+    const ownerVeNFT = await sdk.XCetusModule.getOwnerVeNFT(sendKeypair.getPublicKey().toSuiAddress())
+    console.log("ownerVeNFT: ",ownerVeNFT);
 
-    if(nfts){
+    if(ownerVeNFT){
       const xcetusManager = await sdk.XCetusModule.getXcetusManager()
       console.log("xcetusManager: ",xcetusManager);
-      const rate =  d(nfts.xcetus_balance).div(xcetusManager.treasury)
+
+      const veNftAmount = await sdk.XCetusModule.getVeNftAmount(xcetusManager.nfts.handle,ownerVeNFT.id)
+      console.log("veNftAmount: ",veNftAmount);
+
+      const rate =  d(ownerVeNFT.xcetus_balance).div(xcetusManager.treasury)
       console.log("rate: ", rate);
     }
 
   })
+
+  test('getNextStartTime', async () => {
+    const dividendManager = await sdk.XCetusModule.getDividendManager()
+    console.log("dividendManager: ",dividendManager);
+
+   const nextTime =  XCetusUtil.getNextStartTime(dividendManager)
+
+   console.log("nextTime: ",nextTime);
+ })
 
   test('getVeNFTDividendInfo', async () => {
      const dividendManager = await sdk.XCetusModule.getDividendManager()
      console.log("dividendManager: ",dividendManager);
 
     const veNFTDividendInfo =  await sdk.XCetusModule.getVeNFTDividendInfo(dividendManager.venft_dividends.id , venft_id)
-    console.log("veNFTDividendInfo: ",veNFTDividendInfo?.rewards);
+    console.log("veNFTDividendInfo: ",veNFTDividendInfo);
   })
 
   test('redeemDividendPayload', async () => {

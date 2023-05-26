@@ -16,6 +16,9 @@ export type LaunchpadInitEvent = {
 export type LaunchpadInitLockEvent = {
   lock_manager_id: SuiObjectIdType
 }
+export type LaunchpadInitConfigEvent = {
+  config_pools_id: SuiObjectIdType
+}
 
 export type LockNFTEvent = {
   locked_time: number
@@ -83,18 +86,18 @@ export enum LaunchpadPoolActivityState {
 }
 
 export type CreateLaunchpadPoolParams = {
-  recipient: SuiObjectIdType // 项目方地址
-  initialize_price: string // ido初始价格
-  sale_total: string // 发行总量
-  min_purchase: string // 用户最小申购量
-  max_purchase: string // 用户最大申购量
-  least_raise_amount: string // 最小众筹数量（未达到ido失败）
+  recipient: SuiObjectIdType
+  initialize_price: string
+  sale_total: string
+  min_purchase: string
+  max_purchase: string
+  least_raise_amount: string
   hardcap: string
-  liquidity_rate: number // 流动性添加比例
-  start_time: number // ido开始时间
-  activity_duration: number // 活动周期
-  settle_duration: number // 结算周期
-  locked_duration: number // 锁仓周期
+  liquidity_rate: number
+  start_time: number
+  activity_duration: number
+  settle_duration: number
+  locked_duration: number
   sale_decimals: number
   raise_decimals: number
   tick_spacing: number
@@ -158,7 +161,7 @@ export type UnlockNftParams = {
   nft_type: SuiAddressType
 }
 
-export type CancelParams = {
+export type CancelLaunchPadParams = {
   pool_address: SuiObjectIdType
 } & LaunchpadCoinPairType
 
@@ -191,4 +194,22 @@ export type SettleEvent = {
   unused_sale: string
   unused_raise: string
   white_purchase_total: string
+}
+
+export type LaunchpadPoolConfig = {
+  id: SuiObjectIdType
+  banners: string[]
+  introduction: string
+  is_close: boolean
+  pool_address: string
+  project_details: string
+  regulation: string
+  social_media: {
+    name: string
+    link: string
+  }[]
+  terms: string
+  tokenomics: string
+  website: string
+  white_list_terms: string
 }

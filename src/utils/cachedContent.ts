@@ -1,5 +1,12 @@
 import { SuiResource } from '../types/sui'
 
+export const cacheTime5min = 5 * 60 * 1000
+export const cacheTime24h = 24 * 60 * 60 * 1000
+
+export function getFutureTime(interval: number) {
+  return Date.parse(new Date().toString()) + interval
+}
+
 export class CachedContent {
   overdueTime: number
 
@@ -10,16 +17,16 @@ export class CachedContent {
     this.value = value
   }
 
-  getCacheData(): SuiResource | null {
+  isValid(): boolean {
     if (this.value === null) {
-      return null
+      return false
     }
     if (this.overdueTime === 0) {
-      return this.value
+      return true
     }
     if (Date.parse(new Date().toString()) > this.overdueTime) {
-      return null
+      return false
     }
-    return this.value
+    return true
   }
 }

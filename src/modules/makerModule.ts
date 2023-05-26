@@ -4,11 +4,12 @@
 /* eslint-disable camelcase */
 import { getObjectFields, TransactionBlock } from '@mysten/sui.js'
 import Decimal from 'decimal.js'
-import { d, loopToGetAllQueryEvents, multiGetObjects } from '../utils'
+import { ClmmPositionStatus } from '../types'
+import { d, getDynamicFields, loopToGetAllQueryEvents, multiGetObjects } from '../utils'
 import { MakerUtil } from '../utils/maker'
 import {
   ClaimAllParams,
-  ClaimParams,
+  ClaimMakerParams,
   MakerInitEvent,
   MakerPool,
   MakerPoolImmutables,
@@ -18,19 +19,13 @@ import {
   PoolBonusInfo,
 } from '../types/maker_type'
 import { SuiResource, SuiObjectIdType, SuiAddressType } from '../types/sui'
-import { CachedContent } from '../utils/cachedContent'
+import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils/cachedContent'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
-import { PositionStatus } from './resourcesModule'
 
-export const cacheTime5min = 5 * 60 * 1000
-export const cacheTime24h = 24 * 60 * 60 * 1000
-export const intervalFaucetTime = 12 * 60 * 60 * 1000
-
-function getFutureTime(interval: number) {
-  return Date.parse(new Date().toString()) + interval
-}
-
+/**
+ * Helper class to help interact with maker bonus pools with a router interface.
+ */
 export class MakerModule implements IModule {
   protected _sdk: SDK
 
@@ -44,19 +39,25 @@ export class MakerModule implements IModule {
     return this._sdk
   }
 
+  /**
+   * Gets the pool immutables
+   *
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
+   * @returns {Promise<MakerPoolImmutables[]>} A promise that resolves to an array of maker pool immutables.
+   */
   async getPoolImmutables(forceRefresh = false): Promise<MakerPoolImmutables[]> {
     const { maker_bonus } = this._sdk.sdkOptions
     const cacheKey = `${maker_bonus.maker_display}_getPoolImmutables`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<MakerPoolImmutables[]>(cacheKey, forceRefresh)
 
     const allPool: MakerPoolImmutables[] = []
 
-    if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
-      allPool.push(...(cacheData.value as MakerPoolImmutables[]))
+    if (cacheData !== undefined) {
+      allPool.push(...cacheData)
     } else {
       const simplePoolIds: SuiObjectIdType[] = []
-      const result = await this._sdk.fullClient.getDynamicFields({ parentId: maker_bonus.config.maker_pool_handle })
-      result.data?.forEach((item) => {
+      const result = await getDynamicFields(this._sdk, maker_bonus.config.maker_pool_handle)
+      result.data?.forEach((item: any) => {
         simplePoolIds.push(item.objectId)
       })
 
@@ -72,13 +73,19 @@ export class MakerModule implements IModule {
     return allPool
   }
 
+  /**
+   * Gets the pool immutable for the given pool object id.
+   *
+   * @param {SuiObjectIdType} poolObjectId The pool object id.
+   * @returns {Promise<MakerPoolImmutables>} A promise that resolves to the pool immutable.
+   */
   async getPoolImmutable(poolObjectId: SuiObjectIdType): Promise<MakerPoolImmutables> {
     const { maker_bonus } = this._sdk.sdkOptions
     const cacheKey = `${maker_bonus.maker_display}_getPoolImmutables`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<MakerPoolImmutables[]>(cacheKey)
 
-    if (cacheData !== undefined && cacheData.getCacheData()) {
-      const poolImmutableool = (cacheData.value as MakerPoolImmutables[]).filter((item) => {
+    if (cacheData !== undefined) {
+      const poolImmutableool = cacheData.filter((item) => {
         return poolObjectId === item.pool_id
       })
       if (poolImmutableool.length > 0) {
@@ -97,6 +104,11 @@ export class MakerModule implements IModule {
     return MakerUtil.buildPoolImmutables(fields)
   }
 
+  /**
+   * Gets all pools.
+   *
+   * @returns {Promise<MakerPool[]>} A promise that resolves to an array of MakerPool objects.
+   */
   async getPools(): Promise<MakerPool[]> {
     const allPool: MakerPool[] = []
     const poolImmutables = await this.getPoolImmutables()
@@ -125,14 +137,21 @@ export class MakerModule implements IModule {
     return allPool
   }
 
+  /**
+   * Gets a pool by its object id.
+   *
+   * @param {string} poolObjectId The object id of the pool.
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
+   * @returns {Promise<MakerPool>} A promise that resolves to the pool.
+   */
   async getPool(poolObjectId: string, forceRefresh = true): Promise<MakerPool> {
     const cacheKey = `${poolObjectId}_getPoolObject`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<MakerPool>(cacheKey, forceRefresh)
 
     const poolImmutables = await this.getPoolImmutable(poolObjectId)
 
-    if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
-      return cacheData.value as MakerPool
+    if (cacheData !== undefined) {
+      return cacheData
     }
     const objects = await this._sdk.fullClient.getObject({
       id: poolObjectId,
@@ -158,19 +177,26 @@ export class MakerModule implements IModule {
     return ''
   }
 
+  /**
+   * Gets the periods for a given MakerPool.
+   *
+   * @param {MakerPool} pool The MakerPool to get periods for.
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
+   * @returns {Promise<MakerPoolPeriod[]>} A promise that resolves to an array of MakerPoolPeriod objects.
+   */
   async getMakerPoolPeriods(pool: MakerPool, forceRefresh = false): Promise<MakerPoolPeriod[]> {
     const periods: MakerPoolPeriod[] = []
 
     const cacheKey = `${pool.pool_id}_getMakerPoolPeriods`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<MakerPoolPeriod[]>(cacheKey, forceRefresh)
 
-    if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
-      return cacheData.value as MakerPoolPeriod[]
+    if (cacheData !== undefined) {
+      return cacheData
     }
 
-    const results = await this._sdk.fullClient.getDynamicFields({ parentId: pool.whale_nfts.whale_nfts_handle })
+    const results = await getDynamicFields(this._sdk, pool.whale_nfts.whale_nfts_handle)
 
-    results.data.forEach((item) => {
+    results.data.forEach((item: any) => {
       const info: MakerPoolPeriod = {
         id: item.objectId,
         start_time: 0,
@@ -198,6 +224,11 @@ export class MakerModule implements IModule {
     return periods
   }
 
+  /**
+   * Gets the init factory event.
+   *
+   * @returns {Promise<MakerInitEvent>} A promise that resolves to a MakerInitEvent object.
+   */
   async getInitFactoryEvent(): Promise<MakerInitEvent> {
     const { maker_display } = this.sdk.sdkOptions.maker_bonus
 
@@ -223,6 +254,14 @@ export class MakerModule implements IModule {
     return initEvent
   }
 
+  /**
+   * Gets the list of marker positions for a given whale NFTs handle and maker pool periods.
+   *
+   * @param {SuiObjectIdType} whale_nfts_handle The whale NFTs handle.
+   * @param {MakerPoolPeriod[]} makerPoolPeriods The maker pool periods.
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
+   * @returns {Promise<Record<number, MarkerPosition[]>>} A promise that resolves to a record of marker positions keyed by period.
+   */
   async getPoolMarkerPositionList(
     whale_nfts_handle: SuiObjectIdType,
     makerPoolPeriods: MakerPoolPeriod[],
@@ -234,9 +273,9 @@ export class MakerModule implements IModule {
     if (!forceRefresh) {
       makerPoolPeriods.forEach((item) => {
         const cacheKey = `${whale_nfts_handle}_${item.period}_getPoolMarkerPositionList`
-        const cacheData = this._cache[cacheKey]
-        if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
-          recordMarkerPosition[item.period] = cacheData.value as MarkerPosition[]
+        const cacheData = this.getCache<MarkerPosition[]>(cacheKey)
+        if (cacheData !== undefined) {
+          recordMarkerPosition[item.period] = cacheData
         } else {
           recordMarkerPosition[item.period] = []
           notFindMakerPoolPeriods.push(item)
@@ -271,7 +310,7 @@ export class MakerModule implements IModule {
       }
 
       if (allList.length > 0) {
-        const positionList = await this._sdk.Resources.getSipmlePositionList(
+        const positionList = await this._sdk.Position.getSipmlePositionList(
           allList.map((item) => {
             return item.id
           })
@@ -297,6 +336,14 @@ export class MakerModule implements IModule {
     return recordMarkerPosition
   }
 
+  /**
+   * Updates the XCetus rewarder and fee for a given maker pool, position list, and maker pool period.
+   *
+   * @param {MakerPool} pool The maker pool.
+   * @param {MarkerPosition[]} positionList The list of marker positions.
+   * @param {MakerPoolPeriod} makerPoolPeriod The maker pool period.
+   * @returns {MarkerPosition[]} The updated list of marker positions.
+   */
   async updateXCetusRewarderAndFee(pool: MakerPool, positionList: MarkerPosition[], makerPoolPeriod: MakerPoolPeriod) {
     const total_points_after_multiper = await this.calculateTotalPointsAfterMultiper(pool, makerPoolPeriod)
     for (const position of positionList) {
@@ -317,6 +364,14 @@ export class MakerModule implements IModule {
     return position.bonus_num
   }
 
+  /**
+   * Calculates the fee share rate for a given maker pool, position, and total points after multiplier.
+   *
+   * @param {MakerPool} pool The maker pool.
+   * @param {MarkerPosition} position The position.
+   * @param {string} total_points_after_multiper The total points after multiplier.
+   * @returns {Object} An object with the fee share rate and points after multiplier.
+   */
   calculateFeeShareRate(
     pool: MakerPool,
     position: MarkerPosition,
@@ -330,6 +385,13 @@ export class MakerModule implements IModule {
     return { fee_share_rate: Number(fee_share_rate), points_after_multiper: points_after_multiper.toString() }
   }
 
+  /**
+   * Calculates the total points after multiplier for a given maker pool and maker pool period.
+   *
+   * @param {MakerPool} pool The maker pool.
+   * @param {MakerPoolPeriod} makerPoolPeriod The maker pool period.
+   * @returns {Promise<string>} A promise that resolves to the total points after multiplier.
+   */
   async calculateTotalPointsAfterMultiper(pool: MakerPool, makerPoolPeriod: MakerPoolPeriod): Promise<string> {
     const positionListMap = await this.getPoolMarkerPositionList(pool.whale_nfts.whale_nfts_handle, [makerPoolPeriod])
     let total_points_after_multiper = d(0)
@@ -343,6 +405,12 @@ export class MakerModule implements IModule {
     return total_points_after_multiper.toString()
   }
 
+  /**
+   * Calculates the XCetus rewarder for all given maker pools.
+   *
+   * @param {MakerPool[]} pools The list of maker pools.
+   * @returns {Object} An object with the total claimable amount and the list of NFT IDs that can be claimed.
+   */
   async calculateAllXCetusRewarder(pools: MakerPool[]) {
     const ownerAddress = this._sdk.senderAddress
     let claimtotal = d(0)
@@ -370,7 +438,7 @@ export class MakerModule implements IModule {
           await this._sdk.MakerModule.updateXCetusRewarderAndFee(pool, ownerList, makerPoolPeriod)
           // eslint-disable-next-line no-loop-func
           ownerList.forEach((item) => {
-            if (item.clmm_position?.position_status === PositionStatus.Exists && d(item.bonus_num).greaterThan(0)) {
+            if (item.clmm_position?.position_status === ClmmPositionStatus.Exists && d(item.bonus_num).greaterThan(0)) {
               claimtotal = claimtotal.add(item.bonus_num)
               if (!owner_position_ids.includes(item.clmm_position.pos_object_id)) {
                 owner_position_ids.push(item.clmm_position.pos_object_id)
@@ -392,12 +460,20 @@ export class MakerModule implements IModule {
     }
   }
 
+  /**
+   * Gets the pool bonus information for the given rewarder handle and period.
+   *
+   * @param {SuiObjectIdType} rewarder_handle The rewarder handle.
+   * @param {number} period The period.
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
+   * @returns {Promise<PoolBonusInfo>} A promise that resolves to the pool bonus information.
+   */
   async getPoolBonusInfo(rewarder_handle: SuiObjectIdType, period: number, forceRefresh = false): Promise<PoolBonusInfo> {
     const cacheKey = `${rewarder_handle}_${period}_getPoolBonusInfo`
+    const cacheData = this.getCache<PoolBonusInfo>(cacheKey, forceRefresh)
 
-    const cacheData = this._cache[cacheKey]
-    if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
-      return cacheData.value as PoolBonusInfo
+    if (cacheData !== undefined) {
+      return cacheData
     }
 
     const results = await this.sdk.fullClient.getDynamicFieldObject({
@@ -415,15 +491,15 @@ export class MakerModule implements IModule {
   }
 
   /**
-   * Claim the bonus
-   * @param params
-   * @returns
+   * Creates a transaction payload for claiming a maker bonus.
+   *
+   * @param {ClaimMakerParams} params The parameters for the claim.
+   * @returns {TransactionBlock} The transaction payload.
    */
-  claimPayload(params: ClaimParams): TransactionBlock {
+  claimPayload(params: ClaimMakerParams): TransactionBlock {
     const { maker_bonus, xcetus } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetMiddle)
 
     tx.moveCall({
       target: `${maker_bonus.maker_router}::${MakerRouterModule}::claim`,
@@ -442,11 +518,16 @@ export class MakerModule implements IModule {
     return tx
   }
 
+  /**
+   * Creates a transaction payload for claiming all bonuses for a given set of whale NFTs.
+   *
+   * @param {ClaimAllParams} params The parameters for the claim.
+   * @returns {TransactionBlock} The transaction payload.
+   */
   claimAllPayload(params: ClaimAllParams): TransactionBlock {
     const { maker_bonus, xcetus } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetHigh3)
 
     params.whale_nfts.forEach((item) => {
       item.nft_ids.forEach((nft_id) => {
@@ -477,5 +558,14 @@ export class MakerModule implements IModule {
       cacheData = new CachedContent(data, getFutureTime(time))
     }
     this._cache[key] = cacheData
+  }
+
+  private getCache<T>(key: string, forceRefresh = false): T | undefined {
+    const cacheData = this._cache[key]
+    if (!forceRefresh && cacheData?.isValid()) {
+      return cacheData.value as T
+    }
+    delete this._cache[key]
+    return undefined
   }
 }

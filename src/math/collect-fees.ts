@@ -1,6 +1,6 @@
 /* eslint-disable camelcase */
 import BN from 'bn.js'
-import { Pool, Position } from '../modules/resourcesModule'
+import { Pool, Position } from '../types'
 import { TickData } from '../types/clmmpool'
 import { MathUtil } from './utils'
 

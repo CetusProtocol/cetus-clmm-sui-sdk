@@ -1,14 +1,12 @@
 import { Ed25519Keypair, RawSigner } from '@mysten/sui.js'
 import { buildSdk, buildTestAccount } from './data/init_test_data'
 import 'isomorphic-fetch'
-import { d, MakerUtil, printTransaction, sendTransaction } from '../src'
-import { SuiAddressType, SuiObjectIdType } from '../src/types/sui'
-import { PositionStatus } from '../src/modules/resourcesModule'
+import { printTransaction, sendTransaction } from '../src'
+import { ClmmPositionStatus } from '../src/types/clmm_type'
 
 let sendKeypair: Ed25519Keypair
 
 const makerPoolId = '0xfe394df30f94cb7feef052e43c4b401e84ea2dd62291cbc1134f3d279565a056'
-const clmm_position_id = '0x7b9a10639f19261edcdfbe3dcd9334d98270fc6f1196df27cae05fbaebd2b78c'
 const venft_id = '0x552d7507d4cc36d4bdd7f4a107e7b49fb540db376ba1bdd73d042c7b99d25d73'
 
 describe('Maker bonus Module', () => {
@@ -168,7 +166,7 @@ describe('Maker bonus Module', () => {
 
     const clmm_position = positionList[formatPeriod.period][1].clmm_position
 
-    if(clmm_position?.position_status === PositionStatus.Exists){
+    if(clmm_position?.position_status === ClmmPositionStatus.Exists){
       const tx = sdk.MakerModule.claimPayload({
         market_pool_id: pool.pool_id,
         position_nft_id: clmm_position!.pos_object_id,

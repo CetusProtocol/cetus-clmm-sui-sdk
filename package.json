@@ -46,7 +46,7 @@
   },
   "dependencies": {
     "@mysten/bcs": "^0.7.1",
-    "@mysten/sui.js": "^0.33.0",
+    "@mysten/sui.js": "^0.34.1",
     "@suchipi/femver": "^1.0.0",
     "@syntsugar/cc-graph": "^0.1.1",
     "@types/bn.js": "^5.1.1",

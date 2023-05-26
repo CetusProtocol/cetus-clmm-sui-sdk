@@ -8,7 +8,7 @@ export type BigNumber = Decimal.Value | number | string
 export const CLOCK_ADDRESS = '0x0000000000000000000000000000000000000000000000000000000000000006'
 
 export const ClmmIntegratePoolModule = 'pool_script'
-export const ClmmIntegrateRouterModule = 'router_script'
+export const ClmmIntegrateRouterModule = 'router'
 export const ClmmFetcherModule = 'fetcher_script'
 
 export const CoinInfoAddress = '0x1::coin::CoinInfo'

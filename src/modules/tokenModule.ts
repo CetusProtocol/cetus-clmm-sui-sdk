@@ -1,56 +1,17 @@
 /* eslint-disable class-methods-use-this */
 import { Base64 } from 'js-base64'
 import { getObjectPreviousTransactionDigest, TransactionBlock } from '@mysten/sui.js'
-import { SuiResource, SuiObjectIdType, SuiAddressType } from '../types/sui'
-import { CachedContent } from '../utils/cachedContent'
-import { extractStructTagFromType } from '../utils/contracts'
+import { PoolInfo, TokenConfigEvent, TokenInfo } from '../types'
+import { SuiResource, SuiAddressType } from '../types/sui'
+import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils/cachedContent'
+import { extractStructTagFromType, normalizeCoinType } from '../utils/contracts'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { loopToGetAllQueryEvents } from '../utils'
 
-export const cacheTime5min = 5 * 60 * 1000
-export const cacheTime24h = 24 * 60 * 60 * 1000
-function getFutureTime(interval: number) {
-  return Date.parse(new Date().toString()) + interval
-}
-
-export type TokenInfo = {
-  name: string
-  symbol: string
-  official_symbol: string
-  coingecko_id: string
-  decimals: number
-  project_url: string
-  logo_url: string
-  address: string
-} & Record<string, any>
-
-export type PoolInfo = {
-  symbol: string
-  name: string
-  decimals: number
-  fee: string
-  tick_spacing: number
-  type: string
-  address: string
-  coin_a_address: string
-  coin_b_address: string
-  project_url: string
-  sort: number
-  is_display_rewarder: boolean
-  rewarder_display1: boolean
-  rewarder_display2: boolean
-  rewarder_display3: boolean
-  is_stable: boolean
-} & Record<string, any>
-
-export type TokenConfigEvent = {
-  coin_registry_id: SuiObjectIdType
-  coin_list_owner: SuiObjectIdType
-  pool_registry_id: SuiObjectIdType
-  pool_list_owner: SuiObjectIdType
-}
-
+/**
+ * Helper class to help interact with pool and token
+ */
 export class TokenModule implements IModule {
   protected _sdk: SDK
 
@@ -64,47 +25,85 @@ export class TokenModule implements IModule {
     return this._sdk
   }
 
+  /**
+   * Get all registered token list.
+   * @param forceRefresh
+   * @returns
+   */
   async getAllRegisteredTokenList(forceRefresh = false): Promise<TokenInfo[]> {
     const list = await this.factchTokenList('', forceRefresh)
     return list
   }
 
+  /**
+   * Get token list by owner address.
+   * @param listOwnerAddr
+   * @param forceRefresh
+   * @returns
+   */
   async getOwnerTokenList(listOwnerAddr = '', forceRefresh = false): Promise<TokenInfo[]> {
     const list = await this.factchTokenList(listOwnerAddr, forceRefresh)
     return list
   }
 
+  /**
+   * Get all registered pool list
+   * @param forceRefresh
+   * @returns
+   */
   async getAllRegisteredPoolList(forceRefresh = false): Promise<PoolInfo[]> {
     const list = await this.factchPoolList('', forceRefresh)
     return list
   }
 
+  /**
+   * Get pool list by owner address.
+   * @param listOwnerAddr
+   * @param forceRefresh
+   * @returns
+   */
   async getOwnerPoolList(listOwnerAddr = '', forceRefresh = false): Promise<PoolInfo[]> {
     const list = await this.factchPoolList(listOwnerAddr, forceRefresh)
     return list
   }
 
+  /**
+   * Get warp pool list.
+   * @param forceRefresh
+   * @returns
+   */
   async getWarpPoolList(forceRefresh = false): Promise<PoolInfo[]> {
     const list = await this.factchWarpPoolList('', '', forceRefresh)
     return list
   }
 
+  /**
+   * Get warp pool list by pool owner address and coin owner address.
+   * @param poolOwnerAddr
+   * @param coinOwnerAddr
+   * @param forceRefresh
+   * @returns
+   */
   async getOwnerWarpPoolList(poolOwnerAddr = '', coinOwnerAddr = '', forceRefresh = false): Promise<PoolInfo[]> {
     const list = await this.factchWarpPoolList(poolOwnerAddr, coinOwnerAddr, forceRefresh)
     return list
   }
 
+  /**
+   * Get token list by coin types.
+   * @param coinTypes
+   * @returns
+   */
   async getTokenListByCoinTypes(coinTypes: SuiAddressType[]): Promise<Record<string, TokenInfo>> {
     const tokenMap: Record<string, TokenInfo> = {}
     const cacheKey = `getAllRegisteredTokenList`
+    const cacheData = this.getCache<TokenInfo[]>(cacheKey)
 
-    const cacheData = this.getCacheData(cacheKey)
-
-    if (cacheData !== null) {
-      const tokenList = cacheData as TokenInfo[]
+    if (cacheData !== undefined) {
+      const tokenList = cacheData
       for (const coinType of coinTypes) {
         for (const token of tokenList) {
-          if (coinType === token.address) {
+          if (normalizeCoinType(coinType) === normalizeCoinType(token.address)) {
             tokenMap[coinType] = token
             continue
           }
@@ -118,8 +117,8 @@ export class TokenModule implements IModule {
 
     for (const coinType of unFindArray) {
       const metadataKey = `${coinType}_metadata`
-      const metadata = this.getCacheData(metadataKey)
-      if (metadata !== null) {
+      const metadata = this.getCache<TokenInfo>(metadataKey)
+      if (metadata !== undefined) {
         tokenMap[coinType] = metadata as TokenInfo
       } else {
         // eslint-disable-next-line no-await-in-loop
@@ -152,90 +151,102 @@ export class TokenModule implements IModule {
     const { simulationAccount, token } = this.sdk.sdkOptions
 
     const cacheKey = `getAllRegisteredTokenList`
+    const cacheData = this.getCache<TokenInfo[]>(cacheKey, forceRefresh)
 
-    if (!forceRefresh) {
-      const cacheData = this.getCacheData(cacheKey)
-      if (cacheData !== null) {
-        return cacheData as TokenInfo[]
-      }
+    if (cacheData !== undefined) {
+      return cacheData
     }
 
     const isOwnerRequest = listOwnerAddr.length > 0
+    const limit = 512
+    let index = 0
+    let allTokenList: TokenInfo[] = []
 
-    const tx = new TransactionBlock()
-    tx.moveCall({
-      target: `${token.token_display}::coin_list::${isOwnerRequest ? 'fetch_full_list' : 'fetch_all_registered_coin_info'}`,
-      arguments: isOwnerRequest
-        ? [tx.pure(token.config.coin_registry_id), tx.pure(listOwnerAddr)]
-        : [tx.pure(token.config.coin_registry_id)],
-    })
-    const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
-      transactionBlock: tx,
-      sender: simulationAccount.address,
-    })
+    while (true) {
+      const tx = new TransactionBlock()
+      tx.moveCall({
+        target: `${token.token_display}::coin_list::${
+          isOwnerRequest ? 'fetch_full_list_with_limit' : 'fetch_all_registered_coin_info_with_limit'
+        }`,
+        arguments: isOwnerRequest
+          ? [tx.pure(token.config.coin_registry_id), tx.pure(listOwnerAddr), tx.pure(index), tx.pure(limit)]
+          : [tx.pure(token.config.coin_registry_id), tx.pure(index), tx.pure(limit)],
+      })
+      // eslint-disable-next-line no-await-in-loop
+      const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
+        transactionBlock: tx,
+        sender: simulationAccount.address,
+      })
 
-    const tokenList: TokenInfo[] = []
+      const tokenList: TokenInfo[] = []
 
-    simulateRes.events?.forEach((item: any) => {
-      const formatType = extractStructTagFromType(item.type)
-      if (formatType.full_address === `${token.token_display}::coin_list::FetchCoinListEvent`) {
-        item.parsedJson.full_list.value_list.forEach((item: any) => {
-          tokenList.push(this.transformData(item, false))
-        })
+      simulateRes.events?.forEach((item: any) => {
+        const formatType = extractStructTagFromType(item.type)
+        if (formatType.full_address === `${token.token_display}::coin_list::FetchCoinListEvent`) {
+          item.parsedJson.full_list.value_list.forEach((item: any) => {
+            tokenList.push(this.transformData(item, false))
+          })
+        }
+      })
+      allTokenList = [...allTokenList, ...tokenList]
+      if (tokenList.length < limit) {
+        break
+      } else {
+        index = allTokenList.length
       }
-    })
-    this.updateCache(cacheKey, tokenList, cacheTime24h)
-    return tokenList
+    }
+
+    return allTokenList
   }
 
   private async factchPoolList(listOwnerAddr = '', forceRefresh = false): Promise<PoolInfo[]> {
     const { simulationAccount, token } = this.sdk.sdkOptions
     const cacheKey = `getAllRegisteredPoolList`
-    if (!forceRefresh) {
-      const cacheData = this.getCacheData(cacheKey)
-      if (cacheData !== null) {
-        return cacheData as PoolInfo[]
-      }
-    }
+    const cacheData = this.getCache<PoolInfo[]>(cacheKey, forceRefresh)
 
+    if (cacheData !== undefined) {
+      return cacheData
+    }
+    let allPoolList: PoolInfo[] = []
+    const limit = 512
+    let index = 0
     const isOwnerRequest = listOwnerAddr.length > 0
+    while (true) {
+      const tx = new TransactionBlock()
+      tx.moveCall({
+        target: `${token.token_display}::lp_list::${
+          isOwnerRequest ? 'fetch_full_list_with_limit' : 'fetch_all_registered_coin_info_with_limit'
+        }`,
+        arguments: isOwnerRequest
+          ? [tx.pure(token.config.pool_registry_id), tx.pure(listOwnerAddr), tx.pure(index), tx.pure(limit)]
+          : [tx.pure(token.config.pool_registry_id), tx.pure(index), tx.pure(limit)],
+      })
 
-    const typeArguments: string[] = []
-    const args = isOwnerRequest ? [token.config.pool_registry_id, listOwnerAddr] : [token.config.pool_registry_id]
-    const payload = {
-      packageObjectId: token.token_display,
-      module: 'lp_list',
-      function: isOwnerRequest ? 'fetch_full_list' : 'fetch_all_registered_coin_info',
-      gasBudget: 10000,
-      typeArguments,
-      arguments: args,
-    }
-    console.log('payload: ', payload)
+      // eslint-disable-next-line no-await-in-loop
+      const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
+        transactionBlock: tx,
+        sender: simulationAccount.address,
+      })
 
-    const tx = new TransactionBlock()
-    tx.moveCall({
-      target: `${token.token_display}::lp_list::${isOwnerRequest ? 'fetch_full_list' : 'fetch_all_registered_coin_info'}`,
-      arguments: isOwnerRequest
-        ? [tx.pure(token.config.pool_registry_id), tx.pure(listOwnerAddr)]
-        : [tx.pure(token.config.pool_registry_id)],
-    })
+      const poolList: PoolInfo[] = []
+      simulateRes.events?.forEach((item: any) => {
+        const formatType = extractStructTagFromType(item.type)
+        if (formatType.full_address === `${token.token_display}::lp_list::FetchPoolListEvent`) {
+          item.parsedJson.full_list.value_list.forEach((item: any) => {
+            poolList.push(this.transformData(item, true))
+          })
+        }
+      })
 
-    const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
-      transactionBlock: tx,
-      sender: simulationAccount.address,
-    })
-
-    const tokenList: PoolInfo[] = []
-    simulateRes.events?.forEach((item: any) => {
-      const formatType = extractStructTagFromType(item.type)
-      if (formatType.full_address === `${token.token_display}::lp_list::FetchPoolListEvent`) {
-        item.parsedJson.full_list.value_list.forEach((item: any) => {
-          tokenList.push(this.transformData(item, true))
-        })
+      allPoolList = [...allPoolList, ...poolList]
+      if (poolList.length < limit) {
+        break
+      } else {
+        index = allPoolList.length
       }
-    })
-    this.updateCache(cacheKey, tokenList, cacheTime24h)
-    return tokenList
+    }
+
+    return allPoolList
   }
 
   private async factchWarpPoolList(poolOwnerAddr = '', coinOwnerAddr = '', forceRefresh = false): Promise<any[]> {
@@ -265,10 +276,10 @@ export class TokenModule implements IModule {
     const packageObjectId = this._sdk.sdkOptions.token.token_display
     const cacheKey = `${packageObjectId}_getTokenConfigEvent`
 
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<TokenConfigEvent>(cacheKey, forceRefresh)
 
-    if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
-      return cacheData.value as TokenConfigEvent
+    if (cacheData !== undefined) {
+      return cacheData
     }
 
     const packageObject = await this._sdk.fullClient.getObject({
@@ -366,11 +377,12 @@ export class TokenModule implements IModule {
     this._cache[key] = cacheData
   }
 
-  private getCacheData(cacheKey: string): SuiResource | null {
-    const cacheData = this._cache[cacheKey]
-    if (cacheData !== undefined && cacheData.getCacheData()) {
-      return cacheData.value
+  private getCache<T>(key: string, forceRefresh = false): T | undefined {
+    const cacheData = this._cache[key]
+    if (!forceRefresh && cacheData?.isValid()) {
+      return cacheData.value as T
     }
-    return null
+    delete this._cache[key]
+    return undefined
   }
 }

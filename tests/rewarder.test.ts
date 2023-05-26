@@ -1,8 +1,8 @@
 import { buildSdk, TokensMapping, position_object_id, buildTestAccount } from './data/init_test_data';
-import { CollectRewarderParams } from '../src/modules/rewarderModule';
 import { RawSigner, getTransactionEffects } from '@mysten/sui.js'
 import 'isomorphic-fetch';
 import BN from 'bn.js';
+import { CollectRewarderParams } from '../src';
 
 const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectId[0]
 describe('Rewarder Module', () => {
@@ -14,7 +14,7 @@ describe('Rewarder Module', () => {
   })
 
   test('posRewardersAmount', async () => {
-    const pool = await sdk.Resources.getPool("0x7b9d0f7e1ba6de8eefaa259da9f992e00aa8c22310b71ffabf2784e5b018a173")
+    const pool = await sdk.Pool.getPool("0x7b9d0f7e1ba6de8eefaa259da9f992e00aa8c22310b71ffabf2784e5b018a173")
     console.log("pool" , pool);
 
     const res = await sdk.Rewarder.posRewardersAmount(pool.poolAddress,pool.positions_handle, "0x5a0a9317df9239a80c5d9623ea87f0ac36f1cec733dc767ba606a6316a078d04")
@@ -48,14 +48,10 @@ describe('Rewarder Module', () => {
     const account = buildTestAccount()
     const signer = new RawSigner(account, sdk.fullClient)
 
-    const pool = await sdk.Resources.getPool(poolObjectId)
+    const pool = await sdk.Pool.getPool(poolObjectId)
 
     const rewards: any[] = await sdk.Rewarder.posRewardersAmount(pool.poolAddress,pool.positions_handle, position_object_id)
-    const rewardCoinTypes = rewards.filter((item) => {
-      if(Number(item.amount_owed) > 0){
-        return item.coin_address as string
-      }
-    })
+    const rewardCoinTypes = rewards.filter((item) => Number(item.amount_owed) > 0).map((item)=> item.coin_address)
 
     const collectRewarderParams: CollectRewarderParams = {
       pool_id: pool.poolAddress,

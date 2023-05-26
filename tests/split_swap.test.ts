@@ -7,22 +7,22 @@ describe('SplitSwap compute swap test', () => {
   const sdk = buildSdk()
 
   test('computeSwap vs calculateRates vs preSwap', async () => {
-    const a2b = false
-    const byAmountIn = true
-    const amount = new BN('1000000000')
+    const a2b = true
+    const byAmountIn = false
+    const amount = new BN('18259659')
 
-    const poolObjectId = "0xcfa5914edd8ed9e60006e36dd01d880ffc65acdc13a67d2432b66855b3e1b6ba"
+    const poolObjectId = "0x4ef9d8c9e7a251975936ec5342874f0dcc372d7a894462cba398b9db4fb7c52e"
     // const poolObjectId = "0x4ec79e658f4ce15371b8946a79c09c8fc46fcb948ccd87142ae3d02a195ac874"
     // const poolObjectId = "0xfb1c5433dade825b7cb2f39a48876000afcb64ab778937f6b68f0b6c38b6b0b5"
 
     const currentPool = await buildTestPool(sdk, poolObjectId)
     const tickdatas = await sdk.Pool.fetchTicksByRpc(currentPool.ticks_handle)
 
-    const splitSwap = new SplitSwap(amount, SplitUnit.HUNDRED, currentPool, a2b, byAmountIn, tickdatas)
-    const splitSwapResult = await splitSwap.computeSwap()
+    // const splitSwap = new SplitSwap(amount, SplitUnit.HUNDRED, currentPool, a2b, byAmountIn, tickdatas)
+    // const splitSwapResult = await splitSwap.computeSwap()
 
-    for(let i = 1; i < splitSwapResult.amountInArray.length; i += 1) {
-      const calAmount = splitSwap.amountArray[i]
+    // for(let i = 1; i < splitSwapResult.amountInArray.length; i += 1) {
+      const calAmount = amount
 
       const calculateResult = await sdk.Swap.calculateRates({
         decimalsA: 8,
@@ -47,10 +47,9 @@ describe('SplitSwap compute swap test', () => {
       })
 
       console.log(`
-        amountIn ${i}-> splitSwap:${splitSwapResult.amountInArray[i].toString()}, calculate: ${calculateResult.estimatedAmountIn.toString()}, preSwap: ${perSwapResult.estimatedAmountIn.toString()} \n
-        amountOut ${i}-> splitSwap:${splitSwapResult.amountOutArray[i].toString()}, calculate: ${calculateResult.estimatedAmountOut.toString()}, preSwap: ${perSwapResult.estimatedAmountOut.toString()}\n
-        isExceed ${i}-> splitSwap:${splitSwapResult.isExceed[i]}, calculate: ${calculateResult.isExceed}, preSwap: ${perSwapResult.isExceed}
+        amountIn ->  calculate: ${calculateResult.estimatedAmountIn.toString()}, preSwap: ${perSwapResult.estimatedAmountIn.toString()} \n
+        amountOut ->  calculate: ${calculateResult.estimatedAmountOut.toString()}, preSwap: ${perSwapResult.estimatedAmountOut.toString()}\n
+        isExceed ->  calculate: ${calculateResult.isExceed}, preSwap: ${perSwapResult.isExceed}
       `)
-    }
   })
 })

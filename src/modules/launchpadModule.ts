@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable camelcase */
 import {
-  bcs,
   getMoveObjectType,
   getObjectFields,
   getObjectOwner,
@@ -14,9 +13,10 @@ import {
   TransactionArgument,
   TransactionBlock,
 } from '@mysten/sui.js'
+import { Position } from '../types'
 import { TransactionUtil } from '../utils/transaction-util'
 import { CoinAssist, TickMath } from '../math'
-import { d, hexToNumber, loopToGetAllQueryEvents } from '../utils'
+import { d, loopToGetAllQueryEvents } from '../utils'
 import { LauncpadUtil } from '../utils/launchpad'
 import {
   CONST_DENOMINATOR,
@@ -28,11 +28,10 @@ import {
   PurchaseParams,
   ClaimParams,
   WithdrawParams,
-  LaunchpadInitLockEvent,
+  LaunchpadInitConfigEvent,
   LockNFTEvent,
   UnlockNftParams,
   SettleParams,
-  CancelParams,
   RemoveWhitelistParams,
   PurchaseMark,
   SettleEvent,
@@ -40,23 +39,19 @@ import {
   AddUserToWhitelistParams,
   UpdateRecipientParams,
   UpdatePoolDurationParams,
+  LaunchpadPoolConfig,
+  CancelLaunchPadParams,
 } from '../types/luanchpa_type'
 import { SuiResource, SuiObjectIdType, SuiAddressType, PoolLiquidityCoinType, CLOCK_ADDRESS } from '../types/sui'
-import { CachedContent } from '../utils/cachedContent'
+import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils/cachedContent'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
-import { composeType, extractStructTagFromType, isSortedSymbols } from '../utils/contracts'
-import { buildPosition, multiGetObjects } from '../utils/common'
-import { Position } from './resourcesModule'
+import { composeType, extractStructTagFromType } from '../utils/contracts'
+import { buildPosition, getDynamicFields, multiGetObjects } from '../utils/common'
 
-export const cacheTime5min = 5 * 60 * 1000
-export const cacheTime24h = 24 * 60 * 60 * 1000
-export const intervalFaucetTime = 12 * 60 * 60 * 1000
-
-function getFutureTime(interval: number) {
-  return Date.parse(new Date().toString()) + interval
-}
-
+/**
+ * Helper class to help interact with launchpad pools with a router interface.
+ */
 export class LaunchpadModule implements IModule {
   protected _sdk: SDK
 
@@ -70,6 +65,15 @@ export class LaunchpadModule implements IModule {
     return this._sdk
   }
 
+  /**
+   * Gets the immutables for all launchpad pools.
+   *
+   * @param {string[]} assignPools An array of pool addresses to filter the results by.
+   * @param {number} offset The offset to start the results at.
+   * @param {number} limit The number of results to return.
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
+   * @returns {Promise<LaunchpadPoolImmutables[]>} A promise that resolves to the immutables for all launchpad pools.
+   */
   async getPoolImmutables(assignPools: string[] = [], offset = 0, limit = 100, forceRefresh = false): Promise<LaunchpadPoolImmutables[]> {
     const { ido_display } = this._sdk.sdkOptions.launchpad
 
@@ -78,13 +82,13 @@ export class LaunchpadModule implements IModule {
     }
 
     const cacheKey = `${ido_display}_getInitPoolEvent`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<LaunchpadPoolImmutables[]>(cacheKey, forceRefresh)
 
     const allPools: LaunchpadPoolImmutables[] = []
     const filterPools: LaunchpadPoolImmutables[] = []
 
-    if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
-      allPools.push(...(cacheData.value as LaunchpadPoolImmutables[]))
+    if (cacheData !== undefined) {
+      allPools.push(...cacheData)
     }
 
     if (allPools.length === 0) {
@@ -131,6 +135,14 @@ export class LaunchpadModule implements IModule {
     return filterPools
   }
 
+  /**
+   * Gets all launchpad pools.
+   *
+   * @param {string[]} assignPools An array of pool addresses to filter the results by.
+   * @param {number} offset The offset to start the results at.
+   * @param {number} limit The number of results to return.
+   * @returns {Promise<LaunchpadPool[]>} A promise that resolves to an array of launchpad pools.
+   */
   async getPools(assignPools: string[] = [], offset = 0, limit = 100): Promise<LaunchpadPool[]> {
     const allPool: LaunchpadPool[] = []
     let poolObjectIds: string[] = []
@@ -156,12 +168,19 @@ export class LaunchpadModule implements IModule {
     return allPool
   }
 
+  /**
+   * Gets a launchpad pool.
+   *
+   * @param {string} poolObjectId The ID of the launchpad pool.
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
+   * @returns {Promise<LaunchpadPool>} A promise that resolves to the launchpad pool.
+   */
   async getPool(poolObjectId: string, forceRefresh = true): Promise<LaunchpadPool> {
     const cacheKey = `${poolObjectId}_getPoolObject`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<LaunchpadPool>(cacheKey, forceRefresh)
 
-    if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
-      const pool = cacheData.value as LaunchpadPool
+    if (cacheData !== undefined) {
+      const pool = cacheData
       LauncpadUtil.updatePoolStatus(pool)
       return pool
     }
@@ -175,13 +194,19 @@ export class LaunchpadModule implements IModule {
     return pool
   }
 
+  /**
+   * Gets the init factory event for the launchpad.
+   *
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
+   * @returns {Promise<LaunchpadInitEvent>} A promise that resolves to the init factory event.
+   */
   async getInitFactoryEvent(forceRefresh = false): Promise<LaunchpadInitEvent> {
     const packageObjectId = this._sdk.sdkOptions.launchpad.ido_display
     const cacheKey = `${packageObjectId}_getInitEvent`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<LaunchpadInitEvent>(cacheKey, forceRefresh)
 
-    if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
-      return cacheData.value as LaunchpadInitEvent
+    if (cacheData !== undefined) {
+      return cacheData
     }
 
     const packageObject = await this._sdk.fullClient.getObject({ id: packageObjectId, options: { showPreviousTransaction: true } })
@@ -218,43 +243,133 @@ export class LaunchpadModule implements IModule {
     return initEvent
   }
 
-  // async getInitLockEvent(forceRefresh = false): Promise<LaunchpadInitLockEvent> {
-  //   const { lock_display } = this._sdk.sdkOptions.launchpad
-  //   const cacheKey = `${lock_display}_getInitLockEvent`
-  //   const cacheData = this._cache[cacheKey]
+  /**
+   * Gets the init config event for the launchpad.
+   *
+   * @returns {Promise<LaunchpadInitConfigEvent>} A promise that resolves to the init config event.
+   */
+  async getInitConfigEvent(): Promise<LaunchpadInitConfigEvent> {
+    const { config_display } = this._sdk.sdkOptions.launchpad
+    const cacheKey = `${config_display}_getInitConfigEvent`
+    const cacheData = this.getCache<LaunchpadInitConfigEvent>(cacheKey)
 
-  //   if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
-  //     return cacheData.value as LaunchpadInitLockEvent
-  //   }
+    if (cacheData !== undefined) {
+      return cacheData
+    }
 
-  //   const lockEvent: LaunchpadInitLockEvent = {
-  //     lock_manager_id: '',
-  //   }
+    const configEvent: LaunchpadInitConfigEvent = {
+      config_pools_id: '',
+    }
 
-  //   try {
-  //     const objects = (await this._sdk.fullClient.queryEvents({ query: { MoveEventType: `${lock_display}::lock::InitManagerEvent` } })).data
-  //     console.log(objects)
+    try {
+      const objects = (await this._sdk.fullClient.queryEvents({ query: { MoveEventType: `${config_display}::config::InitEvent` } })).data
 
-  //     objects.forEach((object) => {
-  //       const fields = object.parsedJson
-  //       if (fields) {
-  //         lockEvent.lock_manager_id = fields.lock_manager_id
-  //       }
-  //     })
-  //     this.updateCache(cacheKey, lockEvent, cacheTime24h)
-  //   } catch (error) {
-  //     console.log('getInitLockEvent', error)
-  //   }
+      for (const object of objects) {
+        const fields = object.parsedJson
+        if (fields) {
+          // eslint-disable-next-line no-await-in-loop
+          configEvent.config_pools_id = await this.getPoolConfigId(fields.conf_id)
+        }
+      }
+      this.updateCache(cacheKey, configEvent, cacheTime24h)
+    } catch (error) {
+      console.log('getInitConfigEvent', error)
+    }
 
-  //   return lockEvent
-  // }
+    return configEvent
+  }
 
+  /**
+   * Gets the config ID for the given pool ID.
+   *
+   * @param {SuiObjectIdType} conf_id The ID of the pool.
+   * @returns {Promise<string>} A promise that resolves to the config ID.
+   */
+  private async getPoolConfigId(conf_id: SuiObjectIdType): Promise<string> {
+    const object = await this._sdk.fullClient.getObject({ id: conf_id, options: { showContent: true } })
+
+    const fields = getObjectFields(object)
+    if (fields) {
+      return fields.pools.fields.id.id
+    }
+
+    return ''
+  }
+
+  /**
+   * Gets the pool configurations
+   *
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
+   * @returns {Promise<LaunchpadPoolConfig[]>} A promise that resolves to an array of pool configurations.
+   */
+  async getPoolConfigs(forceRefresh = false): Promise<LaunchpadPoolConfig[]> {
+    const { config_pools_id } = this._sdk.sdkOptions.launchpad.config
+    const cacheKey = `${config_pools_id}_getPoolConfigs`
+    const cacheData = this.getCache<LaunchpadPoolConfig[]>(cacheKey, forceRefresh)
+
+    if (cacheData !== undefined) {
+      return cacheData
+    }
+
+    const mList: LaunchpadPoolConfig[] = []
+
+    const objects = await getDynamicFields(this._sdk, config_pools_id)
+    const warpIds = objects.data.map((item: any) => {
+      return item.objectId
+    })
+
+    const multiObjects = await multiGetObjects(this._sdk, warpIds, { showContent: true })
+
+    multiObjects.forEach((item) => {
+      const poolConfig = LauncpadUtil.buildLaunchPadPoolConfig(item)
+      this.updateCache(`${poolConfig.pool_address}_getPoolConfig`, poolConfig, cacheTime24h)
+      mList.push(poolConfig)
+    })
+    this.updateCache(cacheKey, mList, cacheTime24h)
+    return mList
+  }
+
+  /**
+   * Gets the pool configuration for the given pool address.
+   *
+   * @param {string} pool_address The address of the pool.
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
+   * @returns {Promise<LaunchpadPoolConfig>} A promise that resolves to the pool configuration.
+   */
+  async getPoolConfig(pool_address: string, forceRefresh = false): Promise<LaunchpadPoolConfig> {
+    const cacheKey = `${pool_address}_getPoolConfig`
+    const cacheData = this.getCache<LaunchpadPoolConfig>(cacheKey, forceRefresh)
+
+    if (cacheData !== undefined) {
+      return cacheData
+    }
+    const { config_pools_id } = this._sdk.sdkOptions.launchpad.config
+    const object = await this.sdk.fullClient.getDynamicFieldObject({
+      parentId: config_pools_id,
+      name: {
+        type: 'address',
+        value: pool_address,
+      },
+    })
+
+    const poolConfig = LauncpadUtil.buildLaunchPadPoolConfig(object)
+    this.updateCache(cacheKey, poolConfig, cacheTime24h)
+    return poolConfig
+  }
+
+  /**
+   * Gets the lock NFT for the given NFT ID.
+   *
+   * @param {SuiObjectIdType} nft_id The ID of the NFT.
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
+   * @returns {Promise<Position | undefined>} A promise that resolves to the lock NFT or undefined if the NFT is not found.
+   */
   async getLockNFT(nft_id: SuiObjectIdType, forceRefresh = false): Promise<Position | undefined> {
     const cacheKey = `${nft_id}_getLockNFT`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<Position>(cacheKey, forceRefresh)
 
-    if (cacheData !== undefined && cacheData.getCacheData() && !forceRefresh) {
-      return cacheData.value as Position
+    if (cacheData !== undefined) {
+      return cacheData
     }
     const objects = await this._sdk.fullClient.getObject({
       id: nft_id,
@@ -272,6 +387,13 @@ export class LaunchpadModule implements IModule {
     return buildPosition(objects)
   }
 
+  /**
+   * Gets a list of lock NFTs for the given pool type and recipient.
+   *
+   * @param {SuiAddressType} poolType The type of the pool.
+   * @param {SuiObjectIdType} recipient The recipient of the lock NFTs.
+   * @returns {Promise<Position[]>} A promise that resolves to an array of lock NFTs.
+   */
   async getLockNFTList(poolType: SuiAddressType, recipient: SuiObjectIdType): Promise<Position[]> {
     const { sdkOptions } = this._sdk
 
@@ -325,8 +447,14 @@ export class LaunchpadModule implements IModule {
     }
   }
 
+  /**
+   * Creates a transaction payload for creating a launchpad pool.
+   *
+   * @param {CreateLaunchpadPoolParams} params The parameters for creating the pool.
+   * @returns {Promise<TransactionBlock>} A promise that resolves to the transaction payload.
+   */
   async creatPoolTransactionPayload(params: CreateLaunchpadPoolParams): Promise<TransactionBlock> {
-    const { launchpad, clmm } = this.sdk.sdkOptions
+    const { launchpad } = this.sdk.sdkOptions
     const launchpadEvent = launchpad.config
 
     this.assertLuanchpadConfig()
@@ -350,7 +478,6 @@ export class LaunchpadModule implements IModule {
       params.coin_type_sale
     )) as TransactionArgument
 
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetHigh2)
     const args = [
       tx.pure(launchpadEvent!.admin_cap_id),
       tx.pure(launchpadEvent!.config_cap_id),
@@ -383,6 +510,12 @@ export class LaunchpadModule implements IModule {
     return tx
   }
 
+  /**
+   * Creates a transaction payload for purchasing tokens from a launchpad pool.
+   *
+   * @param {PurchaseParams} params The parameters for the purchase.
+   * @returns {Promise<TransactionBlock>} A promise that resolves to the transaction payload.
+   */
   async creatPurchasePayload(params: PurchaseParams): Promise<Promise<TransactionBlock>> {
     const { launchpad } = this.sdk.sdkOptions
 
@@ -391,7 +524,6 @@ export class LaunchpadModule implements IModule {
     }
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetHigh2)
 
     const primaryCoinInputs = (await TransactionUtil.syncBuildCoinInputForAmount(
       this._sdk,
@@ -432,6 +564,12 @@ export class LaunchpadModule implements IModule {
     return tx
   }
 
+  /**
+   * Creates a transaction payload for claiming tokens from a launchpad pool.
+   *
+   * @param {ClaimParams} params The parameters for the claim.
+   * @returns {Promise<TransactionBlock>} A promise that resolves to the transaction payload.
+   */
   async creatClaimPayload(params: ClaimParams): Promise<TransactionBlock> {
     const { launchpad } = this.sdk.sdkOptions
 
@@ -441,8 +579,6 @@ export class LaunchpadModule implements IModule {
 
     const purchaseMark = (await this.getPurchaseMarks(this._sdk.senderAddress, [params.pool_address], false))[0]
     const tx = new TransactionBlock()
-
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetHigh2)
 
     const typeArguments = [params.coin_type_sale, params.coin_type_raise]
     const args = [tx.pure(params.pool_address), tx.pure(launchpad.config.config_cap_id), tx.pure(purchaseMark?.id), tx.pure(CLOCK_ADDRESS)]
@@ -456,6 +592,12 @@ export class LaunchpadModule implements IModule {
     return tx
   }
 
+  /**
+   * Creates a transaction payload for settling tokens from a launchpad pool.
+   *
+   * @param {SettleParams} params The parameters for the settlement.
+   * @returns {Promise<TransactionBlock>} A promise that resolves to the transaction payload.
+   */
   async creatSettlePayload(params: SettleParams): Promise<TransactionBlock> {
     const { launchpad, clmm } = this.sdk.sdkOptions
 
@@ -487,10 +629,6 @@ export class LaunchpadModule implements IModule {
 
       const a2b = BigInt(initialize_sqrt_price) < BigInt(clmm_args.clmm_sqrt_price)
 
-      console.log('creatSettlePayload###initialize_sqrt_price###', initialize_sqrt_price)
-      console.log('creatSettlePayload###clmm_args.clmm_sqrt_price###', clmm_args.clmm_sqrt_price)
-      console.log('creatSettlePayload###a2b###', a2b)
-
       // eslint-disable-next-line no-nested-ternary
       const needCoinType = clmm_args.opposite
         ? a2b
@@ -500,17 +638,12 @@ export class LaunchpadModule implements IModule {
         ? params.coin_type_sale
         : params.coin_type_raise
 
-      const coinAssets = await this._sdk.Resources.getOwnerCoinAssets(this._sdk.senderAddress, needCoinType)
+      const coinAssets = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress, needCoinType)
 
       let needAmount = CoinAssist.calculateTotalBalance(coinAssets)
-      tx.setGasBudget(this._sdk.gasConfig.GasBudgetHigh)
       if (CoinAssist.isSuiCoin(needCoinType)) {
-        needAmount -= BigInt(this._sdk.gasConfig.GasBudgetHigh)
+        needAmount -= BigInt(200000000)
       }
-
-      console.log('creatSettlePayload###coinAssets###', coinAssets)
-      console.log('creatSettlePayload###needAmount###', needAmount)
-      console.log('creatSettlePayload###needCoinType###', needCoinType)
 
       const primaryCoinInputsR: any = TransactionUtil.buildCoinInputForAmount(tx, coinAssets, needAmount, needCoinType)?.transactionArgument
       const primaryCoinInputs = primaryCoinInputsR as TransactionArgument
@@ -524,20 +657,15 @@ export class LaunchpadModule implements IModule {
         ? 'settle_only_with_a'
         : 'settle_only_with_b'
 
-      console.log('creatSettlePayload###funName###', funName)
-      console.log('creatSettlePayload###primaryCoinInputs###', primaryCoinInputs)
       const args = [
         tx.pure(params.pool_address),
         tx.pure(launchpad.config.config_cap_id),
         tx.pure(clmm_args.clmm_pool_address),
         tx.pure(clmmEvent.global_config_id),
-        // tx.pure(launchpad.config!.lock_manager_id),
         tx.pure(initialize_sqrt_price),
         primaryCoinInputs,
         tx.pure(CLOCK_ADDRESS),
       ]
-
-      console.log('creatSettlePayload###args###', args)
 
       tx.moveCall({
         target: `${launchpad.ido_router}::${LaunchpadRouterModule}::${funName}`,
@@ -545,7 +673,6 @@ export class LaunchpadModule implements IModule {
         arguments: args,
       })
     } else {
-      tx.setGasBudget(this._sdk.gasConfig.GasBudgetMiddle2)
       tx.moveCall({
         target: `${launchpad.ido_router}::${LaunchpadRouterModule}::settle`,
         typeArguments,
@@ -556,11 +683,16 @@ export class LaunchpadModule implements IModule {
     return tx
   }
 
+  /**
+   * Creates a transaction payload for withdrawing tokens from a launchpad pool.
+   *
+   * @param {WithdrawParams} params The parameters for the withdrawal.
+   * @returns {TransactionBlock} The transaction payload.
+   */
   creatWithdrawPayload(params: WithdrawParams): TransactionBlock {
     const { launchpad } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetMiddle)
 
     const typeArguments = [params.coin_type_sale, params.coin_type_raise]
     const args = [tx.object(params.pool_address), tx.object(launchpad.config.config_cap_id), tx.object(CLOCK_ADDRESS)]
@@ -583,13 +715,18 @@ export class LaunchpadModule implements IModule {
     return tx
   }
 
+  /**
+   * Creates a transaction payload for adding a user to the whitelist.
+   *
+   * @param {AddUserToWhitelistParams} params The parameters for the addition.
+   * @returns {TransactionBlock} The transaction payload.
+   */
   addUserToWhitelisPayload(params: AddUserToWhitelistParams): TransactionBlock {
     const { launchpad } = this.sdk.sdkOptions
 
     this.assertLuanchpadConfig()
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetHigh2)
     const typeArguments = [params.coin_type_sale, params.coin_type_raise]
 
     params.user_addrs.forEach((user_addr) => {
@@ -612,13 +749,18 @@ export class LaunchpadModule implements IModule {
     return tx
   }
 
-  updateWhitelistCaPayload(params: UpdateWhitelistCapParams): TransactionBlock {
+  /**
+   * Creates a transaction payload for updating the whitelist cap.
+   *
+   * @param {UpdateWhitelistCapParams} params The parameters for the update.
+   * @returns {TransactionBlock} The transaction payload.
+   */
+  updateWhitelistCapPayload(params: UpdateWhitelistCapParams): TransactionBlock {
     const { launchpad } = this.sdk.sdkOptions
 
     this.assertLuanchpadConfig()
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetHigh2)
     const typeArguments = [params.coin_type_sale, params.coin_type_raise]
     if (params.safe_limit_amount > 0) {
       tx.moveCall({
@@ -652,13 +794,18 @@ export class LaunchpadModule implements IModule {
     return tx
   }
 
+  /**
+   * Creates a transaction payload for removing a user from the whitelist.
+   *
+   * @param {RemoveWhitelistParams} params The parameters for the removal.
+   * @returns {TransactionBlock} The transaction payload.
+   */
   creatRemoveWhitelistPayload(params: RemoveWhitelistParams): TransactionBlock {
     const { launchpad } = this.sdk.sdkOptions
 
     this.assertLuanchpadConfig()
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetMiddle)
 
     const typeArguments = [params.coin_type_sale, params.coin_type_raise]
 
@@ -681,13 +828,18 @@ export class LaunchpadModule implements IModule {
     return tx
   }
 
-  creatCancelPoolPayload(params: CancelParams): TransactionBlock {
+  /**
+   * Creates a transaction payload for canceling a pool.
+   *
+   * @param {CancelLaunchPadParams} params The parameters for the cancellation.
+   * @returns {TransactionBlock} The transaction payload.
+   */
+  creatCancelPoolPayload(params: CancelLaunchPadParams): TransactionBlock {
     const { launchpad } = this.sdk.sdkOptions
 
     this.assertLuanchpadConfig()
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetLow)
 
     const typeArguments = [params.coin_type_sale, params.coin_type_raise]
     const args = [
@@ -706,13 +858,18 @@ export class LaunchpadModule implements IModule {
     return tx
   }
 
+  /**
+   * Creates a transaction payload for updating the recipient address.
+   *
+   * @param {UpdateRecipientParams} params The parameters for the update.
+   * @returns {TransactionBlock} The transaction payload.
+   */
   updateRecipientPayload(params: UpdateRecipientParams): TransactionBlock {
     const { launchpad } = this.sdk.sdkOptions
 
     this.assertLuanchpadConfig()
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetLow)
 
     const typeArguments = [params.coin_type_sale, params.coin_type_raise]
     const args = [
@@ -732,13 +889,18 @@ export class LaunchpadModule implements IModule {
     return tx
   }
 
+  /**
+   * Creates a transaction payload for updating the pool duration.
+   *
+   * @param {UpdatePoolDurationParams} params The parameters for the update.
+   * @returns {TransactionBlock} The transaction payload.
+   */
   updatePoolDuractionPayload(params: UpdatePoolDurationParams): TransactionBlock {
     const { launchpad } = this.sdk.sdkOptions
 
     this.assertLuanchpadConfig()
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetLow)
 
     const typeArguments = [params.coin_type_sale, params.coin_type_raise]
     const args = [
@@ -760,6 +922,12 @@ export class LaunchpadModule implements IModule {
     return tx
   }
 
+  /**
+   * Creates a transaction payload for unlocking an NFT.
+   *
+   * @param {UnlockNftParams} params The parameters for the unlock.
+   * @returns {TransactionBlock} The transaction payload.
+   */
   creatUnlockNftPayload(params: UnlockNftParams): TransactionBlock {
     const { launchpad } = this.sdk.sdkOptions
 
@@ -768,7 +936,6 @@ export class LaunchpadModule implements IModule {
     }
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetLow)
 
     const typeArguments = [params.nft_type]
     // const args = [tx.pure(launchpad.config.lock_manager_id), tx.pure(params.lock_nft), tx.pure(CLOCK_ADDRESS)]
@@ -783,10 +950,21 @@ export class LaunchpadModule implements IModule {
     return tx
   }
 
+  /**
+   * Determines if the given wallet address is the admin cap for the launchpad.
+   *
+   * @param {SuiObjectIdType} walletAddress The wallet address to check.
+   * @returns {Promise<boolean>} A promise that resolves to true if the wallet address is the admin cap, or false otherwise.
+   */
   async isAdminCap(walletAddress: SuiObjectIdType): Promise<boolean> {
     const { launchpad } = this._sdk.sdkOptions
     if (launchpad.config === undefined) {
       throw Error('launchpad config is empty')
+    }
+    const cacheKey = `${walletAddress}_isAdminCap`
+    const cacheData = this.getCache<boolean>(cacheKey)
+    if (cacheData) {
+      return cacheData
     }
     const object = await this._sdk.fullClient.getObject({
       id: launchpad.config.admin_cap_id,
@@ -797,14 +975,23 @@ export class LaunchpadModule implements IModule {
     const type = getObjectType(object)
     const owner = getObjectOwner(object)
 
+    let isAdminCap = false
+
     if (owner && type && extractStructTagFromType(type).source_address === `${launchpad.ido_display}::config::AdminCap`) {
       const addressOwner = owner as { AddressOwner: string }
-      return normalizeSuiAddress(addressOwner.AddressOwner) === normalizeSuiAddress(walletAddress)
+      isAdminCap = normalizeSuiAddress(addressOwner.AddressOwner) === normalizeSuiAddress(walletAddress)
     }
-
-    return false
+    this.updateCache(cacheKey, isAdminCap, cacheTime24h)
+    return isAdminCap
   }
 
+  /**
+   * Determines if the given wallet address is whitelisted.
+   *
+   * @param {SuiObjectIdType} whitetHandle The handle of the whitelist object.
+   * @param {SuiObjectIdType} walletAddress The wallet address to check.
+   * @returns {Promise<boolean>} A promise that resolves to true if the wallet address is whitelisted, or false otherwise.
+   */
   async isWhiteListUser(whitetHandle: SuiObjectIdType, walletAddress: SuiObjectIdType): Promise<boolean> {
     const name = {
       type: 'address',
@@ -821,6 +1008,13 @@ export class LaunchpadModule implements IModule {
     }
   }
 
+  /**
+   * Gets the purchase amount for the given wallet address.
+   *
+   * @param {SuiObjectIdType} purchaseHandle The handle of the purchase object.
+   * @param {SuiObjectIdType} walletAddress The wallet address to get the purchase amount for.
+   * @returns {Promise<{ safe_limit_amount: string; safe_purchased_amount: string }>} A promise that resolves to an object with the purchase amount fields.
+   */
   async getPurchaseAmount(
     purchaseHandle: SuiObjectIdType,
     walletAddress: SuiObjectIdType
@@ -843,14 +1037,22 @@ export class LaunchpadModule implements IModule {
     return { safe_limit_amount: '0', safe_purchased_amount: '0' }
   }
 
+  /**
+   * Gets the purchase marks for the given account address.
+   *
+   * @param {string} accountAddress The wallet address to get the purchase marks for.
+   * @param {SuiObjectIdType[]} poolAddressArray An array of pool addresses to filter the purchase marks by.
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
+   * @returns {Promise<PurchaseMark[]>} A promise that resolves to an array of purchase marks.
+   */
   async getPurchaseMarks(accountAddress: string, poolAddressArray: SuiObjectIdType[] = [], forceRefresh = true): Promise<PurchaseMark[]> {
     const { launchpad } = this._sdk.sdkOptions
 
     const cacheKey = `${poolAddressArray}_getPurchaseMark`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<PurchaseMark[]>(cacheKey, forceRefresh)
 
-    if (!forceRefresh && cacheData !== undefined && cacheData.getCacheData()) {
-      return cacheData.value as PurchaseMark[]
+    if (!forceRefresh && cacheData !== undefined) {
+      return cacheData
     }
     let cursor = null
     const purchaseMarks: PurchaseMark[] = []
@@ -897,14 +1099,20 @@ export class LaunchpadModule implements IModule {
     return purchaseMarks
   }
 
+  /**
+   * Gets the settle event for the given pool address.
+   *
+   * @param {SuiObjectIdType} poolAddress The pool address to get the settle event for.
+   * @returns {Promise<SettleEvent | undefined>} A promise that resolves to the settle event or undefined if the event does not exist.
+   */
   async getSettleEvent(poolAddress: SuiObjectIdType): Promise<SettleEvent | undefined> {
     const { launchpad } = this._sdk.sdkOptions
 
     const cacheKey = `${poolAddress}_getPurchaseMark`
-    const cacheData = this._cache[cacheKey]
+    const cacheData = this.getCache<SettleEvent>(cacheKey)
 
-    if (cacheData !== undefined && cacheData.getCacheData()) {
-      return cacheData.value as SettleEvent
+    if (cacheData !== undefined) {
+      return cacheData
     }
 
     const ownerRes = await loopToGetAllQueryEvents(this._sdk, { query: { MoveEventType: `${launchpad.ido_display}::pool::SettleEvent` } })
@@ -927,6 +1135,13 @@ export class LaunchpadModule implements IModule {
     return undefined
   }
 
+  /**
+   * Builds a launchpad coin type from the given sale coin type and raise coin type.
+   *
+   * @param {SuiAddressType} coinTypeSale The sale coin type.
+   * @param {SuiAddressType} coinTypeRaise The raise coin type.
+   * @returns {string} The launchpad coin type.
+   */
   buildLaunchpadCoinType(coin_type_sale: SuiAddressType, coin_type_raise: SuiAddressType): string {
     return composeType(this._sdk.sdkOptions.launchpad.ido_display, 'pool', PoolLiquidityCoinType, [coin_type_sale, coin_type_raise])
   }
@@ -948,5 +1163,14 @@ export class LaunchpadModule implements IModule {
       cacheData = new CachedContent(data, getFutureTime(time))
     }
     this._cache[key] = cacheData
+  }
+
+  private getCache<T>(key: string, forceRefresh = false): T | undefined {
+    const cacheData = this._cache[key]
+    if (!forceRefresh && cacheData?.isValid()) {
+      return cacheData.value as T
+    }
+    delete this._cache[key]
+    return undefined
   }
 }

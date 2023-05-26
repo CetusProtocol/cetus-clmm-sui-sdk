@@ -2,15 +2,13 @@ import { TickMath } from '../src/math/tick'
 import BN from 'bn.js'
 import { RawSigner, Ed25519Keypair } from '@mysten/sui.js'
 import { buildSdk, buildTestAccount, buildTestPool, buildTestPosition, position_object_id, TokensMapping } from './data/init_test_data';
-import { Position } from '../src/modules/resourcesModule'
 import { ClmmPoolUtil } from '../src/math/clmm'
-import { AddLiquidityFixTokenParams, RemoveLiquidityParams } from '../src/modules/positionModule'
 import { Percentage } from '../src/math/percentage'
 import { adjustForCoinSlippage } from '../src/math/position'
 import 'isomorphic-fetch';
-import { printTransaction, sendTransaction, TransactionUtil } from '../src/utils/transaction-util';
-import { tuple } from 'superstruct'
-import { d } from '../src';
+import { printTransaction, sendTransaction } from '../src/utils/transaction-util';
+import { AddLiquidityFixTokenParams, Position, RemoveLiquidityParams, d } from '../src';
+import { toHEX } from '@mysten/bcs';
 
 let sendKeypair: Ed25519Keypair
 
@@ -21,6 +19,17 @@ describe('Position add Liquidity Module', () => {
     sendKeypair = buildTestAccount()
     sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()
   })
+
+  test('test RawSigner', async () => {
+    const ed25519Keypair = new Ed25519Keypair()
+    const signer = new RawSigner(ed25519Keypair, sdk.fullClient)
+    const orginText = "123"
+    const signedMessage = await signer.signMessage({message: new TextEncoder().encode(orginText)})
+
+    console.log("signedMessage", signedMessage);
+
+  })
+
 
   test('open_and_add_liquidity_fix_token', async () => {
     const poolObjectId =   TokensMapping.USDT_USDC_LP.poolObjectId[0]
@@ -34,8 +43,8 @@ describe('Position add Liquidity Module', () => {
       new BN(pool.current_tick_index).toNumber(),
       new BN(pool.tickSpacing).toNumber()
     )
-    const coinAmount = new BN(100000000)
-    const fix_amount_a = false
+    const coinAmount = new BN(100000)
+    const fix_amount_a = true
     const slippage = 0.05
     const curSqrtPrice = new BN(pool.current_sqrt_price)
 
@@ -88,7 +97,7 @@ describe('Position add Liquidity Module', () => {
     const position = (await buildTestPosition(sdk, position_object_id)) as Position
     const lowerTick = position.tick_lower_index
     const upperTick = position.tick_upper_index
-    const coinAmount = new BN(500)
+    const coinAmount = new BN(8000)
     const fix_amount_a = true
     const slippage = 0.05
     const curSqrtPrice = new BN(pool.current_sqrt_price)
@@ -137,8 +146,8 @@ describe('Position  Module', () => {
   })
 
   test('getCoinAmountFromLiquidity', async () => {
-    const poolObjectId = "0x7e279224f1dd455860d65fa975cce5208485fd98b8e9a0cb6bd087c6dc9f5e03";// TokensMapping.USDT_USDC_LP.poolObjectId[0]
-    const position_object_id = "0xf1b99f796fdd41ce3e7e9bbef7e3f840b44f4c9e5ca99b8df47e91037968452f"
+    const poolObjectId = "0x74dcb8625ddd023e2ef7faf1ae299e3bc4cb4c337d991a5326751034676acdae";// TokensMapping.USDT_USDC_LP.poolObjectId[0]
+    const position_object_id = "0x80e60175d20b9fecbd2cf10cc2fc7f43dc3f8ed67065550eaedc036ed5d41583"
     const pool = await buildTestPool(sdk, poolObjectId)
     const position = (await buildTestPosition(sdk, position_object_id)) as Position
     const curSqrtPrice = new BN(pool.current_sqrt_price)
@@ -146,7 +155,7 @@ describe('Position  Module', () => {
     const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_lower_index)
     const upperSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_upper_index)
     const coinAmounts = ClmmPoolUtil.getCoinAmountFromLiquidity(
-      new BN(Number(d(position.liquidity).mul(0.25))),
+      new BN(Number(d(position.liquidity))),
       curSqrtPrice,
       lowerSqrtPrice,
       upperSqrtPrice,
@@ -162,6 +171,8 @@ describe('Position  Module', () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const pool = await buildTestPool(sdk, poolObjectId)
     const position = (await buildTestPosition(sdk, position_object_id)) as Position
+    console.log("position: ",position);
+
 
     const lowerTick = Number(position.tick_lower_index)
     const upperTick = Number(position.tick_upper_index)
@@ -169,7 +180,7 @@ describe('Position  Module', () => {
     const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(lowerTick)
     const upperSqrtPrice = TickMath.tickIndexToSqrtPriceX64(upperTick)
 
-    const liquidity = new BN(10)
+    const liquidity = new BN(position.liquidity)
     const slippageTolerance = new Percentage(new BN(5), new BN(100))
     const curSqrtPrice = new BN(pool.current_sqrt_price)
 
@@ -225,8 +236,9 @@ describe('Position  Module', () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectId[0]
     const pool = await buildTestPool(sdk, poolObjectId)
-    const position_object_id = "0x9fd7da6971c24f9ea5fdee4edaf31c3b27f7a02cc4873302f76ad53970bd6a07"
     const position = (await buildTestPosition(sdk, position_object_id)) as Position
+    console.log('position: ', position);
+
 
     const lowerTick = Number(position.tick_lower_index)
     const upperTick = Number(position.tick_upper_index)
@@ -244,11 +256,7 @@ describe('Position  Module', () => {
     const rewards: any[] = await sdk.Rewarder.posRewardersAmount(poolObjectId,pool.positions_handle, position_object_id)
     console.log("rewards: ",rewards);
 
-    const rewardCoinTypes = rewards.filter((item) => {
-      if(Number(item.amount_owed) > 0){
-        return item.coin_address as string
-      }
-    })
+    const rewardCoinTypes = rewards.filter((item) => Number(item.amount_owed) > 0).map((item)=> item.coin_address)
 
     const closePositionTransactionPayload = sdk.Position.closePositionTransactionPayload({
       coinTypeA: pool.coinTypeA,
@@ -258,6 +266,7 @@ describe('Position  Module', () => {
       rewarder_coin_types: [...rewardCoinTypes],
       pool_id: pool.poolAddress,
       pos_id: position_object_id,
+      collect_fee: false
     })
 
     printTransaction(closePositionTransactionPayload)

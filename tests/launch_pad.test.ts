@@ -3,10 +3,10 @@ import { LaunchpadPool, LaunchpadPoolActivityState } from '../src/types/luanchpa
 import {
   buildSdk,
   buildTestAccount,
+  buildWJLaunchPadAccount,
   mintAll,
 } from './data/init_test_data'
 import { creatPoolList, tokenList } from './data/launchpad_pool_data'
-import { cacheTime24h, Pool } from '../src/modules/resourcesModule'
 import { toDecimalsAmount } from '../src/utils/common'
 import 'isomorphic-fetch'
 import { printTransaction, sendTransaction } from '../src/utils/transaction-util'
@@ -14,18 +14,19 @@ import { LauncpadUtil } from '../src/utils/launchpad'
 import {TickMath} from '../src/math'
 import BN from 'bn.js'
 import Decimal from '../src/utils/decimal'
+import { cacheTime24h, Pool } from '../src'
 
 let sendKeypair: Ed25519Keypair
 let launchPadKeypair: Ed25519Keypair
 
-const poolAddress = '0x07405eabb4ffd80f219e9689eb733e0176f71750ccea84f31a646f6c96272ffe'
+const poolAddress = '0x18bc9b5aecda3597e3c6d867e0926d8d9e2a98add5b207a34c5ce9cebd743d96'
 
 describe('launch pad Module', () => {
   const sdk = buildSdk()
 
   beforeEach(async () => {
     sendKeypair = buildTestAccount()
-    launchPadKeypair = buildTestAccount()
+    launchPadKeypair = buildWJLaunchPadAccount()
     sdk.Token.updateCache('getAllRegisteredTokenList', tokenList, cacheTime24h)
   })
 
@@ -183,14 +184,14 @@ describe('launch pad Module', () => {
     // find clmm Pool
     let clmmPool: Pool | null = null
     let isOppositeCoinType = false
-    const clmmImmutables = await sdk.Resources.getPoolImmutables()
+    const clmmImmutables = await sdk.Pool.getPoolImmutables()
     for (const item of clmmImmutables) {
       if (
         item.coinTypeA === pool.coin_type_sale &&
         item.coinTypeB === pool.coin_type_raise &&
         Number(item.tickSpacing) === pool.tick_spacing
       ) {
-        clmmPool = await sdk.Resources.getPool(item.poolAddress)
+        clmmPool = await sdk.Pool.getPool(item.poolAddress)
         console.log('clmmPool: ', clmmPool)
         break
       }
@@ -200,7 +201,7 @@ describe('launch pad Module', () => {
         item.coinTypeB === pool.coin_type_sale &&
         Number(item.tickSpacing) === pool.tick_spacing
       ) {
-        clmmPool = await sdk.Resources.getPool(item.poolAddress)
+        clmmPool = await sdk.Pool.getPool(item.poolAddress)
         isOppositeCoinType = true
         console.log('clmmPool: ', clmmPool)
         break
@@ -235,29 +236,6 @@ describe('launch pad Module', () => {
         coin_type_raise: pool.coin_type_raise,
       })
     }
-
-    // const signer = new RawSigner(sendKeypair, sdk.fullClient)
-    // sdk.senderAddress = await signer.getAddress()
-
-    // const pool = await sdk.Launchpad.getPool('0x0cf17df95fe570b195629ee9ad0b5de530558b588575c93099f4b42a4511269e')
-    // const clmmPool = await sdk.Resources.getPool('0x5b95ff6c8e523181b0439c4c74d83e3d220ccd7c554cfc09253d7f4612b5e4cf')
-    // const isOppositeCoinType = false
-    // const sale_decimals = 9
-    // const raise_decimals = 9
-
-    // const payload = await sdk.Launchpad.creatSettlePayload({
-    //   pool_address: pool.pool_address,
-    //   coin_type_sale: pool.coin_type_sale,
-    //   coin_type_raise: pool.coin_type_raise,
-    //   clmm_args: {
-    //     current_price: pool.current_price,
-    //     clmm_pool_address: clmmPool.poolAddress,
-    //     clmm_sqrt_price: clmmPool.current_sqrt_price.toString(),
-    //     opposite: isOppositeCoinType,
-    //     sale_decimals,
-    //     raise_decimals,
-    //   }
-    // })
 
     printTransaction(payload)
     const transferTxn = await sendTransaction(signer, payload)
@@ -367,7 +345,7 @@ describe('launch pad Module', () => {
     const white_config = localPool[0].white_config
 
     if (white_config) {
-      const payload = sdk.Launchpad.updateWhitelistCaPayload({
+      const payload = sdk.Launchpad.updateWhitelistCapPayload({
         pool_address: poolAddress,
         coin_type_raise: pool.coin_type_raise,
         coin_type_sale: pool.coin_type_sale,
@@ -429,14 +407,28 @@ describe('launch pad Module', () => {
   })
 
   test('mint lauchpad token', async () => {
-    await mintAll(sdk, launchPadKeypair, {
-      faucet_display:`0x8258af69b6d71e5f85670ec062a0ff7c5eb4323148e7fbc00950780f1b876ac7`,
-      faucet_router:`0x8258af69b6d71e5f85670ec062a0ff7c5eb4323148e7fbc00950780f1b876ac7`,
-    }, 'faucet', 'faucetAll')
+    await mintAll(sdk, sendKeypair, {
+      faucet_display:`0xa0db1b044ed77172572552909140c6fa255af480a055e6517f40e429c4bbf12f`,
+      faucet_router:`0xa0db1b044ed77172572552909140c6fa255af480a055e6517f40e429c4bbf12f`,
+    }, 'faucet')
   })
 
+  test('1 getPoolConfigs', async () => {
+   const poolConfigs =   await sdk.Launchpad.getPoolConfigs(true)
+   console.log('poolConfigs: ',poolConfigs);
+
+  })
+
+
+  test('2 getPoolConfig', async () => {
+    const poolConfig =   await sdk.Launchpad.getPoolConfig("0x4c0dce55eff2db5419bbd2d239d1aa22b4a400c01bbb648b058a9883989025da")
+    console.log('poolConfig: ',poolConfig);
+
+   })
+
+
   test('isAdminCap', async () => {
-    //  const isAdminCap = await sdk.Launchpad.isAdminCap(launchPadKeypair.getPublicKey().toSuiAddress())
+      const isAdminCap = await sdk.Launchpad.isAdminCap(launchPadKeypair.getPublicKey().toSuiAddress())
     //  console.log('isAdminCap: ', isAdminCap)
     //  console.log(TickMath.priceToSqrtPriceX64(d(1).div(2.2),6,6).toString());
     //  console.log(TickMath.sqrtPriceX64ToPrice(new BN("41248173712355948587"),6,9).toNumber());

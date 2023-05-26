@@ -1,4 +1,4 @@
-import { Keypair, normalizeSuiObjectId, normalizeSuiAddress } from '@mysten/sui.js'
+import { normalizeSuiObjectId } from '@mysten/sui.js'
 import { SuiAddressType, SuiStructTag } from '../types/sui'
 import { checkAddress } from './hex'
 import { CoinAssist } from '../math/CoinAssist'
@@ -68,7 +68,7 @@ export function extractStructTagFromType(type: string): SuiStructTag {
     const tag = extractStructTagFromType(_type)
     const structTag: SuiStructTag = {
       ...tag,
-      type_arguments: [...generics],
+      type_arguments: generics.map((item) => extractStructTagFromType(item).source_address),
     }
     structTag.type_arguments = structTag.type_arguments.map((item) => {
       return CoinAssist.isSuiCoin(item) ? item : extractStructTagFromType(item).source_address
@@ -91,45 +91,26 @@ export function extractStructTagFromType(type: string): SuiStructTag {
   return structTag
 }
 
-export function checkAptosType(type: any, options: { leadingZero: boolean } = { leadingZero: true }): boolean {
-  if (typeof type !== 'string') {
-    return false
+export function normalizeCoinType(coinType: string): string {
+  return extractStructTagFromType(coinType).source_address
+}
+
+export function fixSuiObjectId(value: string): string {
+  if (value.toLowerCase().startsWith('0x')) {
+    return normalizeSuiObjectId(value)
   }
+  return value
+}
 
-  let _type = type.replace(/\s/g, '')
-
-  const openBracketsCount = _type.match(/</g)?.length ?? 0
-  const closeBracketsCount = _type.match(/>/g)?.length ?? 0
-
-  if (openBracketsCount !== closeBracketsCount) {
-    return false
-  }
-
-  const genericsString = _type.match(/(<.+>)$/)
-  const generics = genericsString?.[1]?.match(/(\w+::\w+::\w+)(?:<.*?>(?!>))?/g)
-
-  if (generics) {
-    _type = _type.slice(0, _type.indexOf('<'))
-    const validGenerics = generics.every((g) => {
-      const gOpenCount = g.match(/</g)?.length ?? 0
-      const gCloseCount = g.match(/>/g)?.length ?? 0
-      let t = g
-      if (gOpenCount !== gCloseCount) {
-        t = t.slice(0, -(gCloseCount - gOpenCount))
-      }
-
-      return checkAptosType(t, options)
-    })
-
-    if (!validGenerics) {
-      return false
+export function patchFixSuiObjectId(data: any) {
+  // eslint-disable-next-line guard-for-in
+  for (const key in data) {
+    const type = typeof data[key]
+    if (type === 'object') {
+      patchFixSuiObjectId(data[key])
+    } else if (type === 'string') {
+      const value = data[key]
+      data[key] = fixSuiObjectId(value)
     }
   }
-
-  const parts = _type.split('::')
-  if (parts.length !== 3) {
-    return false
-  }
-
-  return checkAddress(parts[0], options) && parts[1].length >= 1 && parts[2].length >= 1
 }

@@ -15,16 +15,15 @@ import {
   PaginationArguments,
   Secp256k1Keypair,
   SuiAddress,
-  SuiObjectDataFilter,
   SuiObjectDataOptions,
   SuiObjectResponse,
   SuiObjectResponseQuery,
 } from '@mysten/sui.js'
 import BN from 'bn.js'
 import { fromB64, fromHEX } from '@mysten/bcs'
+import { ClmmPositionStatus, Pool, Position, PositionReward, Rewarder } from '../types'
 import { MathUtil } from '../math'
 import { NFT, SuiObjectIdType } from '../types/sui'
-import { Pool, Position, Rewarder, PositionReward, PositionStatus } from '../modules/resourcesModule'
 import { extractStructTagFromType } from './contracts'
 import { TickData } from '../types/clmmpool'
 import { d, decimalsMultiplier } from './numbers'
@@ -111,7 +110,10 @@ export function buildPool(objects: SuiObjectResponse): Pool {
     fee_rate: fields.fee_rate,
     is_pause: fields.is_pause,
     liquidity: fields.liquidity,
-    positions_handle: fields.position_manager.fields.positions.fields.id.id,
+    position_manager: {
+      positions_handle: fields.position_manager.fields.positions.fields.id.id,
+      size: fields.position_manager.fields.positions.fields.size,
+    },
     rewarder_infos: rewarders,
     rewarder_last_updated_time: fields.rewarder_manager.fields.last_updated_time,
     tickSpacing: fields.tick_spacing,
@@ -156,7 +158,7 @@ export function buildPosition(objects: SuiObjectResponse): Position {
     fee_owed_a: '0',
     fee_growth_inside_b: '0',
     fee_owed_b: '0',
-    position_status: PositionStatus.Exists,
+    position_status: ClmmPositionStatus.Exists,
   }
 
   let fields = getObjectFields(objects) as ObjectContentFields
@@ -197,19 +199,19 @@ export function buildPosition(objects: SuiObjectResponse): Position {
       fee_owed_a: '0',
       fee_growth_inside_b: '0',
       fee_owed_b: '0',
-      position_status: PositionStatus.Exists,
+      position_status: ClmmPositionStatus.Exists,
     }
   }
 
   const deletedResponse = getObjectDeletedResponse(objects)
   if (deletedResponse) {
     position.pos_object_id = deletedResponse.objectId
-    position.position_status = PositionStatus.Deleted
+    position.position_status = ClmmPositionStatus.Deleted
   }
   const objectNotExistsResponse = getObjectNotExistsResponse(objects)
   if (objectNotExistsResponse) {
     position.pos_object_id = objectNotExistsResponse
-    position.position_status = PositionStatus.NotExists
+    position.position_status = ClmmPositionStatus.NotExists
   }
 
   return position
@@ -224,7 +226,7 @@ export function buildPositionReward(fields: any): PositionReward {
     reward_growth_inside_1: '0',
     reward_growth_inside_2: '0',
   }
-
+  fields = 'fields' in fields ? fields.fields : fields
   fields.rewards.forEach((item: any, index: number) => {
     const { amount_owned, growth_inside } = 'fields' in item ? item.fields : item
     if (index === 0) {
@@ -347,6 +349,32 @@ export async function getOwnedObjects(
       ...params,
       cursor,
     })
+    if (res.data) {
+      result = [...result, ...res.data]
+      if (res.hasNextPage) {
+        cursor = res.nextCursor
+      } else {
+        break
+      }
+    } else {
+      break
+    }
+  }
+
+  return { data: result }
+}
+
+export async function getDynamicFields(sdk: SDK, parentId: SuiObjectIdType): Promise<any> {
+  let result: any = []
+  let cursor = null
+
+  while (true) {
+    // eslint-disable-next-line no-await-in-loop
+    const res: any = await sdk.fullClient.getDynamicFields({
+      parentId,
+      cursor,
+    })
+
     if (res.data) {
       result = [...result, ...res.data]
       if (res.hasNextPage) {

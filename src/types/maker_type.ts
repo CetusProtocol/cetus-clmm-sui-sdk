@@ -1,9 +1,7 @@
-import { CoinPairType, Position } from '../modules/resourcesModule'
+import { CoinPairType, Position } from './clmm_type'
 import { SuiAddressType, SuiObjectIdType } from './sui'
 
 export const MakerRouterModule = 'router'
-
-export const CONFIG_PERCENT_MULTIPER = 10000
 
 export type MakerInitEvent = {
   maker_config_id: SuiObjectIdType
@@ -78,7 +76,7 @@ export type PoolBonusInfo = {
   redeemed_num: string
 }
 
-export type ClaimParams = {
+export type ClaimMakerParams = {
   market_pool_id: SuiObjectIdType
   position_nft_id: SuiObjectIdType
   ve_nft_id: SuiObjectIdType

@@ -1,91 +1,34 @@
 /* eslint-disable camelcase */
 import BN from 'bn.js'
 import { TransactionBlock } from '@mysten/sui.js'
+import {
+  CalculateRatesParams,
+  CalculateRatesResult,
+  Pool,
+  PreSwapParams,
+  PreSwapWithMultiPoolParams,
+  SwapParams,
+  TransPreSwapWithMultiPoolParams,
+} from '../types'
 import { Percentage, U64_MAX, ZERO } from '../math'
 import { findAdjustCoin, TransactionUtil } from '../utils/transaction-util'
 import { extractStructTagFromType } from '../utils/contracts'
-import { ClmmFetcherModule, SuiObjectIdType } from '../types/sui'
+import { ClmmFetcherModule } from '../types/sui'
 import { TickData, transClmmpoolDataWithoutTicks } from '../types/clmmpool'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
-import { CachedContent } from '../utils/cachedContent'
 import { SwapUtils } from '../math/swap'
 import { computeSwap } from '../math/clmm'
 import { TickMath } from '../math/tick'
-import { CoinPairType, Pool } from './resourcesModule'
 
 export const AMM_SWAP_MODULE = 'amm_swap'
 export const POOL_STRUCT = 'Pool'
 
-export type createTestTransferTxPayloadParams = {
-  account: string
-  value: number
-}
-
-export type CalculateRatesParams = {
-  decimalsA: number
-  decimalsB: number
-  a2b: boolean
-  byAmountIn: boolean
-  amount: BN
-  swapTicks: Array<TickData>
-  currentPool: Pool
-}
-
-export type CalculateRatesResult = {
-  estimatedAmountIn: BN
-  estimatedAmountOut: BN
-  estimatedEndSqrtPrice: BN
-  estimatedFeeAmount: BN
-  isExceed: boolean
-  extraComputeLimit: number
-  aToB: boolean
-  byAmountIn: boolean
-  amount: BN
-  priceImpactPct: number
-}
-
-export type SwapParams = {
-  pool_id: SuiObjectIdType
-  a2b: boolean
-  by_amount_in: boolean
-  amount: string
-  amount_limit: string
-  swap_partner?: string
-} & CoinPairType
-
-export type PreSwapParams = {
-  pool: Pool
-  current_sqrt_price: number
-  decimalsA: number
-  decimalsB: number
-  a2b: boolean
-  by_amount_in: boolean
-  amount: string
-} & CoinPairType
-
-export type PreSwapWithMultiPoolParams = {
-  poolAddresses: string[]
-  decimalsA: number
-  decimalsB: number
-  a2b: boolean
-  byAmountIn: boolean
-  amount: string
-} & CoinPairType
-
-export type TransPreSwapWithMultiPoolParams = {
-  poolAddress: string
-  decimalsA: number
-  decimalsB: number
-  a2b: boolean
-  byAmountIn: boolean
-  amount: string
-} & CoinPairType
-
+/**
+ * Helper class to help interact with clmm pool swap with a swap router interface.
+ */
 export class SwapModule implements IModule {
   protected _sdk: SDK
-
-  private readonly _cache: Record<string, CachedContent> = {}
 
   constructor(sdk: SDK) {
     this._sdk = sdk
@@ -95,6 +38,12 @@ export class SwapModule implements IModule {
     return this._sdk
   }
 
+  /**
+   * Performs a pre-swap with multiple pools.
+   *
+   * @param {PreSwapWithMultiPoolParams} params The parameters for the pre-swap.
+   * @returns {Promise<SwapWithMultiPoolData>} A promise that resolves to the swap data.
+   */
   async preSwapWithMultiPool(params: PreSwapWithMultiPoolParams) {
     const { clmm, simulationAccount } = this.sdk.sdkOptions
     const tx = new TransactionBlock()
@@ -150,18 +99,22 @@ export class SwapModule implements IModule {
     return this.transformSwapWithMultiPoolData(
       {
         poolAddress: params.poolAddresses[tempIndex],
-        decimalsA: params.decimalsA,
-        decimalsB: params.decimalsB,
         a2b: params.a2b,
         byAmountIn: params.byAmountIn,
         amount: params.amount,
         coinTypeA: params.coinTypeA,
         coinTypeB: params.coinTypeB,
       },
-      valueData[tempIndex].parsedJson.data
+      valueData[tempIndex].parsedJson
     )
   }
 
+  /**
+   * Performs a pre-swap.
+   *
+   * @param {PreSwapParams} params The parameters for the pre-swap.
+   * @returns {Promise<SwapData>} A promise that resolves to the swap data.
+   */
   async preswap(params: PreSwapParams) {
     const { clmm, simulationAccount } = this.sdk.sdkOptions
 
@@ -186,7 +139,6 @@ export class SwapModule implements IModule {
     if (valueData.length === 0) {
       return null
     }
-    // console.log('preswap###simulateRes####', valueData[0])
     return this.transformSwapData(params, valueData[0].parsedJson.data)
   }
 
@@ -208,13 +160,15 @@ export class SwapModule implements IModule {
   }
 
   // eslint-disable-next-line class-methods-use-this
-  private transformSwapWithMultiPoolData(params: TransPreSwapWithMultiPoolParams, data: any) {
+  private transformSwapWithMultiPoolData(params: TransPreSwapWithMultiPoolParams, jsonData: any) {
+    const { data } = jsonData
     const estimatedAmountIn = data.amount_in && data.fee_amount ? new BN(data.amount_in).add(new BN(data.fee_amount)).toString() : ''
     return {
       poolAddress: params.poolAddress,
       estimatedAmountIn,
       estimatedAmountOut: data.amount_out,
       estimatedEndSqrtPrice: data.after_sqrt_price,
+      estimatedStartSqrtPrice: jsonData.current_sqrt_price,
       estimatedFeeAmount: data.fee_amount,
       isExceed: data.is_exceed,
       amount: params.amount,
@@ -223,7 +177,13 @@ export class SwapModule implements IModule {
     }
   }
 
-  /* eslint-disable class-methods-use-this */
+  /**
+   * Calculates the rates for a swap.
+   *
+   * @param {CalculateRatesParams} params The parameters for the calculation.
+   * @returns {CalculateRatesResult} The results of the calculation.
+   */
+  // eslint-disable-next-line class-methods-use-this
   calculateRates(params: CalculateRatesParams): CalculateRatesResult {
     const { currentPool } = params
     const poolData = transClmmpoolDataWithoutTicks(currentPool)
@@ -307,7 +267,7 @@ export class SwapModule implements IModule {
     if (this._sdk.senderAddress.length === 0) {
       throw Error('this config sdk senderAddress is empty')
     }
-    const allCoinAsset = await this._sdk.Resources.getOwnerCoinAssets(this._sdk.senderAddress)
+    const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
 
     if (gasEstimateArg) {
       const { isAdjustCoinA, isAdjustCoinB } = findAdjustCoin(params)

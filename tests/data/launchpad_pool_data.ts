@@ -1,34 +1,60 @@
 import { d } from '../../src/utils/numbers'
-import { faucetObjectId } from './init_test_data'
+const faucetObjectId = "0x8258af69b6d71e5f85670ec062a0ff7c5eb4323148e7fbc00950780f1b876ac7"
 // least_raise_amount < softcap < hardcap
 export const creatPoolList = [
   {
-    coin_type_sale: `${faucetObjectId}::usdt::USDT`,
-    coin_type_raise : `${faucetObjectId}::usdc::USDC`,
-    sale_decimals: 6,
-    raise_decimals: 6,
+    coin_type_sale: `${faucetObjectId}::testa::TESTA`,
+    coin_type_raise : `${faucetObjectId}::testb::TESTB`,
+    sale_decimals: 9,
+    raise_decimals: 9,
     initialize_price: 1.1,
-    sale_total: 10 * 1_000_000 ,
-    min_purchase: 1_000_000,
-    max_purchase: 30_000_000,
-    least_raise_amount: 3_000_000,
-    softcap: 4_000_000, // sale_total* initialize_price
-    hardcap: 28_000_000,
+    sale_total: 10 * 1_000_000_000,
+    min_purchase: 1_000_000_000,
+    max_purchase: 10_000_000_000,
+    least_raise_amount: 3_000_000_000,
+    softcap: 11_000_000_000, // sale_total* initialize_price
+    hardcap: 28_000_000_000,
     liquidity_rate: 0.5,
-    start_time: Number(d(Date.now() / 1000).toFixed(0)) + 1 *60 * 60,
-    activity_duration:  1*60 * 60,
-    settle_duration: 6 * 60 * 60,
-    locked_duration: 2 * 60,
+    start_time: Number(d(Date.now() / 1000).toFixed(0)) + 10 * 60,
+    activity_duration:  1 * 60 * 60,
+    settle_duration: 5 * 60 * 60,
+    locked_duration: 1 * 60,
     tick_spacing: 2,
-    recipient: "",
+    recipient: "0xf751c72f6462d2c2f4434d085076c85c690a51b584d765bb8863669908835f41",
     white_config: {
-      user_addrs: [],
-      each_safe_cap: 0,
-      hard_cap_total: 0
+      user_addrs: ['0xf751c72f6462d2c2f4434d085076c85c690a51b584d765bb8863669908835f41'],
+      safe_limit_amount:  10 * 1_000_000_000,
+      hard_cap_total:  20 * 1_000_000_000
     },
     hasCreat: true,
   },
 
+  {
+    coin_type_sale: `0x8258af69b6d71e5f85670ec062a0ff7c5eb4323148e7fbc00950780f1b876ac7::testa::TESTA`,
+    coin_type_raise : `0x8258af69b6d71e5f85670ec062a0ff7c5eb4323148e7fbc00950780f1b876ac7::usdc::USDC`,
+    sale_decimals: 9,
+    raise_decimals: 6,
+    initialize_price: 1,
+    sale_total: 100 * 1_000_000_00,
+    min_purchase: 1_000_000,
+    max_purchase: 90_000_000,
+    least_raise_amount: 50_000_000,
+    softcap: 11_000_000_00, // sale_total* initialize_price
+    hardcap: 300_000_000,
+    liquidity_rate: 0.5,
+    start_time: Number(1682562600),
+    activity_duration:  14400,
+    settle_duration: 3600,
+    locked_duration: 3600,
+    tick_spacing: 2,
+    recipient: "0xe130507a629c841cce2264971bff486ff94665e0859b184e33ab4943921fdd66",
+    white_config: {
+      user_addrs: ['0x66cb0c0d32a088b64a4a6f9b9d2beb6f39c14fab530b7a6467d7ccc845660b91','0x3b229689e5a26ba559107139794bcc49db38d37867290ac78cfbe9d02a667eda'],
+      safe_limit_amount:0 ,
+      hard_cap_total: 0
+    },
+    hasCreat: true,
+  },
 
 ]
 

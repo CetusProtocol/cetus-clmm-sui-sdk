@@ -1,5 +1,5 @@
 import { mainnet } from './mainnet_config'
-import { testnet } from './testnet_config';
+import { testnet } from './testnet_config'
 
 
 export enum sdkEnv {
@@ -16,5 +16,3 @@ export function buildSdkOptions() {
   }
 
 }
-
-

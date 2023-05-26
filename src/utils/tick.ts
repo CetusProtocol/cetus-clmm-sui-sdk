@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
 import BN from 'bn.js'
+import { Pool } from '../types'
 import { MathUtil } from '../math/utils'
-import { Pool } from '../modules/resourcesModule'
 import { TickData } from '../types/clmmpool'
 import { MIN_TICK_INDEX, MAX_TICK_INDEX } from '../types/constants'
 

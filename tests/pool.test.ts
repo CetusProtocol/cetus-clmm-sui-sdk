@@ -13,50 +13,58 @@ import { ClmmPoolUtil } from '../src/math/clmm'
 import 'isomorphic-fetch'
 import { printTransaction, sendTransaction, TransactionUtil } from '../src/utils/transaction-util'
 import { poolList } from './data/pool_data'
-import { CreatePoolParams } from '../src/modules/poolModule'
+import { CreatePoolParams } from '../src'
 
 describe('Pool Module', () => {
   const sdk = buildSdk()
 
   test('getPoolImmutables', async () => {
-    const poolImmutables = await sdk.Resources.getPoolImmutables()
+    const poolImmutables = await sdk.Pool.getPoolImmutables()
     console.log('getPoolImmutables', poolImmutables, '###length###', poolImmutables.length)
   })
 
   test('getAllPool', async () => {
-   const allPool = await sdk.Resources.getPools([])
+   const allPool = await sdk.Pool.getPools([])
    console.log('getAllPool', allPool,'###length###', allPool.length)
   })
 
   test('getSiginlePool', async () => {
-    const pool = await sdk.Resources.getPool(TokensMapping.USDT_USDC_LP.poolObjectId[0])
+    const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectId[0])
     console.log('pool', pool)
   })
 
-  test('getPositionList', async () => {
-    const res = await sdk.Resources.getPositionList(buildTestAccount().getPublicKey().toSuiAddress(),[TokensMapping.USDT_USDC_LP.poolObjectId[0]])
+  test('get ower position list', async () => {
+    const res = await sdk.Position.getPositionList(buildTestAccount().getPublicKey().toSuiAddress())
     console.log('getPositionList####', res)
   })
 
+  test('get pool position list', async () => {
+    const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectId[0])
+    const res = await sdk.Pool.getPositionList(pool.position_manager.positions_handle)
+    console.log('getPositionList####', res)
+  })
+
+
   test('getPositionById', async () => {
-    const res = await sdk.Resources.getPositionById('0x0e75bdb37804b049f40d43c8314a885d66a5a11755686555286dd62d38754f3b')
+    const res = await sdk.Position.getPositionById('0x74055642637856f8e8ea2a9724be86250a4fa2b87969ba663aabfcf4c99db33c')
     console.log('getPositionById###', res)
   })
 
   test('getSipmlePosition', async () => {
-    const res = await sdk.Resources.getSipmlePosition(position_object_id)
+    const res = await sdk.Position.getSipmlePosition(position_object_id)
     console.log('getPositionList####', res)
   })
 
 
   test('getPositionInfo', async () => {
-    const pool = await sdk.Resources.getPool(TokensMapping.USDT_USDC_LP.poolObjectId[0])
-    const res = await sdk.Resources.getPosition(pool.positions_handle, "0x545d43936d9e8bad18fe4034b39cfbcf664fc79300358b5beedbb76936d3b7e8")
+    //const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectId[0])
+    //const res = await sdk.Position.getPosition(pool.positions_handle, "0x545d43936d9e8bad18fe4034b39cfbcf664fc79300358b5beedbb76936d3b7e8")
+    const res = await sdk.Position.getPosition('0xc203a9d8ffd64dde8e664c9092f39db7a2f4a267709d30be93814a5edb95454f', "0x95838f0ba6cf343689d6b38234d82c7722c57d79deacfb8837aa8aae2958072c")
     console.log('getPosition####', res)
   })
 
   test('fetchPositionRewardList', async () => {
-    const pool = await sdk.Resources.getPool("0xf71b517fe0f57a4e3be5b00a90c40f461058f5ae7a4bb65fe1abf3bfdd20dcf7")
+    const pool = await sdk.Pool.getPool("0xf71b517fe0f57a4e3be5b00a90c40f461058f5ae7a4bb65fe1abf3bfdd20dcf7")
     const res = await sdk.Pool.fetchPositionRewardList({
       pool_id: pool.poolAddress,
       coinTypeA: pool.coinTypeA,
@@ -92,7 +100,7 @@ describe('Pool Module', () => {
     const creatPoolTransactionPayload = await sdk.Pool.creatPoolsTransactionPayload(paramss)
 
     printTransaction(creatPoolTransactionPayload)
-    const transferTxn = await sendTransaction(signer,creatPoolTransactionPayload,true)
+    const transferTxn = await sendTransaction(signer,creatPoolTransactionPayload)
     console.log('doCreatPool: ', transferTxn)
   })
 
@@ -147,7 +155,6 @@ describe('Pool Module', () => {
   test('add_fee_tier', async () => {
     const signer = new RawSigner(buildWJLaunchPadAccount(), sdk.fullClient)
     const tx = new TransactionBlock()
-    tx.setGasBudget(sdk.gasConfig.GasBudgetLow)
     const args = [tx.pure(sdk.sdkOptions.clmm.config!.global_config_id), tx.pure('2'), tx.pure('1')]
 
     tx.moveCall({
@@ -157,12 +164,5 @@ describe('Pool Module', () => {
     })
     const transferTxn = await sendTransaction(signer, tx)
     console.log('add_fee_tier: ', transferTxn)
-  })
-
-  /** -----------------------helper function--------------------------- */
-
-  test('getCreatePartnerEvent', async () => {
-    const initEvent = await sdk.Resources.getCreatePartnerEvent()
-    console.log('getCreatePartnerEvent', initEvent)
   })
 })

@@ -1,8 +1,7 @@
-import { Ed25519Keypair, getTransactionEffects, RawSigner, SuiEventFilter, TransactionBlock } from  '@mysten/sui.js'
-import {  buildSdk, buildTestAccount, buildTestAccount1, generateAccount } from './data/init_test_data'
+import { Ed25519Keypair, RawSigner, } from  '@mysten/sui.js'
+import { buildSdk, buildTestAccount } from './data/init_test_data'
 import 'isomorphic-fetch';
-import { printTransaction, sendTransaction } from '../src/utils/transaction-util';
-import { ClmmIntegratePoolModule } from '../src/types/sui';
+import { sendTransaction, TransactionUtil } from '../src/utils/transaction-util';
 import { TxBlock } from '../src/utils/tx-block';
 
 describe('account Module', () => {
@@ -13,31 +12,14 @@ describe('account Module', () => {
     sendKeypair = buildTestAccount()
   })
 
-  test('getObject', async () => {
-
-    // const allCoinAsset = await sdk.fullClient.queryEvents({query : {
-    //   All: [{
-    //     MoveEventType :"0x97beea70a45eae73f1112bfced9014dc488b3df7076240e8ca4ea7ce31340762::factory::InitFactoryEvent"
-    //   },
-    //   {
-    //     MoveEventType :"0x97beea70a45eae73f1112bfced9014dc488b3df7076240e8ca4ea7ce31340762::partner::InitPartnerEvent"
-    //   },
-    //   {
-    //     MoveEventType :"0x97beea70a45eae73f1112bfced9014dc488b3df7076240e8ca4ea7ce31340762::config::InitConfigEvent"
-    //   }]
-    // }})
-
-    // console.log('allCoinAsset: ', allCoinAsset.data)
-  })
-
 
   test('getOwnerCoinAssets', async () => {
-    const allCoinAsset = await sdk.Resources.getOwnerCoinAssets("0x5f9d2fb717ba2433f7723cf90bdbf90667001104915001d0af0cccb52b67c1e8")
+    const allCoinAsset = await sdk.Clmm.getOwnerCoinAssets("0x8e1b7198809a002e91edf2cb2bed5fff80e9eaf7d77fb1b0a86679d8fb42c3b9")
     console.log('allCoinAsset: ', allCoinAsset)
   })
 
   test('fetch coinAssets for coinType', async () => {
-    const allCoinAsset = await sdk.Resources.getOwnerCoinAssets(sendKeypair.getPublicKey().toSuiAddress(), '0x2::sui::SUI')
+    const allCoinAsset = await sdk.Clmm.getOwnerCoinAssets(sendKeypair.getPublicKey().toSuiAddress(), '0x2::sui::SUI')
     console.log('allCoinAsset: ', allCoinAsset)
   })
 
@@ -75,10 +57,24 @@ describe('account Module', () => {
   test('transferObjects', async () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const tx = new TxBlock()
-    const recipient = "0x660ea6bc10f2d6c2d40b829850ab746a6ad93c2674537c71e21809b0486254c6"
-    tx.transferObjects(["0xf23891529b0e725e578f6a9900934e6eae09616d922c0b39a8d570338493f738"], recipient)
+    const recipient = "0xe130507a629c841cce2264971bff486ff94665e0859b184e33ab4943921fdd66"
+    tx.transferObjects(["0xe1a542cc773befd52740e36612b31c1c6d25e1fe226a7a46d1b7845a4c5ce5b5"], recipient)
 
     const resultTxn = await sendTransaction(signer,tx.txBlock)
+    console.log(resultTxn);
+  })
+
+
+  test('mint zero coin', async () => {
+    const signer = new RawSigner(sendKeypair, sdk.fullClient)
+    const tx = new TxBlock()
+    const recipient = sendKeypair.getPublicKey().toSuiAddress()
+
+    const zeroCoin = TransactionUtil.moveCallCoinZero(tx.txBlock,"0xdc612ad030d4db39334d8e38a99fc6a49fc85b74c036839f13803beae66c6164::cetus::CETUS")
+
+    tx.transferObjects([zeroCoin], recipient)
+
+    const resultTxn = await sendTransaction(signer, tx.txBlock)
     console.log(resultTxn);
   })
 })

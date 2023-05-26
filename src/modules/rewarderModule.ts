@@ -4,28 +4,17 @@
 /* eslint-disable camelcase */
 import BN from 'bn.js'
 import { TransactionBlock } from '@mysten/sui.js'
-import { type } from 'superstruct'
-import { asIntN, asUintN } from '../utils'
-import { ClmmIntegratePoolModule, SuiAddressType, SuiObjectIdType, CLOCK_ADDRESS } from '../types/sui'
+import { ClmmIntegratePoolModule, CLOCK_ADDRESS } from '../types/sui'
 import { getRewardInTickRange } from '../utils/tick'
 import { MathUtil, ONE, ZERO } from '../math/utils'
-import { CoinPairType, Pool, Position } from './resourcesModule'
 import { TickData } from '../types/clmmpool'
 import { SDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
+import { CollectRewarderParams, Pool, Position, PositionReward, RewarderAmountOwed } from '../types'
 
-export type CollectRewarderParams = {
-  pool_id: SuiObjectIdType
-  pos_id: SuiObjectIdType
-  collect_fee: boolean //
-  rewarder_coin_types: SuiAddressType[]
-} & CoinPairType
-
-export type RewarderAmountOwed = {
-  amount_owed: BN
-  coin_address: string
-}
-
+/**
+ * Helper class to help interact with clmm position rewaeder with a rewaeder router interface.
+ */
 export class RewarderModule implements IModule {
   protected _sdk: SDK
 
@@ -40,9 +29,14 @@ export class RewarderModule implements IModule {
     return this._sdk
   }
 
-  // `emissionsEveryDay` returns the number of emissions every day.
+  /**
+   * Gets the emissions for the given pool every day.
+   *
+   * @param {string} poolObjectId The object ID of the pool.
+   * @returns {Promise<Array<{emissions: number, coinAddress: string}>>} A promise that resolves to an array of objects with the emissions and coin address for each rewarder.
+   */
   async emissionsEveryDay(poolObjectId: string) {
-    const currentPool: Pool = await this.sdk.Resources.getPool(poolObjectId)
+    const currentPool: Pool = await this.sdk.Pool.getPool(poolObjectId)
     const rewarderInfos = currentPool.rewarder_infos
     if (!rewarderInfos) {
       return null
@@ -60,9 +54,16 @@ export class RewarderModule implements IModule {
     return emissionsEveryDay
   }
 
+  /**
+   * Updates the rewarder for the given pool.
+   *
+   * @param {string} poolObjectId The object ID of the pool.
+   * @param {BN} currentTime The current time in seconds since the Unix epoch.
+   * @returns {Promise<Pool>} A promise that resolves to the updated pool.
+   */
   async updatePoolRewarder(poolObjectId: string, currentTime: BN): Promise<Pool> {
     // refresh pool rewarder
-    const currentPool: Pool = await this.sdk.Resources.getPool(poolObjectId)
+    const currentPool: Pool = await this.sdk.Pool.getPool(poolObjectId)
     const lastTime = currentPool.rewarder_last_updated_time
     currentPool.rewarder_last_updated_time = currentTime.toString()
 
@@ -86,10 +87,18 @@ export class RewarderModule implements IModule {
     return currentPool
   }
 
+  /**
+   * Gets the amount owed to the rewarders for the given position.
+   *
+   * @param {string} poolObjectId The object ID of the pool.
+   * @param {string} positionHandle The handle of the position.
+   * @param {string} positionId The ID of the position.
+   * @returns {Promise<Array<{amountOwed: number}>>} A promise that resolves to an array of objects with the amount owed to each rewarder.
+   */
   async posRewardersAmount(poolObjectId: string, positionHandle: string, positionId: string) {
     const currentTime = Date.parse(new Date().toString())
     const pool: Pool = await this.updatePoolRewarder(poolObjectId, new BN(currentTime))
-    const position = await this.sdk.Resources.getPosition(positionHandle, positionId)
+    const position = await this.sdk.Position.getPositionRewarders(positionHandle, positionId)
 
     if (position === undefined) {
       return []
@@ -99,15 +108,22 @@ export class RewarderModule implements IModule {
     const tickLower = await this.sdk.Pool.getTickDataByIndex(ticksHandle, position.tick_lower_index)
     const tickUpper = await this.sdk.Pool.getTickDataByIndex(ticksHandle, position.tick_upper_index)
 
-    const amountOwed = await this.posRewardersAmountInternal(pool, position, tickLower, tickUpper)
+    const amountOwed = this.posRewardersAmountInternal(pool, position, tickLower, tickUpper)
     return amountOwed
   }
 
+  /**
+   * Gets the amount owed to the rewarders for the given account and pool.
+   *
+   * @param {string} account The account.
+   * @param {string} poolObjectId The object ID of the pool.
+   * @returns {Promise<Array<{amountOwed: number}>>} A promise that resolves to an array of objects with the amount owed to each rewarder.
+   */
   async poolRewardersAmount(account: string, poolObjectId: string) {
     const currentTime = Date.parse(new Date().toString())
     const pool: Pool = await this.updatePoolRewarder(poolObjectId, new BN(currentTime))
 
-    const positions = await this.sdk.Resources.getPositionList(account, [poolObjectId])
+    const positions = await this.sdk.Position.getPositionList(account, [poolObjectId])
     const tickDatas = await this.getPoolLowerAndUpperTicks(pool.ticks_handle, positions)
 
     const rewarderAmount = [ZERO, ZERO, ZERO]
@@ -123,7 +139,7 @@ export class RewarderModule implements IModule {
     return rewarderAmount
   }
 
-  private posRewardersAmountInternal(pool: Pool, position: Position, tickLower: TickData, tickUpper: TickData): RewarderAmountOwed[] {
+  private posRewardersAmountInternal(pool: Pool, position: PositionReward, tickLower: TickData, tickUpper: TickData): RewarderAmountOwed[] {
     const tickLowerIndex = position.tick_lower_index
     const tickUpperIndex = position.tick_upper_index
     const rewardersInside = getRewardInTickRange(pool, tickLower, tickUpper, tickLowerIndex, tickUpperIndex, this.growthGlobal)
@@ -204,7 +220,6 @@ export class RewarderModule implements IModule {
     const typeArguments = [params.coinTypeA, params.coinTypeB]
 
     const tx = new TransactionBlock()
-    tx.setGasBudget(this._sdk.gasConfig.GasBudgetLow)
 
     if (params.collect_fee) {
       tx.moveCall({

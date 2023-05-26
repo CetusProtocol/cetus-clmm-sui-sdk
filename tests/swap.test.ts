@@ -1,10 +1,8 @@
-import { Ed25519Keypair, getTransactionEffects, ObjectId, RawSigner } from '@mysten/sui.js'
+import { Ed25519Keypair, RawSigner } from '@mysten/sui.js'
 import BN from 'bn.js'
 import { buildSdk, buildTestAccount, buildTestPool, TokensMapping } from './data/init_test_data'
-import { CoinAsset } from '../src/modules/resourcesModule'
-import { CoinAssist } from '../src/math/CoinAssist'
 import 'isomorphic-fetch';
-import { printTransaction, sendTransaction, TransactionUtil } from '../src/utils/transaction-util'
+import { printTransaction, sendTransaction } from '../src/utils/transaction-util'
 import { adjustForSlippage, d, Percentage } from '../src'
 
 let sendKeypair: Ed25519Keypair
@@ -86,8 +84,6 @@ describe('Swap calculate Module', () => {
       poolAddresses: poolAddresses,
       coinTypeA: pool0.coinTypeA,
       coinTypeB: pool0.coinTypeB,
-      decimalsA: 6,
-      decimalsB: 6,
       a2b,
       byAmountIn,
       amount,
@@ -111,12 +107,11 @@ describe('Swap calculate Module', () => {
     console.log('preswap###res###', resWithMultiPool)
   })
 
-
   test('preswap', async () => {
     const a2b = true
-    const pool = await buildTestPool(sdk, TokensMapping.USDT_USDC_LP.poolObjectId[0])
-    const byAmountIn = true
-    const amount = '10000000'
+    const pool = await buildTestPool(sdk, "0xccf8fe1a4ae49e60757e807e4750b595062631ae2d19d33458d30e9e467631d4")
+    const byAmountIn = false
+    const amount = '11111000000'
 
     const res: any = await sdk.Swap.preswap({
       pool: pool,
@@ -124,7 +119,7 @@ describe('Swap calculate Module', () => {
       coinTypeA: pool.coinTypeA,
       coinTypeB: pool.coinTypeB,
       decimalsA: 6,
-      decimalsB: 6,
+      decimalsB: 8,
       a2b,
       by_amount_in: byAmountIn,
       amount,
@@ -145,18 +140,19 @@ describe('Swap Module', () => {
   test('swap', async () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
 
-    const a2b = true
-// 9667200
+    const a2b = false
     const byAmountIn = true
-    const amount = new BN(10000)
+    const amount = new BN('1664')
     const slippage = Percentage.fromDecimal(d(0.1))
-    const poolObjectId = "0xcfa5914edd8ed9e60006e36dd01d880ffc65acdc13a67d2432b66855b3e1b6ba"
+    const poolObjectId = "0x1b9b4f2271bc69df97ddafcb3f64599ca0de05cb94d5bb1386693559afdf1757"
 
     const currentPool = await buildTestPool(sdk, poolObjectId)
+    console.log("currentPool: ",currentPool);
+
 
     const tickdatas = await sdk.Pool.fetchTicksByRpc(currentPool.ticks_handle)
 
-    const decimalsA = 6
+    const decimalsA = 8
     const decimalsB = 9
     const calculateRatesParams = {
       decimalsA,
@@ -179,9 +175,7 @@ describe('Swap Module', () => {
       byAmountIn,
     })
 
-
     const toAmount = byAmountIn ? res.estimatedAmountOut : res.estimatedAmountIn
-
 
     const amountLimit =  adjustForSlippage(toAmount,slippage,!byAmountIn)
 
@@ -195,7 +189,7 @@ describe('Swap Module', () => {
       amount_limit: amountLimit.toString(),
       coinTypeA: currentPool.coinTypeA,
       coinTypeB: currentPool.coinTypeB,
-    },{
+    }, {
       byAmountIn,
       slippage,
       decimalsA,
@@ -205,7 +199,7 @@ describe('Swap Module', () => {
     })
 
     printTransaction(swapPayload)
-    const transferTxn = await sendTransaction(signer,swapPayload)
+    const transferTxn = await sendTransaction(signer,swapPayload,false)
     console.log('swap: ', transferTxn)
   })
 })
