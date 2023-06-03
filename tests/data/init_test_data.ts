@@ -94,7 +94,7 @@ export async function buildTestPosition(sdk: SDK, posObjectId: string) {
 
 // 0xcd0247d0b67e53dde69b285e7a748e3dc390e8a5244eb9dd9c5c53d95e4cf0aa
 export function buildTestAccount(): Ed25519Keypair {
-  const mnemonics = 'garden naive sibling glow thumb spawn spare claw nasty choice hero south'
+  const mnemonics = ''
   const testAccountObject = Ed25519Keypair.deriveKeypair(mnemonics)
   console.log(' Address: ', testAccountObject.getPublicKey().toSuiAddress())
 
@@ -103,36 +103,39 @@ export function buildTestAccount(): Ed25519Keypair {
 
 
 export function buildTestAccount2(): Ed25519Keypair {
-  const mnemonics = 'brain awful gentle history because detail undo squeeze night lend news pull'
+  // Please enter your test account secret or mnemonics
+  const mnemonics = ''
   const testAccountObject = Ed25519Keypair.deriveKeypair(mnemonics)
   console.log('toSuiAddress', testAccountObject.getPublicKey().toSuiAddress())
   return testAccountObject
 }
 
-// daidai 0xe0c0bb644ffa16ea656a5e36c265f3d7c24001baf8ef152d7ecff280e66665b5
 export function buildTestAccount3(): Ed25519Keypair {
-  const mnemonics = 'analyst tower pave same control sand denial equal online turtle erode result'
+  // Please enter your test account secret or mnemonics
+  const mnemonics = ''
   const testAccountObject = Ed25519Keypair.deriveKeypair(mnemonics)
   console.log('toSuiAddress', testAccountObject.getPublicKey().toSuiAddress())
   return testAccountObject
 }
 
-// 6d49ddaaacf57fc92a2bd0f4d30da78b23f03772
 export function buildWJLaunchPadAccount(): Ed25519Keypair {
-  const testAccountObject = secretKeyToEd25519Keypair("b05df387a460bee9fdc96e30068faf2956316696e4ffc1b0717733e2f22a6c05")
+  // Please enter your test account secret or mnemonics
+  const testAccountObject = secretKeyToEd25519Keypair("")
   console.log('wj Address: ', testAccountObject.getPublicKey().toSuiAddress())
   return testAccountObject
 }
 
 export function buildWJLaunchPadAccountLocal(): Ed25519Keypair {
-  const testAccountObject = secretKeyToEd25519Keypair("d8f0e38dcd1c649225c039d9cf7acce62f6b61bc623b9429a2d306edbbf9224b")
+  // Please enter your test account secret or mnemonics
+  const testAccountObject = secretKeyToEd25519Keypair("")
   console.log('wj Address local: ', testAccountObject.getPublicKey().toSuiAddress())
   return testAccountObject
 }
 
 
 export function buildSKAccount(): Ed25519Keypair {
-  const testAccountObject = secretKeyToEd25519Keypair("ac9b1e48ac96ac187b952b1c6f4094e2d00ba8f4f4dedd9906d8ea39a4d98042")
+  // Please enter your test account secret or mnemonics
+  const testAccountObject = secretKeyToEd25519Keypair("")
   console.log('sk Address: ', testAccountObject.getPublicKey().toSuiAddress())
   return testAccountObject
 }
