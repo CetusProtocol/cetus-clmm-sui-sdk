@@ -14,7 +14,7 @@ describe('account Module', () => {
 
 
   test('getOwnerCoinAssets', async () => {
-    const allCoinAsset = await sdk.Clmm.getOwnerCoinAssets("0x8e1b7198809a002e91edf2cb2bed5fff80e9eaf7d77fb1b0a86679d8fb42c3b9")
+    const allCoinAsset = await sdk.Clmm.getOwnerCoinAssets("xx")
     console.log('allCoinAsset: ', allCoinAsset)
   })
 
@@ -36,7 +36,7 @@ describe('account Module', () => {
   test('transferSui', async () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const tx = new TxBlock()
-    const recipient = "0xf751c72f6462d2c2f4434d085076c85c690a51b584d765bb8863669908835f41"
+    const recipient = "xx"
     tx.transferSui(recipient,3 * 1_000_000_000)
     const resultTxn = await sendTransaction(signer,tx.txBlock)
     console.log(resultTxn);
@@ -46,8 +46,8 @@ describe('account Module', () => {
   test('transferCoin', async () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const tx = new TxBlock()
-    const recipient = "0x302b9f2417679def5f3665cfeeb48438d47bc54dd4f6250f803f79fb697bc31d"
-    tx.transferCoin(recipient,500 * 1_000_000_000,["0xb35c4a85849f33fc196de235ac0d285a5d93b196954b2fe505c6b0ccc48e747d"])
+    const recipient = "xx"
+    tx.transferCoin(recipient,500 * 1_000_000_000,["xx"])
 
     const resultTxn = await sendTransaction(signer,tx.txBlock)
     console.log(resultTxn);
@@ -57,8 +57,8 @@ describe('account Module', () => {
   test('transferObjects', async () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const tx = new TxBlock()
-    const recipient = "0xe130507a629c841cce2264971bff486ff94665e0859b184e33ab4943921fdd66"
-    tx.transferObjects(["0xe1a542cc773befd52740e36612b31c1c6d25e1fe226a7a46d1b7845a4c5ce5b5"], recipient)
+    const recipient = "xx"
+    tx.transferObjects(["xx"], recipient)
 
     const resultTxn = await sendTransaction(signer,tx.txBlock)
     console.log(resultTxn);

@@ -92,8 +92,8 @@ export async function buildTestPosition(sdk: SDK, posObjectId: string) {
 }
 
 
-// 0xcd0247d0b67e53dde69b285e7a748e3dc390e8a5244eb9dd9c5c53d95e4cf0aa
 export function buildTestAccount(): Ed25519Keypair {
+  // Please enter your test account secret or mnemonics
   const mnemonics = ''
   const testAccountObject = Ed25519Keypair.deriveKeypair(mnemonics)
   console.log(' Address: ', testAccountObject.getPublicKey().toSuiAddress())
