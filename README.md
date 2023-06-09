@@ -1,28 +1,89 @@
 # cetus-sdk
 
-- The typescript SDK for [cetus-clmm](https://git.cplus.link/cetus/cetus-clmm).
+## Intro
+
+- The typescript SDK for [cetus-clmm](https://git.cplus.link/cetus/cetus-clmm).It encompasses all open-source functionalities interacting with the Cetus CLMM contract.
 - A more structured code example for this guide can be found [here](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/tree/main/tests)
 
-### Install
+## Prerequisites
 
+- Node.js 18+
 - Our published package can be found here [NPM](https://www.npmjs.com/package/@cetusprotocol/cetus-sui-clmm-sdk).
-- To install the cetus-sui-clmm-sdk, simply add @cetusprotocol/cetus-sui-clmm-sdk into your package.json
 
 ```bash
 yarn add @cetusprotocol/cetus-sui-clmm-sdk
-```
-
-Or
-
-```bash
+or
 npm  install @cetusprotocol/cetus-sui-clmm-sdk
 ```
 
-### Usage
+## Usage
+
+### Relevant mathematical methods
+
+#### 1. Calculate the amount of position coin_a and coin_b
+
+use `/src/math/clmm.ts ClmmPoolUtil.getCoinAmountFromLiquidity()`
+
+```ts
+const pool = await sdk.Pool.getPool(poolAddress)
+
+const liquidity = new BN(position.liquidity)
+const curSqrtPrice = new BN(pool.current_sqrt_price)
+
+const lowerPrice = TickMath.tickIndexToPrice(position.tick_lower_index)
+const upperPrice = TickMath.tickIndexToPrice(position.tick_upper_index)
+
+const amounts = ClmmClmmPoolUtil.getCoinAmountFromLiquidity(
+  liquidity,
+  curSqrtPrice,
+  lowerPrice,
+  upperPrice,
+  false
+)
+
+const {coinA, coinB} = amounts
+```
+
+#### 2. Calculate price from sqrt price
+
+use `/src/math/tick.ts TickMath.sqrtPriceX64ToPrice()`
+
+```ts
+const pool = await sdk.Pool.getPool(poolAddress)
+const price = TickMath.sqrtPriceX64ToPrice(new BN(pool.current_sqrt_price))
+```
+
+#### 3. Calculate tick index from price
+
+when you want to open position, you dont know how to set your tick_lower and tick_upper.
+use `/src/math/tick.ts TickMath.priceToTickIndex()`
+
+```ts
+// decimalsA and decimalsB means the decimal of coinA and coinB
+const tick_lower = TickMath.priceToTickIndex(price, decimalsA, decimalsB)
+```
+
+#### 4. Calculate price impact in once swap trade
+
+There are no existed function to get price impact, please use the subsequent mathematical formula for the calculation.
+
+<img src="./assert/priceimpact.png" width="450" />
+
+#### 5. Transform type I32 to type number
+
+There are some param is `I32` type, you can transform it by `asInN`. eg: tick.liquidityNet
+
+```ts
+const liquidityNet: new BN(BigInt.asIntN(128, BigInt(BigInt(tick.liquidityNet.toString()))).toString()),
+```
+
+### Interact with cetus contracts
 
 #### 1.SDK configuration parameters
 
 - The contract address available for reference [config.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/data/config.ts).
+- `simulationAccount` Used to simulate trades and obtain tick data.
+- *Notes: Please exercise caution when using a mainnet network account with assets as your `simulationAccount`.*
 
 ```bash
 const SDKConfig = {
@@ -53,13 +114,14 @@ const SDKConfig = {
     },
   }
 }
+
 export const netConfig = {
   testnet: {
     fullRpcUrl: 'https://fullnode.testnet.sui.io',
     faucetURL: '',
     faucet: {
-      faucet_display: '',
-      faucet_router: '',
+     faucet_display: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc',
+     faucet_router: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc',
     },
     simulationAccount: {
       address: '',
@@ -70,10 +132,7 @@ export const netConfig = {
     },
     clmm: {
       clmm_display: '0x0868b71c0cba55bf0faf6c40df8c179c67a4d0ba0e79965b68b3d72d7dfbf666',
-      clmm_router: {
-        cetus: '0x3a86c278225173d4795f44ecf8cfe29326d701be42b57454b05be76ad97227a7',
-        deepbook: '',
-      },
+      clmm_router: '0x3a86c278225173d4795f44ecf8cfe29326d701be42b57454b05be76ad97227a7',
       config: SDKConfig.testnet.clmmConfig,
     }
   },
@@ -85,7 +144,7 @@ export const netConfig = {
       faucet_router: '0xff3004dc90fee6f7027040348563feb866a61c8bb53049cc444c1746db8b218d',
     },
     simulationAccount: {
-      address: '0x326ce9894f08dcaa337fa232641cc34db957aec9ff6614c1186bc9a7508df0bb',
+      address: '',
     },
     token: {
       token_display: '0x481fb627bf18bc93c02c41ada3cc8b574744ef23c9d5e3136637ae3076e71562',
@@ -93,29 +152,44 @@ export const netConfig = {
     },
     clmm: {
       clmm_display: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb',
-      clmm_router: {
-        cetus: '0x2eeaab737b37137b94bfa8f841f92e36a153641119da3456dec1926b9960d9be',
-        deepbook: '',
-      },
+      clmm_router: '0x2eeaab737b37137b94bfa8f841f92e36a153641119da3456dec1926b9960d9be',
       config: SDKConfig.mainnet.clmmConfig,
     },
   }
 }
-
-
 ```
 
-#### 2. Init SDK
+#### 2. Init CetusClmmSDK
+
+- The `CetusClmmSDK`  class provides a set of modules for interacting with the Cetus CLMM pool and positions.
+
+| module name | function|
+| --- | --- | --- |
+| Swap | Providing a swap function and a pre-calculation function before swapping for the CLMM pool. |
+| Pool | Provide CLMM pool related data information, as well as related interface operations based on the pool, such as obtaining pool lists, creating pools, etc. |
+| Position | Provide CLMM position information, as well as interface operations such as opening, adding, removing, and closing positions. |
+| Rewarder | Provide reward information for calculating user CLMM pools and position, as well as interface for harvesting rewards. |
+| Router | CLMM Router function support |
+| Config | Retrieve immutable configuration information related to the CLMM pool and the token |
 
 ```ts
 // init global sdk object
-const sdk = new SDK(netConfig.devnet)
+const sdk = new CetusClmmSDK(netConfig.testnet)
+
 // When connecting the wallet, set the wallet address
 sdk.senderAddress = ""
-
 ```
 
-#### 3. fetch the token list and pool list
+#### 3. Get Global Config
+
+When you need to interactive with cetus clmm contract, you need to pass **global config** first.
+The address of **global config** is fixed.
+
+```ts
+const global_config = sdk.SDKConfig.mainnet.clmmConfig.global_config_id
+```
+
+#### 4. Fetch the token list and pool list
 
 - The token list and pool list contains the token metadata.
 - code example for this guide can be found [token.test.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/token.test.ts)
@@ -141,20 +215,19 @@ const poolList =  await sdk.Token.getWarpPoolList()
 // Fetch  all pools for specify ownerAddress (contains the token metadata)
 const {pool_list_owner, coin_list_owner} = tokenConfig
 const poolList =  await sdk.Token.getOwnerPoolList(pool_list_owner,coin_list_owner)
-
 ```
 
-#### 4. fetch the clmm pool and position
+#### 5. Operate the clmm pool and position
 
 - the clmm pool not contains the token metadata.
 - all liquidity and swap operations are based on clmm pool.
 - code example for this guide can be found [pool.test.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/pool.test.ts)
 
-##### 4.1 fetch the clmm pool and position
+##### 5.1 Fetch the clmm pool and position
 
 ```ts
 //Fetch all clmm pools
-const assignPools = [''] // query assign pool , if is empty else query all pool
+const assignPools = [''] // query assign pool, if it's empty, query all.
 const offset = 0  // optional paging cursor
 const limit = 10  // maximum number of items per page
 const pools = await sdk.Pool.getPools(assignPools, offset, limit)
@@ -173,7 +246,7 @@ sdk.Position.getPosition(pool.positions_handle, position_object_id)
 sdk.Position.getPositionById(position_object_id)
 ```
 
-##### 4.2 create clmm pool and add liquidity
+##### 5.2 Create clmm pool and add liquidity
 
 ```ts
 const signer = new RawSigner(buildTestAccount(), sdk.fullClient)
@@ -224,10 +297,9 @@ const creatPoolPayload = sdk.Pool.creatPoolTransactionPayload({
  // send the transaction
  const transferTxn = await sendTransaction(signer, creatPoolTransactionPayload,true)
  console.log('doCreatPool: ', transferTxn)
-
 ```
 
-##### 4.3 create clmm pool (support batch create)
+##### 5.3 Create clmm pool (support batch create)
 
 ```ts
 const signer = new RawSigner(buildTestAccount(), sdk.fullClient)
@@ -247,16 +319,17 @@ const creatPoolPayload = sdk.Pool.creatPoolTransactionPayload({
   })
 
 const creatPoolTransactionPayload = await sdk.Pool.creatPoolsTransactionPayload([creatPoolPayload])
+
 // send the transaction
 const transferTxn = await sendTransaction(signer, creatPoolTransactionPayload,true)
 console.log('doCreatPool: ', transferTxn)
 ```
 
-#### 5. Liquidity
+#### 6. Liquidity
 
-code example for this guide can be found [position.test.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/position.test.ts)
+- code example for this guide can be found [position.test.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/position.test.ts)
 
-##### 5.1 open position and addLiquidity
+##### 6.1 Open position and add liquidity
 
 ```ts
 const sendKeypair = buildTestAccount()
@@ -283,7 +356,9 @@ const liquidityInput = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
         fix_amount_a,
         true,
         slippage,
-        curSqrtPrice
+        curSqrtPrice，
+        rewarder_coin_types: [], // support collect rewarder by input rewarder coin type
+        collect_fee: false, // Set the flag to indicate whether to collect fee
       )
 // Estimate  token a and token b amount
 const amount_a = fix_amount_a ? coinAmount.toNumber()  : liquidityInput.tokenMaxA.toNumber()
@@ -315,7 +390,7 @@ const addLiquidityPayload = sdk.Position.createAddLiquidityTransactionPayload(
  console.log('open_and_add_liquidity_fix_token: ', transferTxn)
 ```
 
-##### 5.2  addLiquidity
+##### 6.2  Add liquidity
 
 ```ts
 const sendKeypair = buildTestAccount()
@@ -371,7 +446,7 @@ console.log('add_liquidity_fix_token: ', transferTxn)
 
 ```
 
-##### 5.3  removeLiquidity(can control whether collect fee)
+##### 6.3  Remove liquidity(can control whether collect fee)
 
 ```ts
 const sendKeypair = buildTestAccount()
@@ -413,7 +488,7 @@ const transferTxn = await sendTransaction(signer, removeLiquidityTransactionPayl
 console.log('removeLiquidity: ', transferTxn)
 ```
 
-##### 5.4  close position
+##### 6.4  Close position
 
 - Close position and remove all liquidity and collect reward
 
@@ -455,10 +530,9 @@ const closePositionTransactionPayload = sdk.Position.closePositionTransactionPay
 
 const transferTxn = await sendTransaction(signer,closePositionTransactionPayload)
 console.log('close position: ', transferTxn)
-
 ```
 
-##### 5.5  open position
+##### 6.5  Open position
 
 ```ts
 const sendKeypair = buildTestAccount()
@@ -486,10 +560,9 @@ console.log('openPositionTransactionPayload: ', openPositionTransactionPayload)
 
 const transferTxn = (await signer.executeMoveCall(openPositionTransactionPayload)) as SuiExecuteTransactionResponse
 console.log('open position: ', getTransactionEffects(transferTxn))
-
 ```
 
-##### 5.6  collect fee
+##### 5.6  Collect fee
 
 - Provide to the position to collect the fee of the position earned.
 
@@ -513,12 +586,11 @@ const removeLiquidityPayload = (await sdk.Position.collectFeeTransactionPayload(
       ))
 const transferTxn = await sendTransaction(signer,collectFeeTransactionPayload)
 console.log('collect_fee: ', transferTxn)
-
 ```
 
-#### 6. swap
+#### 7. Swap and Pre swap
 
-- This swap example, we show how to do swap about one pair in an exact clmmpool with the amount limit abount input coin or output coin, we should do preswap first, then we set the desired price difference according to the pre-swap results.
+- This swap example, we show how to do swap and pre swap about one pair in an exact clmmpool with the amount limit abount input coin or output coin, we should do preswap first, then we set the desired price difference according to the pre-swap results.
 
 ```ts
 const sendKeypair = buildTestAccount()
@@ -564,7 +636,6 @@ const swapPayload = sdk.Swap.createSwapTransactionPayload(
 
 onst transferTxn = await sendTransaction(signer,swapPayload)
 console.log('swap: ', transferTxn)
-
 ```
 
 - This example we show how to create a swap tx without any limit.
@@ -599,10 +670,9 @@ const swapPayload = sdk.Swap.createSwapTransactionPayload(
 
 onst transferTxn = await sendTransaction(signer,swapPayload)
 console.log('swap: ', transferTxn)
-
 ```
 
-#### 7. collect rewarder
+#### 8. Collect rewarder
 
 - Provide to the position to collect the rewarder of the position earned.
 - code example for this guide can be found [rewarder.test.ts](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/rewarder.test.ts)
@@ -630,10 +700,9 @@ const collectRewarderPayload =  sdk.Rewarder.collectRewarderTransactionPayload(c
 
 const transferTxn = (await signer.signAndExecuteTransactionBlock({transactionBlock:collectRewarderPayload}))
 console.log('result: ', getTransactionEffects(transferTxn))
-
 ```
 
-#### 8. other helper function
+#### 9. Fetch tick
 
 ```ts
 // Fetch tick by index from table
@@ -643,8 +712,81 @@ const tickLower = await sdk.Pool.getTickDataByIndex(ticksHandle,position.tick_lo
 const tickdatas = await sdk.Pool.fetchTicksByRpc(ticksHandle)
 // Fetch all tick data by contart
 const tickdatas = await sdk.Pool.fetchTicks({
-      pool_id: "0x565743e41c830e38ea39416d986ed1806da83f62",
-      coinTypeA: `${faucetObjectId}::usdc::USDC`,
-      coinTypeB: `${faucetObjectId}::usdc::USDT`
-    })
+  pool_id: "0x565743e41c830e38ea39416d986ed1806da83f62",
+  coinTypeA: `${faucetObjectId}::usdc::USDC`,
+  coinTypeB: `${faucetObjectId}::usdc::USDT`
+})
 ```
+
+#### Swap in best Router
+
+Now, we support find best swap router in all cetus pool, (max step is 2)
+All used type in `/src/modules/routerModule.ts`.
+
+```ts
+// get all pool info by `getPool`s.
+const pools = await sdk.Pool.getPools([])
+
+// prepare the data for constructing a transaction path graph.
+const coinMap = new Map()
+const poolMap = new Map()
+
+for (let i = 0; i < pools.length; i += 1) {
+  let coin_a = pools[i].coinTypeA
+  let coin_b = pools[i].coinTypeB
+
+  coinMap.set(coin_a, {
+    address: coin_a,
+    decimals: 9,
+  })
+  coinMap.set(coin_b, {
+    address: coin_b,
+    decimals: 9,
+  })
+
+  const pair = `${coin_a}-${coin_b}`
+  const pathProvider = poolMap.get(pair)
+  if (pathProvider) {
+    pathProvider.addressMap.set(pools[i].fee_rate, pools[i].poolAddress)
+  } else {
+    poolMap.set(pair, {
+      base: coin_a,
+      quote: coin_b,
+      addressMap: new Map([[pools[i].fee_rate, pools[i].poolAddress]]),
+    })
+  }
+}
+
+const coins: CoinProvider = {
+  coins: Array.from(coinMap.values())
+}
+const paths: PathProvider = {
+  paths: Array.from(poolMap.values())
+}
+
+// Load the path graph.
+sdk.Router.loadGraph(coins, paths)
+
+// The first two addresses requiring coin types.
+const byAmountIn = false
+const amount = new BN('1000000000000')
+const result = await sdk.Router.price(ETH, CETUS, amount, byAmountIn, 0.05, '')
+
+// if find the best swap router, then send transaction.
+if (!result?.isExceed) {
+  const allCoinAsset = await sdk.Resources.getOwnerCoinAssets(sdk.senderAddress)
+  const routerPayload = TransactionUtil.buildRouterSwapTransaction(sdk, result!.createTxParams, byAmountIn, allCoinAsset)
+  const signer = new RawSigner(sendKeypair, sdk.fullClient)
+  const transferTxn = await sendTransaction(signer, routerPayload)
+}
+```
+
+### Partner
+
+#### 1. Partner AccountCap
+
+Only verified account are eligible to collect partner ref fees. When creating a partner, we generate an object **partner AccountCap**(you can see it in your NFT list). Only accounts that possess the AccountCap are able to claim the fees.
+
+#### 2. Claim AccountCap
+
+You can claim the partner ref fee by curl movecall about cetus contract entry function `cetus::partner_script::claim_ref_fee()` on sui explore.
