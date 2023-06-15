@@ -60,10 +60,9 @@ const liquidityNet: new BN(BigInt.asIntN(128, BigInt(BigInt(tick.liquidityNet.to
 
 ## 6. Calculate swap fee and price impact
 
-There are some param is `I32` type, you can transform it by `asInN`. eg: tick.liquidityNet
+All the parameters come from the calculation results of the `sdk.Router.price(ETH, USDT, amount, byAmountIn, 0.05, '')`.
 
 ```ts
- // All the parameters come from the calculation results of the `sdk.Router.price(ETH, USDT, amount, byAmountIn, 0.05, '')`.
     const res = await sdk.Swap.calculateSwapFeeAndImpact({
       from_type: "0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT",
       from_amount : '1000000',
