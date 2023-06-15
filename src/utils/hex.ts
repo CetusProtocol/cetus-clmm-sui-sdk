@@ -1,8 +1,3 @@
-/* eslint-disable prefer-const */
-/* eslint-disable no-bitwise */
-/* eslint-disable default-case */
-/* eslint-disable @typescript-eslint/no-use-before-define */
-/* eslint-disable no-plusplus */
 const HEX_REGEXP = /^[-+]?[0-9A-Fa-f]+\.?[0-9A-Fa-f]*?$/
 
 export function addHexPrefix(hex: string): string {
@@ -88,25 +83,14 @@ export function hexToNumber(binaryData: string) {
   return number
 }
 
-export function hexToString(str: string) {
-  let val = ''
-  const newStr = removeHexPrefix(str)
-
-  const len = newStr.length / 2
-  for (let i = 0; i < len; i++) {
-    val += String.fromCharCode(parseInt(newStr.substr(i * 2, 2), 16))
-  }
-  return utf8to16(val)
-}
 export function utf8to16(str: string) {
   let out
   let i
-  let len
   let c
   let char2
   let char3
   out = ''
-  len = str.length
+  const len = str.length
   i = 0
   while (i < len) {
     c = str.charCodeAt(i++)
@@ -134,4 +118,15 @@ export function utf8to16(str: string) {
     }
   }
   return out
+}
+
+export function hexToString(str: string) {
+  let val = ''
+  const newStr = removeHexPrefix(str)
+
+  const len = newStr.length / 2
+  for (let i = 0; i < len; i++) {
+    val += String.fromCharCode(parseInt(newStr.substr(i * 2, 2), 16))
+  }
+  return utf8to16(val)
 }

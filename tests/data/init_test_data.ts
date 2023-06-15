@@ -1,8 +1,7 @@
-import { Ed25519Keypair, fromB64, getCreatedObjects, getObjectId, getObjectPreviousTransactionDigest, getSharedObjectInitialVersion, RawSigner, toB64, TransactionBlock } from '@mysten/sui.js'
+import { Ed25519Keypair, getObjectPreviousTransactionDigest, RawSigner, TransactionBlock } from '@mysten/sui.js'
 import { CoinAssist, sendTransaction } from '../../src'
-import { SDK, SdkOptions } from '../../src/sdk'
-import { secretKeyToEd25519Keypair } from '../../src/utils/common'
-import { buildSdkOptions, currSdkEnv } from './config'
+import { CetusClmmSDK } from '../../src/sdk'
+import { buildSdkOptions, currSdkEnv } from './sdk_config'
 
 
 const sdkEnv = buildSdkOptions()
@@ -11,7 +10,8 @@ export const faucet = sdkEnv.faucet
 
 const clmm_display = sdkEnv.clmm.clmm_display
 
-export const position_object_id = '0xa4573dbb55e47608cd15aaa0f2094215571d981488f5eaeabc83e07d69c11318'
+
+export const position_object_id = '0x27762128db7a4893d5bc875b9a654b3a439083b0d9be584da74d8c164f3028ba'
 export const TokensMapping = {
   SUI: {
     address: '0x2::sui::SUI',
@@ -28,12 +28,12 @@ export const TokensMapping = {
   USDT_USDC_LP: {
     address: `${clmm_display}::pool::Pool<${faucetObjectId}::usdt::USDC, ${faucetObjectId}::usdc::USDT>`,
     decimals: 8,
-    poolObjectId: ['0xd40feebfcf7935d40c9e82c9cb437442fee6b70a4be84d94764d0d89bb28ab07'],
+    poolObjectIds: ['0x74dcb8625ddd023e2ef7faf1ae299e3bc4cb4c337d991a5326751034676acdae'],
   },
 }
 
 
-export async  function mintAll(sdk: SDK,sendKeypair: Ed25519Keypair ,  faucet: {
+export async  function mintAll(sdk: CetusClmmSDK,sendKeypair: Ed25519Keypair ,  faucet: {
   faucet_display: string,
   faucet_router: string,
 },funName: string){
@@ -64,28 +64,19 @@ export async  function mintAll(sdk: SDK,sendKeypair: Ed25519Keypair ,  faucet: {
     }
 }
 
-export function buildSdk(): SDK {
-  const sdk =  new SDK(sdkEnv)
+export function buildSdk(): CetusClmmSDK {
+  const sdk =  new CetusClmmSDK(sdkEnv)
   console.log(`currSdkEnv: ${currSdkEnv} ; fullRpcUrl: ${sdk.sdkOptions.fullRpcUrl}`)
   return sdk
 }
 
-export async function printSDKConfig(sdk: SDK) {
-  const initEventConfig = await sdk.Pool.getInitEvent()
-  const tokenConfig = await sdk.Token.getTokenConfigEvent()
-  console.log('printSDKConfig: ', {
-    initEventConfig,
-    tokenConfig,
-  })
-}
-
-export async function buildTestPool(sdk: SDK, poolObjectId: string) {
+export async function buildTestPool(sdk: CetusClmmSDK, poolObjectId: string) {
   const pool = await sdk.Pool.getPool(poolObjectId)
-  // console.log('buildPool: ', pool)
+  console.log('buildPool: ', pool)
   return pool
 }
 
-export async function buildTestPosition(sdk: SDK, posObjectId: string) {
+export async function buildTestPosition(sdk: CetusClmmSDK, posObjectId: string) {
   const position = await sdk.Position.getSipmlePosition(posObjectId)
   console.log('buildTestPosition: ', position)
   return position
@@ -93,7 +84,7 @@ export async function buildTestPosition(sdk: SDK, posObjectId: string) {
 
 
 export function buildTestAccount(): Ed25519Keypair {
-  // Please enter your test account secret or mnemonics
+   // Please enter your test account secret or mnemonics
   const mnemonics = ''
   const testAccountObject = Ed25519Keypair.deriveKeypair(mnemonics)
   console.log(' Address: ', testAccountObject.getPublicKey().toSuiAddress())
@@ -102,50 +93,11 @@ export function buildTestAccount(): Ed25519Keypair {
 }
 
 
-export function buildTestAccount2(): Ed25519Keypair {
-  // Please enter your test account secret or mnemonics
-  const mnemonics = ''
-  const testAccountObject = Ed25519Keypair.deriveKeypair(mnemonics)
-  console.log('toSuiAddress', testAccountObject.getPublicKey().toSuiAddress())
-  return testAccountObject
-}
-
-export function buildTestAccount3(): Ed25519Keypair {
-  // Please enter your test account secret or mnemonics
-  const mnemonics = ''
-  const testAccountObject = Ed25519Keypair.deriveKeypair(mnemonics)
-  console.log('toSuiAddress', testAccountObject.getPublicKey().toSuiAddress())
-  return testAccountObject
-}
-
-export function buildWJLaunchPadAccount(): Ed25519Keypair {
-  // Please enter your test account secret or mnemonics
-  const testAccountObject = secretKeyToEd25519Keypair("")
-  console.log('wj Address: ', testAccountObject.getPublicKey().toSuiAddress())
-  return testAccountObject
-}
-
-export function buildWJLaunchPadAccountLocal(): Ed25519Keypair {
-  // Please enter your test account secret or mnemonics
-  const testAccountObject = secretKeyToEd25519Keypair("")
-  console.log('wj Address local: ', testAccountObject.getPublicKey().toSuiAddress())
-  return testAccountObject
-}
 
 
-export function buildSKAccount(): Ed25519Keypair {
-  // Please enter your test account secret or mnemonics
-  const testAccountObject = secretKeyToEd25519Keypair("")
-  console.log('sk Address: ', testAccountObject.getPublicKey().toSuiAddress())
-  return testAccountObject
-}
 
 
-export function generateAccount(): Ed25519Keypair {
-  const keypair =  Ed25519Keypair.generate()
-  console.log('new Address: ', keypair.getPublicKey().toSuiAddress())
-  console.log('keypair: ', keypair.export())
-  return keypair
-}
+
+
 
 

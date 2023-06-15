@@ -1,4 +1,3 @@
-/* eslint-disable camelcase */
 import BN from 'bn.js'
 import { Pool } from '../types'
 import { MathUtil } from '../math/utils'

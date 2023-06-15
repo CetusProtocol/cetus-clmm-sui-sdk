@@ -1,5 +1,12 @@
 import { SuiObjectIdType } from './sui'
 
+export type TokenConfig = {
+  coin_registry_id: SuiObjectIdType
+  coin_list_owner: SuiObjectIdType
+  pool_registry_id: SuiObjectIdType
+  pool_list_owner: SuiObjectIdType
+}
+
 export type TokenInfo = {
   name: string
   symbol: string

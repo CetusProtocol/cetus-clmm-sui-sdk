@@ -3,8 +3,8 @@ import { Graph, GraphEdge, GraphVertex } from '@syntsugar/cc-graph'
 import { TransactionBlock } from '@mysten/sui.js'
 import { PreSwapWithMultiPoolParams } from '../types'
 import { extractStructTagFromType } from '../utils'
-import { ClmmFetcherModule, ClmmIntegrateRouterModule, SuiAddressType } from '../types/sui'
-import { SDK } from '../sdk'
+import { ClmmExpectSwapModule, ClmmIntegrateRouterModule, SuiAddressType } from '../types/sui'
+import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { U64_MAX, ZERO } from '../math'
 
@@ -114,13 +114,9 @@ export class RouterModule implements IModule {
 
   private poolAddressMap: Map<string, Map<number, string>>
 
-  private createTxParams: SwapWithRouterParams
+  protected _sdk: CetusClmmSDK
 
-  private poolDirectionMap: Map<string, boolean>
-
-  protected _sdk: SDK
-
-  constructor(sdk: SDK) {
+  constructor(sdk: CetusClmmSDK) {
     this.pathProviders = []
     this.coinProviders = {
       coins: [],
@@ -129,12 +125,6 @@ export class RouterModule implements IModule {
     this._coinAddressMap = new Map()
     this.poolAddressMap = new Map()
     this._sdk = sdk
-    this.createTxParams = {
-      paths: [],
-      partner: '',
-      priceSplitPoint: 1,
-    }
-    this.poolDirectionMap = new Map()
 
     this.getPoolAddressMapAndDirection = this.getPoolAddressMapAndDirection.bind(this)
     this.setCoinList = this.setCoinList.bind(this)
@@ -520,7 +510,7 @@ export class RouterModule implements IModule {
         console.log(args, typeArguments)
 
         tx.moveCall({
-          target: `${clmm.clmm_router.cetus}::${ClmmIntegrateRouterModule}::calculate_router_swap_result`,
+          target: `${clmm.clmm_router}::${ClmmIntegrateRouterModule}::calculate_router_swap_result`,
           typeArguments,
           arguments: args,
         })
@@ -528,7 +518,7 @@ export class RouterModule implements IModule {
         const args = [tx.pure(param.poolAB), tx.pure(param.a2b), tx.pure(param.byAmountIn), tx.pure(param.amount.toString())]
         const typeArguments = param.a2b ? [param.coinTypeA, param.coinTypeB] : [param.coinTypeB, param.coinTypeA]
         tx.moveCall({
-          target: `${clmm.clmm_router.cetus}::${ClmmFetcherModule}::calculate_swap_result`,
+          target: `${clmm.clmm_router}::${ClmmExpectSwapModule}::get_expect_swap_result`,
           arguments: args,
           typeArguments,
         })
@@ -543,7 +533,7 @@ export class RouterModule implements IModule {
     const valueData: any = simulateRes.events?.filter((item: any) => {
       return (
         extractStructTagFromType(item.type).name === `CalculatedRouterSwapResultEvent` ||
-        extractStructTagFromType(item.type).name === `CalculatedSwapResultEvent`
+        extractStructTagFromType(item.type).name === `ExpectSwapResultEvent`
       )
     })
     if (valueData.length === 0) {

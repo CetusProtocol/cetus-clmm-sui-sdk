@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
-/* eslint-disable camelcase */
 import {
   Ed25519Keypair,
   getMoveObjectType,
@@ -11,44 +9,72 @@ import {
   getObjectOwner,
   ObjectContentFields,
   ObjectType,
+  PaginatedEvents,
   PaginatedObjectsResponse,
-  PaginationArguments,
   Secp256k1Keypair,
   SuiAddress,
+  SuiEventFilter,
   SuiObjectDataOptions,
   SuiObjectResponse,
   SuiObjectResponseQuery,
 } from '@mysten/sui.js'
 import BN from 'bn.js'
 import { fromB64, fromHEX } from '@mysten/bcs'
+import { DynamicFieldPage } from '@mysten/sui.js/dist/types/dynamic_fields'
 import { ClmmPositionStatus, Pool, Position, PositionReward, Rewarder } from '../types'
 import { MathUtil } from '../math'
-import { NFT, SuiObjectIdType } from '../types/sui'
+import { DataPage, NFT, PaginationArgs, SuiObjectIdType } from '../types/sui'
 import { extractStructTagFromType } from './contracts'
 import { TickData } from '../types/clmmpool'
 import { d, decimalsMultiplier } from './numbers'
 import SDK from '../main'
 
+/**
+ * Converts an amount to a decimal value, based on the number of decimals specified.
+ * @param  {number | string} amount - The amount to convert to decimal.
+ * @param  {number | string} decimals - The number of decimals to use in the conversion.
+ * @returns {number} - Returns the converted amount as a number.
+ */
 export function toDecimalsAmount(amount: number | string, decimals: number | string): number {
   const mul = decimalsMultiplier(d(decimals))
 
   return Number(d(amount).mul(mul))
 }
-
+/**
+ * Converts a bigint to an unsigned integer of the specified number of bits.
+ * @param {bigint} int - The bigint to convert.
+ * @param {number} bits - The number of bits to use in the conversion. Defaults to 32 bits.
+ * @returns {string} - Returns the converted unsigned integer as a string.
+ */
 export function asUintN(int: bigint, bits = 32) {
   return BigInt.asUintN(bits, BigInt(int)).toString()
 }
-
+/**
+ * Converts a bigint to a signed integer of the specified number of bits.
+ * @param {bigint} int - The bigint to convert.
+ * @param {number} bits - The number of bits to use in the conversion. Defaults to 32 bits.
+ * @returns {number} - Returns the converted signed integer as a number.
+ */
 export function asIntN(int: bigint, bits = 32) {
   return Number(BigInt.asIntN(bits, BigInt(int)))
 }
-
+/**
+ * Converts an amount in decimals to its corresponding numerical value.
+ * @param {number|string} amount - The amount to convert.
+ * @param {number|string} decimals - The number of decimal places used in the amount.
+ * @returns {number} - Returns the converted numerical value.
+ */
 export function fromDecimalsAmount(amount: number | string, decimals: number | string): number {
   const mul = decimalsMultiplier(d(decimals))
 
   return Number(d(amount).div(mul))
 }
-
+/**
+ * Converts a secret key in string or Uint8Array format to an Ed25519 key pair.
+ * @param {string|Uint8Array} secretKey - The secret key to convert.
+ * @param {string} ecode - The encoding of the secret key ('hex' or 'base64'). Defaults to 'hex'.
+ * @returns {Ed25519Keypair} - Returns the Ed25519 key pair.
+ */
 export function secretKeyToEd25519Keypair(secretKey: string | Uint8Array, ecode: 'hex' | 'base64' = 'hex'): Ed25519Keypair {
   if (secretKey instanceof Uint8Array) {
     const key = Buffer.from(secretKey)
@@ -58,7 +84,12 @@ export function secretKeyToEd25519Keypair(secretKey: string | Uint8Array, ecode:
   const hexKey = ecode === 'hex' ? fromHEX(secretKey) : fromB64(secretKey)
   return Ed25519Keypair.fromSecretKey(hexKey)
 }
-
+/**
+ * Converts a secret key in string or Uint8Array format to a Secp256k1 key pair.
+ * @param {string|Uint8Array} secretKey - The secret key to convert.
+ * @param {string} ecode - The encoding of the secret key ('hex' or 'base64'). Defaults to 'hex'.
+ * @returns {Ed25519Keypair} - Returns the Secp256k1 key pair.
+ */
 export function secretKeyToSecp256k1Keypair(secretKey: string | Uint8Array, ecode: 'hex' | 'base64' = 'hex'): Secp256k1Keypair {
   if (secretKey instanceof Uint8Array) {
     const key = Buffer.from(secretKey)
@@ -67,18 +98,27 @@ export function secretKeyToSecp256k1Keypair(secretKey: string | Uint8Array, ecod
   const hexKey = ecode === 'hex' ? fromHEX(secretKey) : fromB64(secretKey)
   return Secp256k1Keypair.fromSecretKey(hexKey)
 }
-
+/**
+ * Builds a pool name based on two coin types and tick spacing.
+ * @param {string} coin_type_a - The type of the first coin.
+ * @param {string} coin_type_b - The type of the second coin.
+ * @param {string} tick_spacing - The tick spacing of the pool.
+ * @returns {string} - The name of the pool.
+ */
 function buildPoolName(coin_type_a: string, coin_type_b: string, tick_spacing: string) {
   const coinNameA = extractStructTagFromType(coin_type_a).name
   const coinNameB = extractStructTagFromType(coin_type_b).name
   return `${coinNameA}-${coinNameB}[${tick_spacing}]`
 }
-
+/**
+ * Builds a Pool object based on a SuiObjectResponse.
+ * @param {SuiObjectResponse} objects - The SuiObjectResponse containing information about the pool.
+ * @returns {Pool} - The built Pool object.
+ */
 export function buildPool(objects: SuiObjectResponse): Pool {
   const type = getMoveObjectType(objects) as ObjectType
   const formatType = extractStructTagFromType(type)
   const fields = getObjectFields(objects) as ObjectContentFields
-  // console.log('fields: ', fields, type)
 
   const rewarders: Rewarder[] = []
   fields.rewarder_manager.fields.rewarders.forEach((item: any) => {
@@ -125,7 +165,36 @@ export function buildPool(objects: SuiObjectResponse): Pool {
   pool.name = buildPoolName(pool.coinTypeA, pool.coinTypeB, pool.tickSpacing)
   return pool
 }
+/**
+ * Builds an NFT object based on a response containing information about the NFT.
+ * @param {any} objects - The response containing information about the NFT.
+ * @returns {NFT} - The built NFT object.
+ */
+export function buildNFT(objects: any): NFT {
+  const fields = getObjectDisplay(objects).data
+  const nft: NFT = {
+    creator: '',
+    description: '',
+    image_url: '',
+    link: '',
+    name: '',
+    project_url: '',
+  }
+  if (fields) {
+    nft.creator = fields.creator
+    nft.description = fields.description
+    nft.image_url = fields.image_url
+    nft.link = fields.link
+    nft.name = fields.name
+    nft.project_url = fields.project_url
+  }
+  return nft
+}
 
+/** Builds a Position object based on a SuiObjectResponse.
+ * @param {SuiObjectResponse} objects - The SuiObjectResponse containing information about the position.
+ * @returns {Position} - The built Position object.
+ */
 export function buildPosition(objects: SuiObjectResponse): Position {
   let nft: NFT = {
     creator: '',
@@ -216,7 +285,11 @@ export function buildPosition(objects: SuiObjectResponse): Position {
 
   return position
 }
-
+/**
+ * Builds a PositionReward object based on a response containing information about the reward.
+ * @param {any} fields - The response containing information about the reward.
+ * @returns {PositionReward} - The built PositionReward object.
+ */
 export function buildPositionReward(fields: any): PositionReward {
   const rewarders = {
     reward_amount_owed_0: '0',
@@ -227,6 +300,7 @@ export function buildPositionReward(fields: any): PositionReward {
     reward_growth_inside_2: '0',
   }
   fields = 'fields' in fields ? fields.fields : fields
+
   fields.rewards.forEach((item: any, index: number) => {
     const { amount_owned, growth_inside } = 'fields' in item ? item.fields : item
     if (index === 0) {
@@ -241,10 +315,13 @@ export function buildPositionReward(fields: any): PositionReward {
     }
   })
 
+  const tick_lower_index = 'fields' in fields.tick_lower_index ? fields.tick_lower_index.fields.bits : fields.tick_lower_index.bits
+  const tick_upper_index = 'fields' in fields.tick_upper_index ? fields.tick_upper_index.fields.bits : fields.tick_upper_index.bits
+
   const possition: PositionReward = {
     liquidity: fields.liquidity,
-    tick_lower_index: asIntN(BigInt(fields.tick_lower_index.fields.bits)),
-    tick_upper_index: asIntN(BigInt(fields.tick_upper_index.fields.bits)),
+    tick_lower_index: asIntN(BigInt(tick_lower_index)),
+    tick_upper_index: asIntN(BigInt(tick_upper_index)),
     ...rewarders,
     fee_growth_inside_a: fields.fee_growth_inside_a,
     fee_owed_a: fields.fee_owned_a,
@@ -254,28 +331,11 @@ export function buildPositionReward(fields: any): PositionReward {
   }
   return possition
 }
-
-export function buildNFT(objects: any): NFT {
-  const fields = getObjectDisplay(objects).data
-  const nft: NFT = {
-    creator: '',
-    description: '',
-    image_url: '',
-    link: '',
-    name: '',
-    project_url: '',
-  }
-  if (fields) {
-    nft.creator = fields.creator
-    nft.description = fields.description
-    nft.image_url = fields.image_url
-    nft.link = fields.link
-    nft.name = fields.name
-    nft.project_url = fields.project_url
-  }
-  return nft
-}
-
+/**
+ * Builds a TickData object based on a response containing information about tick data.
+ * @param {SuiObjectResponse} objects - The response containing information about tick data.
+ * @returns {TickData} - The built TickData object.
+ */
 export function buildTickData(objects: SuiObjectResponse): TickData {
   const fields = getObjectFields(objects) as ObjectContentFields
 
@@ -293,7 +353,11 @@ export function buildTickData(objects: SuiObjectResponse): TickData {
 
   return possition
 }
-
+/**
+ * Builds a TickData object based on a given event's fields.
+ * @param {any} fields - The fields of an event.
+ * @returns {TickData} - The built TickData object.
+ */
 export function buildTickDataByEvent(fields: any): TickData {
   const tick: TickData = {
     objectId: '',
@@ -308,95 +372,87 @@ export function buildTickDataByEvent(fields: any): TickData {
 
   return tick
 }
-
-export async function loopToGetAllQueryEvents(sdk: any, params: any): Promise<any> {
+export async function queryEvents(sdk: SDK, query: SuiEventFilter, paginationArgs: PaginationArgs = 'all'): Promise<DataPage> {
   let result: any = []
-  let cursor = null
+  let hasNextPage = true
+  const queryAll = paginationArgs === 'all'
+  let nextCursor = queryAll ? null : paginationArgs.cursor
 
-  while (true) {
-    // eslint-disable-next-line no-await-in-loop
-    const res: any = await sdk.fullClient.queryEvents({
-      ...params,
-      cursor,
+  do {
+    const res: PaginatedEvents = await sdk.fullClient.queryEvents({
+      query,
+      cursor: nextCursor,
+      limit: queryAll ? null : paginationArgs.limit,
     })
     if (res.data) {
       result = [...result, ...res.data]
-      if (res.hasNextPage) {
-        cursor = res.nextCursor
-      } else {
-        break
-      }
+      hasNextPage = res.hasNextPage
+      nextCursor = res.nextCursor
     } else {
-      break
+      hasNextPage = false
     }
-  }
+  } while (queryAll && hasNextPage)
 
-  return { data: result }
+  return { data: result, nextCursor, hasNextPage }
 }
 
 export async function getOwnedObjects(
   sdk: SDK,
   owner: SuiAddress,
-  params: PaginationArguments<PaginatedObjectsResponse['nextCursor']> & SuiObjectResponseQuery
-): Promise<any> {
+  query: SuiObjectResponseQuery,
+  paginationArgs: PaginationArgs = 'all'
+): Promise<DataPage> {
   let result: any = []
-  let cursor = null
-
-  while (true) {
-    // eslint-disable-next-line no-await-in-loop
-    const res: any = await sdk.fullClient.getOwnedObjects({
+  let hasNextPage = true
+  const queryAll = paginationArgs === 'all'
+  let nextCursor = queryAll ? null : paginationArgs.cursor
+  do {
+    const res: PaginatedObjectsResponse = await sdk.fullClient.getOwnedObjects({
       owner,
-      ...params,
-      cursor,
+      ...query,
+      cursor: nextCursor,
+      limit: queryAll ? null : paginationArgs.limit,
     })
     if (res.data) {
       result = [...result, ...res.data]
-      if (res.hasNextPage) {
-        cursor = res.nextCursor
-      } else {
-        break
-      }
+      hasNextPage = res.hasNextPage
+      nextCursor = res.nextCursor
     } else {
-      break
+      hasNextPage = false
     }
-  }
+  } while (queryAll && hasNextPage)
 
-  return { data: result }
+  return { data: result, nextCursor, hasNextPage }
 }
 
-export async function getDynamicFields(sdk: SDK, parentId: SuiObjectIdType): Promise<any> {
+export async function getDynamicFields(sdk: SDK, parentId: SuiObjectIdType, paginationArgs: PaginationArgs = 'all'): Promise<DataPage> {
   let result: any = []
-  let cursor = null
-
-  while (true) {
-    // eslint-disable-next-line no-await-in-loop
-    const res: any = await sdk.fullClient.getDynamicFields({
+  let hasNextPage = true
+  const queryAll = paginationArgs === 'all'
+  let nextCursor = queryAll ? null : paginationArgs.cursor
+  do {
+    const res: DynamicFieldPage = await sdk.fullClient.getDynamicFields({
       parentId,
-      cursor,
+      cursor: nextCursor,
+      limit: queryAll ? null : paginationArgs.limit,
     })
-
     if (res.data) {
       result = [...result, ...res.data]
-      if (res.hasNextPage) {
-        cursor = res.nextCursor
-      } else {
-        break
-      }
+      hasNextPage = res.hasNextPage
+      nextCursor = res.nextCursor
     } else {
-      break
+      hasNextPage = false
     }
-  }
+  } while (queryAll && hasNextPage)
 
-  return { data: result }
+  return { data: result, nextCursor, hasNextPage }
 }
 
 export async function multiGetObjects(sdk: SDK, ids: SuiObjectIdType[], options?: SuiObjectDataOptions, limit = 50): Promise<any[]> {
   let objectDataResponses: any[] = []
 
   try {
-    // eslint-disable-next-line no-plusplus
     for (let i = 0; i < Math.ceil(ids.length / limit); i++) {
-      // eslint-disable-next-line no-await-in-loop
       const res = await sdk.fullClient.multiGetObjects({
         ids: ids.slice(i * limit, limit * (i + 1)),
         options,

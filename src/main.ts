@@ -1,5 +1,5 @@
-import { SDK, SdkOptions } from './sdk'
+import { CetusClmmSDK, SdkOptions } from './sdk'
 
-export { SDK, SdkOptions }
+export { CetusClmmSDK, SdkOptions }
 
-export default SDK
+export default CetusClmmSDK

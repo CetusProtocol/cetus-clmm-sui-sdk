@@ -1,9 +1,29 @@
 # @cetusprotocol/cetus-sui-clmm-sdk
 
-## 2.6.x
+
+## 3.0.x
 
 ### Patch Changes
 
+- Add `calculateFee` in `PositionModule`
+- Add `calculateSwapFeeAndImpact` in `SwapModule`
+
+## 3.0.2
+
+### Patch Changes
+
+- Add `createAddLiquidityPayload` to support input totalAmount for add liquidity
+- Change `loopToGetAllQueryEvents` rename to `queryEvents` and support PaginationArgs
+- Change `SDK` rename to `CetusClmmSDK`
+- Updated dependencies
+  - @mysten/sui.js@0.35.1
+
+## 2.7.2
+
+### Patch Changes
+
+- Add `getPoolImmutablesWithPage` support page
+- Add `getPoolsWithPage` support page
 - Add `getPositionList` in the `PoolModule`
 - Updated dependencies
   - @mysten/sui.js@0.34.1

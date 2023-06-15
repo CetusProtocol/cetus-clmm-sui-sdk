@@ -15,8 +15,18 @@ export enum PositionStatus {
   InRange,
   AboveRange,
 }
-
+/**
+ * This class provides utility methods for working with positions.
+ */
 export class PositionUtil {
+  /**
+   * Get the position status for the given tick indices.
+   *
+   * @param currentTickIndex The current tick index.
+   * @param lowerTickIndex The lower tick index.
+   * @param upperTickIndex The upper tick index.
+   * @returns The position status.
+   */
   static getPositionStatus(currentTickIndex: number, lowerTickIndex: number, upperTickIndex: number): PositionStatus {
     if (currentTickIndex < lowerTickIndex) {
       return PositionStatus.BelowRange

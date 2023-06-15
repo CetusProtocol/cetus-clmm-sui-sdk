@@ -1,5 +1,3 @@
-/* eslint-disable camelcase */
-/* eslint-disable no-nested-ternary */
 import {
   getTransactionEffects,
   JsonRpcProvider,
@@ -15,7 +13,6 @@ import { TickData } from '../types/clmmpool'
 import { ClmmIntegratePoolModule, ClmmIntegrateRouterModule, CLOCK_ADDRESS } from '../types/sui'
 import SDK, {
   AddLiquidityFixTokenParams,
-  AddLiquidityParams,
   adjustForSlippage,
   asUintN,
   ClmmPoolUtil,
@@ -102,7 +99,6 @@ export class TransactionUtil {
 
     // payload Estimated gas consumption
     const estimateGas = await TransactionUtil.calculationTxGas(sdk.fullClient, tx)
-    console.log('estimateGas: ', estimateGas)
 
     // Find estimateGas objectIds
     const gasCoins = CoinAssist.selectCoinAssetGreaterThanOrEqual(
@@ -138,7 +134,7 @@ export class TransactionUtil {
    * @param curSqrtPrice
    * @returns
    */
-  static async buildAddLiquidityTransactionForGas(
+  static async buildAddLiquidityFixTokenForGas(
     sdk: SDK,
     allCoins: CoinAsset[],
     params: AddLiquidityFixTokenParams,
@@ -147,7 +143,7 @@ export class TransactionUtil {
       curSqrtPrice: BN
     }
   ): Promise<TransactionBlock> {
-    let tx = await TransactionUtil.buildAddLiquidityTransaction(sdk, allCoins, params)
+    let tx = await TransactionUtil.buildAddLiquidityFixToken(sdk, allCoins, params)
 
     const { isAdjustCoinA } = findAdjustCoin(params)
 
@@ -188,7 +184,7 @@ export class TransactionUtil {
         primaryCoinBInputs = fixCoinInput
         params = TransactionUtil.fixAddLiquidityFixTokenParams(params, gasEstimateArg.slippage, gasEstimateArg.curSqrtPrice)
 
-        tx = TransactionUtil.buildAddLiquidityFixTokenArgs(newTx, sdk.sdkOptions, params, primaryCoinAInputs, primaryCoinBInputs)
+        tx = TransactionUtil.buildAddLiquidityFixTokenArgs(newTx, sdk, params, primaryCoinAInputs, primaryCoinBInputs)
         return tx
       }
     }
@@ -201,42 +197,36 @@ export class TransactionUtil {
    * @param packageId
    * @returns
    */
-  static async buildAddLiquidityTransaction(
+  static async buildAddLiquidityFixToken(
     sdk: SDK,
     allCoinAsset: CoinAsset[],
-    params: AddLiquidityParams | AddLiquidityFixTokenParams
+    params: AddLiquidityFixTokenParams
   ): Promise<TransactionBlock> {
     if (sdk.senderAddress.length === 0) {
       throw Error('this config sdk senderAddress is empty')
     }
 
-    const isFixToken = !('delta_liquidity' in params)
-
     let tx = new TransactionBlock()
     const primaryCoinAInputs: any = TransactionUtil.buildCoinInputForAmount(
       tx,
       allCoinAsset,
-      BigInt(isFixToken ? params.amount_a : params.max_amount_a),
+      BigInt(params.amount_a),
       params.coinTypeA
     )?.transactionArgument
     const primaryCoinBInputs: any = TransactionUtil.buildCoinInputForAmount(
       tx,
       allCoinAsset,
-      BigInt(isFixToken ? params.amount_b : params.max_amount_b),
+      BigInt(params.amount_b),
       params.coinTypeB
     )?.transactionArgument
 
-    if (isFixToken) {
-      tx = TransactionUtil.buildAddLiquidityFixTokenArgs(
-        tx,
-        sdk.sdkOptions,
-        params as AddLiquidityFixTokenParams,
-        primaryCoinAInputs,
-        primaryCoinBInputs
-      )
-    } else {
-      tx = TransactionUtil.buildAddLiquidityArgs(tx, sdk.sdkOptions, params as AddLiquidityParams, primaryCoinAInputs, primaryCoinBInputs)
-    }
+    tx = TransactionUtil.buildAddLiquidityFixTokenArgs(
+      tx,
+      sdk,
+      params as AddLiquidityFixTokenParams,
+      primaryCoinAInputs,
+      primaryCoinBInputs
+    )
     return tx
   }
 
@@ -267,14 +257,14 @@ export class TransactionUtil {
 
   private static buildAddLiquidityFixTokenArgs(
     tx: TransactionBlock,
-    sdkOptions: SdkOptions,
+    sdk: SDK,
     params: AddLiquidityFixTokenParams,
     primaryCoinAInputs?: TransactionArgument,
     primaryCoinBInputs?: TransactionArgument
   ) {
     const typeArguments = [params.coinTypeA, params.coinTypeB]
     let functionName = 'add_liquidity_fix_coin_with_all'
-    const { clmm } = sdkOptions
+    const { clmm } = sdk.sdkOptions
     const primaryCoinInputs: {
       coinInput: TransactionArgument
       coinAmount: string
@@ -292,7 +282,19 @@ export class TransactionUtil {
         coinAmount: params.amount_b.toString(),
       })
     }
-
+    if (!params.is_open) {
+      sdk.Rewarder.collectRewarderTransactionPayload(
+        {
+          pool_id: params.pool_id,
+          pos_id: params.pos_id,
+          coinTypeA: params.coinTypeA,
+          coinTypeB: params.coinTypeB,
+          collect_fee: params.collect_fee,
+          rewarder_coin_types: params.rewarder_coin_types,
+        },
+        tx
+      )
+    }
     const isWithAll = primaryCoinInputs.length === 2
 
     if (isWithAll) {
@@ -310,106 +312,45 @@ export class TransactionUtil {
     const args = params.is_open
       ? isWithAll
         ? [
-            tx.pure(clmm.config.global_config_id),
-            tx.pure(params.pool_id),
+            tx.object(clmm.config.global_config_id),
+            tx.object(params.pool_id),
             tx.pure(asUintN(BigInt(params.tick_lower)).toString()),
             tx.pure(asUintN(BigInt(params.tick_upper)).toString()),
             ...primaryCoinInputs.map((item) => item.coinInput),
             ...primaryCoinInputs.map((item) => tx.pure(item.coinAmount)),
             tx.pure(params.fix_amount_a),
-            tx.pure(CLOCK_ADDRESS),
+            tx.object(CLOCK_ADDRESS),
           ]
         : [
-            tx.pure(clmm.config.global_config_id),
-            tx.pure(params.pool_id),
+            tx.object(clmm.config.global_config_id),
+            tx.object(params.pool_id),
             tx.pure(asUintN(BigInt(params.tick_lower)).toString()),
             tx.pure(asUintN(BigInt(params.tick_upper)).toString()),
             ...primaryCoinInputs.map((item) => item.coinInput),
             ...primaryCoinInputs.map((item) => tx.pure(item.coinAmount)),
-            tx.pure(CLOCK_ADDRESS),
+            tx.object(CLOCK_ADDRESS),
           ]
       : isWithAll
       ? [
-          tx.pure(clmm.config.global_config_id),
-          tx.pure(params.pool_id),
-          tx.pure(params.pos_id),
+          tx.object(clmm.config.global_config_id),
+          tx.object(params.pool_id),
+          tx.object(params.pos_id),
           ...primaryCoinInputs.map((item) => item.coinInput),
           ...primaryCoinInputs.map((item) => tx.pure(item.coinAmount)),
           tx.pure(params.fix_amount_a),
-          tx.pure(CLOCK_ADDRESS),
+          tx.object(CLOCK_ADDRESS),
         ]
       : [
-          tx.pure(clmm.config.global_config_id),
-          tx.pure(params.pool_id),
-          tx.pure(params.pos_id),
+          tx.object(clmm.config.global_config_id),
+          tx.object(params.pool_id),
+          tx.object(params.pos_id),
           ...primaryCoinInputs.map((item) => item.coinInput),
           ...primaryCoinInputs.map((item) => tx.pure(item.coinAmount)),
-          tx.pure(CLOCK_ADDRESS),
+          tx.object(CLOCK_ADDRESS),
         ]
 
     tx.moveCall({
-      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::${functionName}`,
-      typeArguments,
-      arguments: args,
-    })
-    return tx
-  }
-
-  private static buildAddLiquidityArgs(
-    tx: TransactionBlock,
-    sdkOptions: SdkOptions,
-    params: AddLiquidityParams,
-    primaryCoinAInputs?: TransactionArgument,
-    primaryCoinBInputs?: TransactionArgument
-  ) {
-    const { clmm } = sdkOptions
-
-    const typeArguments = [params.coinTypeA, params.coinTypeB]
-    let functionName = 'add_liquidity_with_all'
-    let args
-
-    const primaryCoinInputs: TransactionArgument[] = []
-    if (primaryCoinAInputs) {
-      primaryCoinInputs.push(primaryCoinAInputs)
-    }
-    if (primaryCoinBInputs) {
-      primaryCoinInputs.push(primaryCoinBInputs)
-    }
-
-    if (primaryCoinInputs.length === 2) {
-      functionName = 'add_liquidity_with_all'
-    } else {
-      functionName = primaryCoinAInputs !== undefined ? 'add_liquidity_only_a' : 'add_liquidity_only_b'
-    }
-
-    if (primaryCoinAInputs !== undefined && primaryCoinBInputs !== undefined) {
-      functionName = 'add_liquidity_with_all'
-      args = [
-        tx.pure(clmm.config?.global_config_id),
-        tx.pure(params.pool_id),
-        tx.pure(params.pos_id),
-        primaryCoinAInputs,
-        primaryCoinBInputs,
-        tx.pure(params.max_amount_a.toString()),
-        tx.pure(params.max_amount_b.toString()),
-        tx.pure(params.delta_liquidity),
-        tx.pure(CLOCK_ADDRESS),
-      ]
-    } else {
-      args = [
-        tx.pure(clmm.config?.global_config_id),
-        tx.pure(params.pool_id),
-        tx.pure(params.pos_id),
-        primaryCoinAInputs !== undefined ? primaryCoinAInputs : (primaryCoinBInputs as TransactionArgument),
-        tx.pure(params.max_amount_a.toString()),
-        tx.pure(params.max_amount_b.toString()),
-        tx.pure(params.delta_liquidity),
-        tx.pure(CLOCK_ADDRESS),
-      ]
-    }
-
-    tx.moveCall({
-      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::${functionName}`,
+      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::${functionName}`,
       typeArguments,
       arguments: args,
     })
@@ -536,7 +477,7 @@ export class TransactionUtil {
         ]
 
     tx.moveCall({
-      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::${functionName}`,
+      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::${functionName}`,
       typeArguments,
       arguments: args,
     })
@@ -596,11 +537,9 @@ export class TransactionUtil {
     buildVector = true
   ): BuildCoinInputResult | undefined {
     const coinAssets: CoinAsset[] = CoinAssist.getCoinAssets(coinType, allCoins)
-
     if (amount === BigInt(0)) {
       return undefined
     }
-    // console.log(coinAssets)
     const amountTotal = CoinAssist.calculateTotalBalance(coinAssets)
     if (amountTotal < amount) {
       throw new Error(`The amount(${amountTotal}) is Insufficient balance for ${coinType} , expect ${amount} `)
@@ -720,7 +659,7 @@ export class TransactionUtil {
         ]
         const typeArguments = swapParams.a2b ? [swapParams.coinTypeA, swapParams.coinTypeB] : [swapParams.coinTypeB, swapParams.coinTypeA]
         tx.moveCall({
-          target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::${functionName}`,
+          target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::${functionName}`,
           typeArguments,
           arguments: args,
         })
@@ -796,7 +735,7 @@ export class TransactionUtil {
         ]
         const typeArguments = [swapParams.coinTypeA, swapParams.coinTypeB, swapParams.coinTypeC]
         tx.moveCall({
-          target: `${clmm.clmm_router.cetus}::${ClmmIntegrateRouterModule}::${functionName}`,
+          target: `${clmm.clmm_router}::${ClmmIntegrateRouterModule}::${functionName}`,
           typeArguments,
           arguments: args,
         })

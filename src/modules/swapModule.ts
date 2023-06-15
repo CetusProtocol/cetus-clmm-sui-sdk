@@ -1,9 +1,10 @@
-/* eslint-disable camelcase */
 import BN from 'bn.js'
 import { TransactionBlock } from '@mysten/sui.js'
+import Decimal from 'decimal.js'
 import {
   CalculateRatesParams,
   CalculateRatesResult,
+  CalculateSwapFeeParams,
   Pool,
   PreSwapParams,
   PreSwapWithMultiPoolParams,
@@ -15,11 +16,12 @@ import { findAdjustCoin, TransactionUtil } from '../utils/transaction-util'
 import { extractStructTagFromType } from '../utils/contracts'
 import { ClmmFetcherModule } from '../types/sui'
 import { TickData, transClmmpoolDataWithoutTicks } from '../types/clmmpool'
-import { SDK } from '../sdk'
+import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { SwapUtils } from '../math/swap'
 import { computeSwap } from '../math/clmm'
 import { TickMath } from '../math/tick'
+import { d, fromDecimalsAmount, toDecimalsAmount } from '../utils'
 
 export const AMM_SWAP_MODULE = 'amm_swap'
 export const POOL_STRUCT = 'Pool'
@@ -28,14 +30,87 @@ export const POOL_STRUCT = 'Pool'
  * Helper class to help interact with clmm pool swap with a swap router interface.
  */
 export class SwapModule implements IModule {
-  protected _sdk: SDK
+  protected _sdk: CetusClmmSDK
 
-  constructor(sdk: SDK) {
+  constructor(sdk: CetusClmmSDK) {
     this._sdk = sdk
   }
 
   get sdk() {
     return this._sdk
+  }
+
+  async calculateSwapFeeAndImpact(params: CalculateSwapFeeParams) {
+    let swapFee = d(0)
+    const { from_amount, from_type } = params
+
+    const poolA = await this.sdk.Pool.getPool(params.pool_address, false)
+    const calculateResultA = await this.calculateFee(from_type, poolA, from_amount, params.router?.raw_amount_limit)
+    swapFee = swapFee.add(calculateResultA.fee)
+
+    let priceImpact
+
+    const priceReverse = d(params.to_amount).div(params.from_amount)
+    const currentPriceDirectA = params.from_type === poolA.coinTypeA ? calculateResultA.currPrice : d(1).div(calculateResultA.currPrice)
+
+    if (params.router) {
+      const poolB = await this.sdk.Pool.getPool(params.router.pool_address, false)
+      const calculateResultB = await this.calculateFee(calculateResultA.to_type, poolB, calculateResultA.to_amount!.toString())
+      const a2b = poolA.coinTypeB === params.from_type
+      const { decimalsA } = calculateResultA
+      const { decimalsB } = calculateResultA
+
+      const warpAfee = this.changeAmount(
+        a2b,
+        calculateResultB.fee.toString(),
+        calculateResultA.currPrice.toString(),
+        a2b ? decimalsA - decimalsB : decimalsB - decimalsA
+      )
+      swapFee = swapFee.add(warpAfee)
+
+      const currentPriceDirectB =
+        calculateResultA.to_type === poolB.coinTypeA ? calculateResultB.currPrice : d(1).div(calculateResultB.currPrice)
+
+      priceImpact = new Decimal(currentPriceDirectA.mul(currentPriceDirectB))
+        .sub(priceReverse)
+        .div(new Decimal(currentPriceDirectA.mul(currentPriceDirectB)))
+        .mul(new Decimal(100))
+        .toNumber()
+    } else {
+      priceImpact = new Decimal(currentPriceDirectA)
+        .sub(priceReverse)
+        .div(new Decimal(currentPriceDirectA))
+        .mul(new Decimal(100))
+        .toNumber()
+    }
+    const fee = fromDecimalsAmount(swapFee.toString(), calculateResultA.decimalsA)
+    return { fee, priceImpact }
+  }
+
+  private async calculateFee(fromType: string, pool: Pool, from_amount: string, raw_amount_limit?: string) {
+    const coinTypes = await this.sdk.Token.getTokenListByCoinTypes([pool.coinTypeA, pool.coinTypeB])
+    const decimalsA = coinTypes[pool.coinTypeA].decimals
+    const decimalsB = coinTypes[pool.coinTypeB].decimals
+    // 1.575318 = coinTypeB/coinTypeA
+    const currPrice = TickMath.sqrtPriceX64ToPrice(new BN(pool.current_sqrt_price), decimalsA, decimalsB)
+    const feeTier = d(pool.fee_rate).div(10000).div(100)
+
+    const a2b = fromType === pool.coinTypeA
+
+    console.log({ a2b, feeTier })
+
+    const fee = d(from_amount).mul(feeTier)
+    return { fee, to_amount: raw_amount_limit, currPrice, to_type: a2b ? pool.coinTypeB : pool.coinTypeA, decimalsA, decimalsB }
+  }
+
+  private changeAmount(a2b: boolean, from_amount: string, curr_price: string, subDecimals: number) {
+    let to_amount
+    if (a2b) {
+      to_amount = d(from_amount).mul(curr_price)
+    } else {
+      to_amount = d(from_amount).div(curr_price)
+    }
+    return to_amount.div(10 ** subDecimals)
   }
 
   /**
@@ -52,7 +127,7 @@ export class SwapModule implements IModule {
     for (let i = 0; i < params.poolAddresses.length; i += 1) {
       const args = [tx.pure(params.poolAddresses[i]), tx.pure(params.a2b), tx.pure(params.byAmountIn), tx.pure(params.amount)]
       tx.moveCall({
-        target: `${clmm.clmm_router.cetus}::${ClmmFetcherModule}::calculate_swap_result`,
+        target: `${clmm.clmm_router}::${ClmmFetcherModule}::calculate_swap_result`,
         arguments: args,
         typeArguments,
       })
@@ -113,7 +188,7 @@ export class SwapModule implements IModule {
    * Performs a pre-swap.
    *
    * @param {PreSwapParams} params The parameters for the pre-swap.
-   * @returns {Promise<SwapData>} A promise that resolves to the swap data.
+   * @returns {Promise<PreSwapParams>} A promise that resolves to the swap data.
    */
   async preswap(params: PreSwapParams) {
     const { clmm, simulationAccount } = this.sdk.sdkOptions
@@ -124,7 +199,7 @@ export class SwapModule implements IModule {
     const args = [tx.pure(params.pool.poolAddress), tx.pure(params.a2b), tx.pure(params.by_amount_in), tx.pure(params.amount)]
 
     tx.moveCall({
-      target: `${clmm.clmm_router.cetus}::${ClmmFetcherModule}::calculate_swap_result`,
+      target: `${clmm.clmm_router}::${ClmmFetcherModule}::calculate_swap_result`,
       arguments: args,
       typeArguments,
     })
@@ -142,7 +217,6 @@ export class SwapModule implements IModule {
     return this.transformSwapData(params, valueData[0].parsedJson.data)
   }
 
-  // eslint-disable-next-line class-methods-use-this
   private transformSwapData(params: PreSwapParams, data: any) {
     const estimatedAmountIn = data.amount_in && data.fee_amount ? new BN(data.amount_in).add(new BN(data.fee_amount)).toString() : ''
     return {
@@ -159,7 +233,6 @@ export class SwapModule implements IModule {
     }
   }
 
-  // eslint-disable-next-line class-methods-use-this
   private transformSwapWithMultiPoolData(params: TransPreSwapWithMultiPoolParams, jsonData: any) {
     const { data } = jsonData
     const estimatedAmountIn = data.amount_in && data.fee_amount ? new BN(data.amount_in).add(new BN(data.fee_amount)).toString() : ''

@@ -1,7 +1,3 @@
-/* eslint-disable no-await-in-loop */
-/* eslint-disable no-return-await */
-/* eslint-disable camelcase */
-/* eslint-disable import/no-unresolved */
 import { DynamicFieldPage } from '@mysten/sui.js/dist/types/dynamic_fields'
 import {
   getObjectPreviousTransactionDigest,
@@ -12,13 +8,12 @@ import {
   TransactionBlock,
   TransactionDigest,
 } from '@mysten/sui.js'
-import { log } from 'console'
 import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils'
 import {
   CreatePoolAddLiquidityParams,
   CreatePoolParams,
   FetchParams,
-  InitEvent,
+  ClmmConfig,
   Pool,
   PoolImmutables,
   Position,
@@ -33,13 +28,21 @@ import {
   buildTickData,
   buildTickDataByEvent,
   getDynamicFields,
-  loopToGetAllQueryEvents,
+  queryEvents,
   multiGetObjects,
 } from '../utils/common'
 import { extractStructTagFromType, isSortedSymbols } from '../utils/contracts'
 import { TickData } from '../types/clmmpool'
-import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS, SuiObjectIdType, SuiResource } from '../types/sui'
-import { SDK } from '../sdk'
+import {
+  ClmmFetcherModule,
+  ClmmIntegratePoolModule,
+  CLOCK_ADDRESS,
+  DataPage,
+  PaginationArgs,
+  SuiObjectIdType,
+  SuiResource,
+} from '../types/sui'
+import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 
 type GetTickParams = {
@@ -51,11 +54,11 @@ type GetTickParams = {
  * Helper class to help interact with clmm pools with a pool router interface.
  */
 export class PoolModule implements IModule {
-  protected _sdk: SDK
+  protected _sdk: CetusClmmSDK
 
   private readonly _cache: Record<string, CachedContent> = {}
 
-  constructor(sdk: SDK) {
+  constructor(sdk: CetusClmmSDK) {
     this._sdk = sdk
   }
 
@@ -102,9 +105,7 @@ export class PoolModule implements IModule {
 
     if (allPools.length === 0) {
       try {
-        const objects = await loopToGetAllQueryEvents(this._sdk, {
-          query: { MoveEventType: `${clmmIntegrate}::factory::CreatePoolEvent` },
-        })
+        const objects = await queryEvents(this._sdk, { MoveEventType: `${clmmIntegrate}::factory::CreatePoolEvent` })
 
         objects.data.forEach((object: any) => {
           const fields = object.parsedJson
@@ -167,6 +168,89 @@ export class PoolModule implements IModule {
   }
 
   /**
+   * Gets a list of pool immutables.
+   *
+   * @param paginationArgs The cursor and limit to start at.
+   * @returns array of PoolImmutable objects.
+   */
+  async getPoolImmutablesWithPage(paginationArgs: PaginationArgs = 'all', forceRefresh = false): Promise<DataPage> {
+    const clmmIntegrate = this._sdk.sdkOptions.clmm.clmm_display
+
+    const allPools: PoolImmutables[] = []
+    const dataPage: DataPage = {
+      data: [],
+      hasNextPage: false,
+    }
+
+    const queryAll = paginationArgs === 'all'
+    const cacheAllKey = `${clmmIntegrate}_getPoolImmutables`
+    if (queryAll) {
+      const cacheDate = this.getCache<PoolImmutables[]>(cacheAllKey, forceRefresh)
+      if (cacheDate) {
+        allPools.push(...cacheDate)
+      }
+    }
+    if (allPools.length === 0) {
+      try {
+        const moveEventType = `${clmmIntegrate}::factory::CreatePoolEvent`
+        const objects = await queryEvents(this._sdk, { MoveEventType: moveEventType }, paginationArgs)
+        dataPage.hasNextPage = objects.hasNextPage
+        dataPage.nextCursor = objects.nextCursor
+        objects.data.forEach((object: any) => {
+          const fields = object.parsedJson
+          if (fields) {
+            const poolImmutables = {
+              poolAddress: fields.pool_id,
+              tickSpacing: fields.tick_spacing,
+              coinTypeA: extractStructTagFromType(fields.coin_type_a).full_address,
+              coinTypeB: extractStructTagFromType(fields.coin_type_b).full_address,
+            }
+            allPools.push(poolImmutables)
+          }
+        })
+      } catch (error) {
+        console.log('getPoolImmutables', error)
+      }
+    }
+    dataPage.data = allPools
+    if (queryAll) {
+      this.updateCache(`${clmmIntegrate}_getPoolImmutables`, allPools, cacheTime24h)
+    }
+    return dataPage
+  }
+
+  /**
+   * Gets a list of pools.
+   *
+   * @param assignPools An array of pool IDs to get.
+   * @returns array of Pool objects.
+   */
+  async getPoolsWithPage(assignPools: string[] = []): Promise<Pool[]> {
+    const allPool: Pool[] = []
+    let poolObjectIds: string[] = []
+
+    if (assignPools.length > 0) {
+      poolObjectIds = [...assignPools]
+    } else {
+      const poolImmutables = (await this.getPoolImmutablesWithPage()).data
+      poolImmutables.forEach((item) => poolObjectIds.push(item.poolAddress))
+    }
+
+    const objectDataResponses: any[] = await multiGetObjects(this._sdk, poolObjectIds, {
+      showContent: true,
+      showType: true,
+    })
+
+    for (const suiObj of objectDataResponses) {
+      const pool = buildPool(suiObj)
+      allPool.push(pool)
+      const cacheKey = `${pool.poolAddress}_getPoolObject`
+      this.updateCache(cacheKey, pool, cacheTime24h)
+    }
+    return allPool
+  }
+
+  /**
    * Gets a pool by its object ID.
    *
    * @param poolObjectId The object ID of the pool to get.
@@ -205,8 +289,8 @@ export class PoolModule implements IModule {
         params.coinTypeA = swpaCoinTypeB
       }
     }
-
-    return await this.creatPool(paramss)
+    const payload = await this.creatPool(paramss)
+    return payload
   }
 
   /**
@@ -228,15 +312,15 @@ export class PoolModule implements IModule {
   }
 
   /**
-   * Gets the InitEvent object for the given package object ID.
+   * Gets the ClmmConfig object for the given package object ID.
    *
    * @param forceRefresh Whether to force a refresh of the cache.
-   * @returns the InitEvent object.
+   * @returns the ClmmConfig object.
    */
-  async getInitEvent(forceRefresh = false): Promise<InitEvent> {
+  async getClmmConfigs(forceRefresh = false): Promise<ClmmConfig> {
     const packageObjectId = this._sdk.sdkOptions.clmm.clmm_display
     const cacheKey = `${packageObjectId}_getInitEvent`
-    const cacheData = this.getCache<InitEvent>(cacheKey, forceRefresh)
+    const cacheData = this.getCache<ClmmConfig>(cacheKey, forceRefresh)
     if (cacheData !== undefined) {
       return cacheData
     }
@@ -247,13 +331,9 @@ export class PoolModule implements IModule {
 
     const previousTx = getObjectPreviousTransactionDigest(packageObject) as string
 
-    const objects = (
-      await loopToGetAllQueryEvents(this._sdk, {
-        query: { Transaction: previousTx },
-      })
-    )?.data
+    const objects = (await queryEvents(this._sdk, { Transaction: previousTx })).data
 
-    const initEvent: InitEvent = {
+    const clmmConfig: ClmmConfig = {
       pools_id: '',
       global_config_id: '',
       global_vault_id: '',
@@ -263,30 +343,40 @@ export class PoolModule implements IModule {
     if (objects.length > 0) {
       objects.forEach((item: any) => {
         const fields = item.parsedJson as any
+
         if (item.type) {
           switch (extractStructTagFromType(item.type).full_address) {
             case `${packageObjectId}::config::InitConfigEvent`:
-              initEvent.global_config_id = fields.global_config_id
-              initEvent.admin_cap_id = fields.admin_cap_id
+              clmmConfig.global_config_id = fields.global_config_id
+              clmmConfig.admin_cap_id = fields.admin_cap_id
               break
             case `${packageObjectId}::factory::InitFactoryEvent`:
-              initEvent.pools_id = fields.pools_id
+              clmmConfig.pools_id = fields.pools_id
               break
             case `${packageObjectId}::rewarder::RewarderInitEvent`:
-              initEvent.global_vault_id = fields.global_vault_id
+              clmmConfig.global_vault_id = fields.global_vault_id
+              break
+            case `${packageObjectId}::partner::InitPartnerEvent`:
+              clmmConfig.partners_id = fields.partners_id
               break
             default:
               break
           }
         }
       })
-      this.updateCache(cacheKey, initEvent, cacheTime24h)
-      return initEvent
+      this.updateCache(cacheKey, clmmConfig, cacheTime24h)
+      return clmmConfig
     }
 
-    return initEvent
+    return clmmConfig
   }
 
+  /**
+   * Gets the SUI transaction response for a given transaction digest.
+   * @param digest - The digest of the transaction for which the SUI transaction response is requested.
+   * @param forceRefresh - A boolean flag indicating whether to force a refresh of the response.
+   * @returns A Promise that resolves with the SUI transaction block response or null if the response is not available.
+   */
   async getSuiTransactionResponse(digest: TransactionDigest, forceRefresh = false): Promise<SuiTransactionBlockResponse | null> {
     const cacheKey = `${digest}_getSuiTransactionResponse`
     const cacheData = this.getCache<SuiTransactionBlockResponse>(cacheKey, forceRefresh)
@@ -341,7 +431,7 @@ export class PoolModule implements IModule {
       ]
 
       tx.moveCall({
-        target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::create_pool`,
+        target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::create_pool`,
         typeArguments: [params.coinTypeA, params.coinTypeB],
         arguments: args,
       })
@@ -424,7 +514,7 @@ export class PoolModule implements IModule {
     args.push(tx.pure(CLOCK_ADDRESS))
 
     tx.moveCall({
-      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::${addLiquidityName}`,
+      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::${addLiquidityName}`,
       typeArguments: [params.coinTypeA, params.coinTypeB],
       arguments: args,
     })
@@ -444,7 +534,6 @@ export class PoolModule implements IModule {
     const limit = 512
 
     while (true) {
-      // eslint-disable-next-line no-await-in-loop
       const data = await this.getTicks({
         pool_id: params.pool_id,
         coinTypeA: params.coinTypeA,
@@ -452,8 +541,6 @@ export class PoolModule implements IModule {
         start,
         limit,
       })
-      // console.log('data: ', data)
-
       ticks = [...ticks, ...data]
       if (data.length < limit) {
         break
@@ -472,18 +559,14 @@ export class PoolModule implements IModule {
     const args = [tx.pure(params.pool_id), tx.pure(params.start), tx.pure(params.limit.toString())]
 
     tx.moveCall({
-      target: `${clmm.clmm_router.cetus}::${ClmmFetcherModule}::fetch_ticks`,
+      target: `${clmm.clmm_router}::${ClmmFetcherModule}::fetch_ticks`,
       arguments: args,
       typeArguments,
     })
-    console.log('payload: ', tx.blockData.transactions[0])
-
     const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
       transactionBlock: tx,
       sender: simulationAccount.address,
     })
-
-    // console.log('simulateRes: ', simulateRes.events)
 
     simulateRes.events?.forEach((item: any) => {
       if (extractStructTagFromType(item.type).name === `FetchTicksResultEvent`) {
@@ -514,7 +597,7 @@ export class PoolModule implements IModule {
       const args = [tx.pure(params.pool_id), tx.pure(start), tx.pure(limit.toString())]
 
       tx.moveCall({
-        target: `${clmm.clmm_router.cetus}::${ClmmFetcherModule}::fetch_positions`,
+        target: `${clmm.clmm_router}::${ClmmFetcherModule}::fetch_positions`,
         arguments: args,
         typeArguments,
       })
@@ -558,23 +641,19 @@ export class PoolModule implements IModule {
     const limit = 512
     while (true) {
       const allTickId: SuiObjectIdType[] = []
-      // eslint-disable-next-line no-await-in-loop
       const idRes: DynamicFieldPage = await this.sdk.fullClient.getDynamicFields({
         parentId: tickHandle,
         cursor: nextCursor,
         limit,
       })
-      // console.log('idRes: ', idRes.data)
 
       nextCursor = idRes.nextCursor
-      // eslint-disable-next-line no-loop-func
       idRes.data.forEach((item) => {
         if (extractStructTagFromType(item.objectType).module === 'skip_list') {
           allTickId.push(item.objectId)
         }
       })
 
-      // eslint-disable-next-line no-await-in-loop
       allTickData = [...allTickData, ...(await this.getTicksByRpc(allTickId))]
 
       if (nextCursor === null || idRes.data.length < limit) {
@@ -588,7 +667,6 @@ export class PoolModule implements IModule {
   private async getTicksByRpc(tickObjectId: string[]): Promise<TickData[]> {
     const ticks: TickData[] = []
     const objectDataResponses = await multiGetObjects(this.sdk, tickObjectId, { showContent: true, showType: true })
-    // eslint-disable-next-line no-restricted-syntax
     for (const suiObj of objectDataResponses) {
       ticks.push(buildTickData(suiObj))
     }

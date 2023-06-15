@@ -1,4 +1,3 @@
-/* eslint-disable no-template-curly-in-string */
 import { normalizeSuiObjectId, TransactionArgument, TransactionBlock } from '@mysten/sui.js'
 import { getDefaultSuiInputType, SuiInputTypes, SuiTxArg } from '../types/sui'
 

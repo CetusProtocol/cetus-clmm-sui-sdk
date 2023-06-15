@@ -1,4 +1,3 @@
-/* eslint-disable camelcase */
 import BN from 'bn.js'
 import Decimal from 'decimal.js'
 import { TickMath } from './tick'
@@ -25,14 +24,9 @@ function calculatePoolValidTVL(
   coinAPrice: Decimal,
   coinBPrice: Decimal
 ): Decimal {
-  // console.log({
-  //   coinAmountsA: amountA.toString(),
-  //   coinAmountsB: amountB.toString(),
-  // })
   const poolValidAmountA = new Decimal(amountA.toString()).div(new Decimal(10 ** decimalsA))
   const poolValidAmountB = new Decimal(amountB.toString()).div(new Decimal(10 ** decimalsB))
 
-  // console.log(poolValidAmountA, poolValidAmountB)
   const TVL = poolValidAmountA.mul(coinAPrice).add(poolValidAmountB.mul(coinBPrice))
 
   return TVL
@@ -57,46 +51,46 @@ export function estPositionAPRWithDeltaMethod(
   decimalsRewarder1: number,
   decimalsRewarder2: number,
   feeRate: number,
-  amountA_str: string,
-  amountB_str: string,
+  amountAStr: string,
+  amountBStr: string,
   poolAmountA: BN,
   poolAmountB: BN,
-  swapVolume_str: string,
-  poolRewarders0_str: string,
-  poolRewarders1_str: string,
-  poolRewarders2_str: string,
-  coinAPrice_str: string,
-  coinBPrice_str: string,
-  rewarder0Price_str: string,
-  rewarder1Price_str: string,
-  rewarder2Price_str: string
+  swapVolumeStr: string,
+  poolRewarders0Str: string,
+  poolRewarders1Str: string,
+  poolRewarders2Str: string,
+  coinAPriceStr: string,
+  coinBPriceStr: string,
+  rewarder0PriceStr: string,
+  rewarder1PriceStr: string,
+  rewarder2PriceStr: string
 ): estPosAPRResult {
-  const amountA = new Decimal(amountA_str)
-  const amountB = new Decimal(amountB_str)
-  const swapVolume = new Decimal(swapVolume_str)
-  const poolRewarders0 = new Decimal(poolRewarders0_str)
-  const poolRewarders1 = new Decimal(poolRewarders1_str)
-  const poolRewarders2 = new Decimal(poolRewarders2_str)
-  const coinAPrice = new Decimal(coinAPrice_str)
-  const coinBPrice = new Decimal(coinBPrice_str)
-  const rewarder0Price = new Decimal(rewarder0Price_str)
-  const rewarder1Price = new Decimal(rewarder1Price_str)
-  const rewarder2Price = new Decimal(rewarder2Price_str)
+  const amountA = new Decimal(amountAStr)
+  const amountB = new Decimal(amountBStr)
+  const swapVolume = new Decimal(swapVolumeStr)
+  const poolRewarders0 = new Decimal(poolRewarders0Str)
+  const poolRewarders1 = new Decimal(poolRewarders1Str)
+  const poolRewarders2 = new Decimal(poolRewarders2Str)
+  const coinAPrice = new Decimal(coinAPriceStr)
+  const coinBPrice = new Decimal(coinBPriceStr)
+  const rewarder0Price = new Decimal(rewarder0PriceStr)
+  const rewarder1Price = new Decimal(rewarder1PriceStr)
+  const rewarder2Price = new Decimal(rewarder2PriceStr)
 
   const lowerSqrtPriceX64 = TickMath.tickIndexToSqrtPriceX64(lowerTickIndex)
   const upperSqrtPriceX64 = TickMath.tickIndexToSqrtPriceX64(upperTickIndex)
-  const lowerSqrtPrice_d = MathUtil.toX64_Decimal(MathUtil.fromX64(lowerSqrtPriceX64)).round()
-  const upperSqrtPrice_d = MathUtil.toX64_Decimal(MathUtil.fromX64(upperSqrtPriceX64)).round()
-  const currentSqrtPrice_d = MathUtil.toX64_Decimal(MathUtil.fromX64(currentSqrtPriceX64)).round()
+  const lowerSqrtPriceD = MathUtil.toX64_Decimal(MathUtil.fromX64(lowerSqrtPriceX64)).round()
+  const upperSqrtPriceD = MathUtil.toX64_Decimal(MathUtil.fromX64(upperSqrtPriceX64)).round()
+  const currentSqrtPriceD = MathUtil.toX64_Decimal(MathUtil.fromX64(currentSqrtPriceX64)).round()
   let deltaLiquidity
   const liquidityAmount0 = amountA
     .mul(new Decimal(10 ** decimalsA))
-    .mul(upperSqrtPrice_d.mul(lowerSqrtPrice_d))
-    .div(upperSqrtPrice_d.sub(lowerSqrtPrice_d))
+    .mul(upperSqrtPriceD.mul(lowerSqrtPriceD))
+    .div(upperSqrtPriceD.sub(lowerSqrtPriceD))
     .round()
   const liquidityAmount1 = amountB
     .mul(new Decimal(10 ** decimalsB))
-    .div(upperSqrtPrice_d.sub(lowerSqrtPrice_d))
+    .div(upperSqrtPriceD.sub(lowerSqrtPriceD))
     .round()
   if (currentTickIndex < lowerTickIndex) {
     deltaLiquidity = liquidityAmount0
@@ -105,8 +99,8 @@ export function estPositionAPRWithDeltaMethod(
   } else {
     deltaLiquidity = Decimal.min(liquidityAmount0, liquidityAmount1)
   }
-  const deltaY = deltaLiquidity.mul(currentSqrtPrice_d.sub(lowerSqrtPrice_d))
-  const deltaX = deltaLiquidity.mul(upperSqrtPrice_d.sub(currentSqrtPrice_d)).div(currentSqrtPrice_d.mul(upperSqrtPrice_d))
+  const deltaY = deltaLiquidity.mul(currentSqrtPriceD.sub(lowerSqrtPriceD))
+  const deltaX = deltaLiquidity.mul(upperSqrtPriceD.sub(currentSqrtPriceD)).div(currentSqrtPriceD.mul(upperSqrtPriceD))
   const posValidTVL = deltaX
     .div(new Decimal(10 ** decimalsA))
     .mul(coinAPrice)
@@ -153,19 +147,19 @@ export function estPositionAPRWithMultiMethod(
   const retroRange = retroUpper - retroLower
   const userRange = upperUserPrice - lowerUserPrice
   const histRange = upperHistPrice - lowerHistPrice
-  const userRange_d = new Decimal(userRange.toString())
-  const histRange_d = new Decimal(histRange.toString())
-  const retroRange_d = new Decimal(retroRange.toString())
+  const userRangeD = new Decimal(userRange.toString())
+  const histRangeD = new Decimal(histRange.toString())
+  const retroRangeD = new Decimal(retroRange.toString())
 
   let m = new Decimal('0')
   if (retroRange < 0) {
     m = new Decimal('0')
   } else if (userRange === retroRange) {
-    m = histRange_d.div(retroRange_d)
+    m = histRangeD.div(retroRangeD)
   } else if (histRange === retroRange) {
-    m = retroRange_d.div(userRange_d)
+    m = retroRangeD.div(userRangeD)
   } else {
-    m = retroRange_d.mul(retroRange_d).div(histRange_d).div(userRange_d)
+    m = retroRangeD.mul(retroRangeD).div(histRangeD).div(userRangeD)
   }
 
   return m

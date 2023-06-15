@@ -2,7 +2,7 @@
 import { buildSdk } from './data/init_test_data';
 import 'isomorphic-fetch';
 
-describe('token Module', () => {
+describe('Token Module', () => {
      const sdk = buildSdk()
      const tokenConfig = sdk.sdkOptions.token.config
 

@@ -1,4 +1,5 @@
 import BN from 'bn.js'
+import { d, toDecimalsAmount } from '../utils'
 import { IncreaseLiquidityInput } from '../types/liquidity'
 import { ClmmpoolsError, MathErrorCode, CoinErrorCode } from '../errors/errors'
 import type { ClmmpoolData, TickData } from '../types/clmmpool'
@@ -211,8 +212,6 @@ export function getDeltaDownFromOutput(currentSqrtPrice: BN, targetSqrtPrice: BN
   let result
   if (a2b) {
     const product = liquidity.mul(sqrtPriceDiff)
-    // const shoudRoundUp = product.and(U64_MAX).gt(ZERO)
-    // result = shoudRoundUp ? product.shrn(64).add(ONE) : product.shrn(64)
     result = product.shrn(64)
   } else {
     const numberator = liquidity.mul(sqrtPriceDiff).shln(64)
@@ -465,32 +464,6 @@ export class ClmmPoolUtil {
   }
 
   /**
-   * Estimate liquidity from token amounts
-   * @param curSqrtPrice - current sqrt price.
-   * @param lowerTick - lower tick
-   * @param upperTick - upper tick
-   * @param tokenAmount - token amount
-   * @return
-   */
-  static estimateLiquidityFromcoinAmounts(curSqrtPrice: BN, lowerTick: number, upperTick: number, tokenAmount: CoinAmounts): BN {
-    if (lowerTick > upperTick) {
-      throw new Error('lower tick cannot be greater than lower tick')
-    }
-    const currTick = TickMath.sqrtPriceX64ToTickIndex(curSqrtPrice)
-    const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(lowerTick)
-    const upperSqrtPrice = TickMath.tickIndexToSqrtPriceX64(upperTick)
-    if (currTick < lowerTick) {
-      return estimateLiquidityForCoinA(lowerSqrtPrice, upperSqrtPrice, tokenAmount.coinA)
-    }
-    if (currTick >= upperTick) {
-      return estimateLiquidityForCoinB(upperSqrtPrice, lowerSqrtPrice, tokenAmount.coinB)
-    }
-    const estimateLiquidityAmountA = estimateLiquidityForCoinA(curSqrtPrice, upperSqrtPrice, tokenAmount.coinA)
-    const estimateLiquidityAmountB = estimateLiquidityForCoinB(curSqrtPrice, lowerSqrtPrice, tokenAmount.coinB)
-    return BN.min(estimateLiquidityAmountA, estimateLiquidityAmountB)
-  }
-
-  /**
    * Estimate liquidity and token amount from one amounts
    * @param lowerTick - lower tick
    * @param upperTick - upper tick
@@ -538,5 +511,84 @@ export class ClmmPoolUtil {
       tokenMaxB,
       liquidityAmount: liquidity,
     }
+  }
+
+  /**
+   * Estimate liquidity from token amounts
+   * @param curSqrtPrice - current sqrt price.
+   * @param lowerTick - lower tick
+   * @param upperTick - upper tick
+   * @param tokenAmount - token amount
+   * @return
+   */
+  static estimateLiquidityFromcoinAmounts(curSqrtPrice: BN, lowerTick: number, upperTick: number, tokenAmount: CoinAmounts): BN {
+    if (lowerTick > upperTick) {
+      throw new Error('lower tick cannot be greater than lower tick')
+    }
+    const currTick = TickMath.sqrtPriceX64ToTickIndex(curSqrtPrice)
+    const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(lowerTick)
+    const upperSqrtPrice = TickMath.tickIndexToSqrtPriceX64(upperTick)
+    if (currTick < lowerTick) {
+      return estimateLiquidityForCoinA(lowerSqrtPrice, upperSqrtPrice, tokenAmount.coinA)
+    }
+    if (currTick >= upperTick) {
+      return estimateLiquidityForCoinB(upperSqrtPrice, lowerSqrtPrice, tokenAmount.coinB)
+    }
+    const estimateLiquidityAmountA = estimateLiquidityForCoinA(curSqrtPrice, upperSqrtPrice, tokenAmount.coinA)
+    const estimateLiquidityAmountB = estimateLiquidityForCoinB(curSqrtPrice, lowerSqrtPrice, tokenAmount.coinB)
+    return BN.min(estimateLiquidityAmountA, estimateLiquidityAmountB)
+  }
+
+  /**
+   * Estimate coin amounts from total amount
+   * @param lowerTick
+   * @param upperTick
+   * @param decimalsA
+   * @param decimalsB
+   * @param curSqrtPrice
+   * @param totalAmount
+   * @param tokenPriceA
+   * @param tokenPriceB
+   * @returns
+   */
+  static estCoinAmountsFromTotalAmount(
+    lowerTick: number,
+    upperTick: number,
+    decimalsA: number,
+    decimalsB: number,
+    curSqrtPrice: BN,
+    totalAmount: string,
+    tokenPriceA: string,
+    tokenPriceB: string
+  ) {
+    const { ratioA, ratioB } = ClmmPoolUtil.calculateDepositRatioFixTokenA(lowerTick, upperTick, decimalsA, decimalsB, curSqrtPrice)
+
+    console.log({ ratioA, ratioB })
+
+    const amountA = d(totalAmount).mul(ratioA).div(tokenPriceA)
+    const amountB = d(totalAmount).mul(ratioB).div(tokenPriceB)
+
+    return { amountA, amountB }
+  }
+
+  static calculateDepositRatioFixTokenA(lowerTick: number, upperTick: number, decimalsA: number, decimalsB: number, curSqrtPrice: BN) {
+    const coinAmountA = new BN(toDecimalsAmount(1, decimalsA))
+    const { tokenMaxB } = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
+      lowerTick,
+      upperTick,
+      coinAmountA,
+      true,
+      true,
+      0,
+      curSqrtPrice
+    )
+
+    const currPrice = TickMath.sqrtPriceX64ToPrice(curSqrtPrice, decimalsA, decimalsB)
+    const transformAmountB = d(coinAmountA.toString()).mul(currPrice)
+    const totalAmount = transformAmountB.add(tokenMaxB.toString())
+    const ratioA = transformAmountB.div(totalAmount)
+    const ratioB = d(tokenMaxB.toString()).div(totalAmount)
+
+    return { ratioA, ratioB }
   }
 }

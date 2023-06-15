@@ -6,7 +6,6 @@ import {
   buildTestAccount,
   mintAll,
   faucet,
-  buildTestAccount2,
 } from './data/init_test_data'
 import 'isomorphic-fetch'
 
@@ -15,7 +14,7 @@ let sendKeypair: Ed25519Keypair
 
 describe('faucet coin test', () => {
   beforeEach(async () => {
-    sendKeypair = buildTestAccount2()
+    sendKeypair = buildTestAccount()
   })
 
   test('requestSuiFromFaucet', async () => {

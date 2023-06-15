@@ -10,12 +10,26 @@ export const CLOCK_ADDRESS = '0x000000000000000000000000000000000000000000000000
 export const ClmmIntegratePoolModule = 'pool_script'
 export const ClmmIntegrateRouterModule = 'router'
 export const ClmmFetcherModule = 'fetcher_script'
+export const ClmmExpectSwapModule = 'expect_swap'
 
 export const CoinInfoAddress = '0x1::coin::CoinInfo'
 export const CoinStoreAddress = '0x1::coin::CoinStore'
 export const PoolLiquidityCoinType = 'PoolLiquidityCoin'
 
 export type SuiResource = any
+
+export type DataPage = {
+  data: any[]
+  nextCursor?: any
+  hasNextPage: boolean
+}
+
+export type PageQuery = {
+  cursor?: any
+  limit?: number | null
+}
+
+export type PaginationArgs = 'all' | PageQuery
 
 export type NFT = {
   creator: string

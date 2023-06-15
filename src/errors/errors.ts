@@ -1,4 +1,3 @@
-/* eslint-disable no-shadow */
 export enum MathErrorCode {
   IntegerDowncastOverflow = `IntegerDowncastOverflow`,
   MulOverflow = `MultiplicationOverflow`,

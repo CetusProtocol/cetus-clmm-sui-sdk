@@ -16,6 +16,6 @@ module.exports = {
       tsconfig: "./tests/tsconfig.json"
     }
   },
-  // testRegex: 'token.test.ts',
+  // testRegex: 'router.test.ts',
   testTimeout: 90*1000
 }

@@ -1,17 +1,16 @@
-import { RawSigner, TransactionBlock } from '@mysten/sui.js'
+import { RawSigner } from '@mysten/sui.js'
 import BN from 'bn.js'
 import {
   buildSdk,
   buildTestAccount,
   TokensMapping,
   position_object_id,
-  buildWJLaunchPadAccount,
 } from './data/init_test_data'
 import { TickMath } from '../src/math/tick'
 import { d } from '../src/utils/numbers'
 import { ClmmPoolUtil } from '../src/math/clmm'
 import 'isomorphic-fetch'
-import { printTransaction, sendTransaction, TransactionUtil } from '../src/utils/transaction-util'
+import { printTransaction, sendTransaction } from '../src/utils/transaction-util'
 import { poolList } from './data/pool_data'
 import { CreatePoolParams } from '../src'
 
@@ -20,7 +19,7 @@ describe('Pool Module', () => {
 
   test('getPoolImmutables', async () => {
     const poolImmutables = await sdk.Pool.getPoolImmutables()
-    console.log('getPoolImmutables', poolImmutables, '###length###', poolImmutables.length)
+    console.log('getPoolImmutables', poolImmutables)
   })
 
   test('getAllPool', async () => {
@@ -29,7 +28,7 @@ describe('Pool Module', () => {
   })
 
   test('getSiginlePool', async () => {
-    const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectId[0])
+    const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectIds[0])
     console.log('pool', pool)
   })
 
@@ -39,14 +38,14 @@ describe('Pool Module', () => {
   })
 
   test('get pool position list', async () => {
-    const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectId[0])
+    const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectIds[0])
     const res = await sdk.Pool.getPositionList(pool.position_manager.positions_handle)
     console.log('getPositionList####', res)
   })
 
 
   test('getPositionById', async () => {
-    const res = await sdk.Position.getPositionById('0x74055642637856f8e8ea2a9724be86250a4fa2b87969ba663aabfcf4c99db33c')
+    const res = await sdk.Position.getPositionById(position_object_id)
     console.log('getPositionById###', res)
   })
 
@@ -57,14 +56,13 @@ describe('Pool Module', () => {
 
 
   test('getPositionInfo', async () => {
-    //const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectId[0])
-    //const res = await sdk.Position.getPosition(pool.positions_handle, "0x545d43936d9e8bad18fe4034b39cfbcf664fc79300358b5beedbb76936d3b7e8")
-    const res = await sdk.Position.getPosition('0xc203a9d8ffd64dde8e664c9092f39db7a2f4a267709d30be93814a5edb95454f', "0x95838f0ba6cf343689d6b38234d82c7722c57d79deacfb8837aa8aae2958072c")
-    console.log('getPosition####', res)
+    const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectIds[0])
+    const res = await sdk.Position.getPosition(pool.position_manager.positions_handle, position_object_id)
+    console.log('getPositionList####', res)
   })
 
   test('fetchPositionRewardList', async () => {
-    const pool = await sdk.Pool.getPool("0xf71b517fe0f57a4e3be5b00a90c40f461058f5ae7a4bb65fe1abf3bfdd20dcf7")
+    const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectIds[0])
     const res = await sdk.Pool.fetchPositionRewardList({
       pool_id: pool.poolAddress,
       coinTypeA: pool.coinTypeA,
@@ -152,17 +150,4 @@ describe('Pool Module', () => {
     console.log('doCreatPool: ', transferTxn)
   })
 
-  test('add_fee_tier', async () => {
-    const signer = new RawSigner(buildWJLaunchPadAccount(), sdk.fullClient)
-    const tx = new TransactionBlock()
-    const args = [tx.pure(sdk.sdkOptions.clmm.config!.global_config_id), tx.pure('2'), tx.pure('1')]
-
-    tx.moveCall({
-      target: `${sdk.sdkOptions.clmm.clmm_router.cetus}::config_script::add_fee_tier`,
-      typeArguments: [],
-      arguments: args,
-    })
-    const transferTxn = await sendTransaction(signer, tx)
-    console.log('add_fee_tier: ', transferTxn)
-  })
 })

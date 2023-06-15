@@ -15,7 +15,21 @@ module.exports = {
         'no-underscore-dangle': 'off',
         'no-shadow': 'off',
         'no-restricted-syntax': 'off',
-        'no-continue': 'off'
+        'no-continue': 'off',
+        '@typescript-eslint/no-non-null-assertion': 'off',
+        'camelcase': 'off',
+        'no-nested-ternary': 'off',
+        'no-await-in-loop': 'off',
+        'no-constant-condition': 'off',
+        'class-methods-use-this': 'off',
+        'no-empty': 'off',
+        'import/no-unresolved': 'off',
+        'no-return-await': 'off',
+        'no-plusplus': 'off',
+        'guard-for-in': 'off',
+        'default-case': 'off',
+        'no-bitwise': 'off',
+        'no-template-curly-in-string': 'off',
     },
     settings: {
         'import/resolver': {

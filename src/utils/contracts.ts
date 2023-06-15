@@ -1,6 +1,5 @@
 import { normalizeSuiObjectId } from '@mysten/sui.js'
 import { SuiAddressType, SuiStructTag } from '../types/sui'
-import { checkAddress } from './hex'
 import { CoinAssist } from '../math/CoinAssist'
 
 const EQUAL = 0
@@ -103,7 +102,6 @@ export function fixSuiObjectId(value: string): string {
 }
 
 export function patchFixSuiObjectId(data: any) {
-  // eslint-disable-next-line guard-for-in
   for (const key in data) {
     const type = typeof data[key]
     if (type === 'object') {

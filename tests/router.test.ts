@@ -1,11 +1,11 @@
 import BN from 'bn.js'
-import { buildSdk, buildTestAccount, buildTestAccount2, buildTestPool, TokensMapping } from './data/init_test_data'
+import { buildSdk, buildTestAccount, buildTestPool, TokensMapping } from './data/init_test_data'
 import { CoinProvider, OnePath, PreRouterSwapParams } from '../src/modules/routerModule'
 import SDK, { CoinAsset, CoinAssist, Pool, printTransaction, sendTransaction, SwapUtils, TransactionUtil } from '../src'
 import { Ed25519Keypair, FaucetCoinInfo, RawSigner, TransactionArgument, TransactionBlock } from '@mysten/sui.js'
 import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS } from '../src/types/sui'
 import { TxBlock } from '../src/utils/tx-block'
-import axios from 'axios';
+import axios from 'axios'
 import { PathProvider } from '../src/modules/routerModule'
 
 describe('Router Module', () => {
@@ -13,20 +13,19 @@ describe('Router Module', () => {
   const sendKeypair = buildTestAccount()
   sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()
 
-  const USDC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
-  const USDT = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
-  const ETH = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::eth::ETH'
-  const SUI = '0x2::sui::SUI'
-  const BTC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::btc::BTC'
-  const CETUS = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS'
-
-  // const USDC = '0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN'
-  // const USDT = '0xc060006111016b8a020ad5b33834984a437aaa7d3c74c18e09a95d48aceab08c::coin::COIN'
-  // const ETH = '0xaf8cd5edc19c4512f4259f0bee101a40d41ebed738ade5874359610ef8eeced5::coin::COIN'
+  // const USDC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
+  // const USDT = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
+  // const ETH = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::eth::ETH'
   // const SUI = '0x2::sui::SUI'
   // const BTC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::btc::BTC'
   // const CETUS = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS'
 
+  const USDC = '0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN'
+  const USDT = '0xc060006111016b8a020ad5b33834984a437aaa7d3c74c18e09a95d48aceab08c::coin::COIN'
+  const ETH = '0xaf8cd5edc19c4512f4259f0bee101a40d41ebed738ade5874359610ef8eeced5::coin::COIN'
+  const SUI = '0x2::sui::SUI'
+  const BTC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::btc::BTC'
+  const CETUS = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS'
 
   const tokens: CoinProvider = {
     coins: [
@@ -53,8 +52,8 @@ describe('Router Module', () => {
       {
         address: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS',
         decimals: 9,
-      }
-    ]
+      },
+    ],
   }
 
   const path_testnet = {
@@ -126,52 +125,10 @@ describe('Router Module', () => {
       {
         base: USDC,
         quote: SUI,
-        addressMap: new Map(
-          [
-            [100, '0x2b4570ea787289a433a53279020102681ed1af01c111f9cee50c44b1af55c7b5'],
-          ]
-        ),
+        addressMap: new Map([[100, '0x2b4570ea787289a433a53279020102681ed1af01c111f9cee50c44b1af55c7b5']]),
       },
     ],
   }
-
-  test('router module => testnet', async () => {
-    sdk.Router.loadGraph(tokens, path_testnet)
-
-    // const byAmountIn = true
-    const byAmountIn = false
-
-    const amount = new BN('100000000000000000')
-
-    // ab - bc
-    // USDT - USDC - ETH
-    const result = await sdk.Router.price(USDC, USDT, amount, byAmountIn, 0.05, '')
-
-    // ba - cb
-    // ETH - USDC - USDT
-    // const result = await sdk.Router.price(ETH, USDT, amount, byAmountIn, 0.05, '')
-
-    // ab - cb
-    // ETH - CETUS - USDC
-    // const result = await sdk.Router.price(ETH, USDC, amount, byAmountIn, 0.05, '')
-
-    // ba - bc
-    // ETH - USDC- CETUS
-    // const result = await sdk.Router.price(CETUS, ETH, amount, byAmountIn, 0.05, '')
-
-    console.log(result, result?.amountIn.toString(), result?.amountOut.toString())
-
-    console.log(result?.amountIn.toString(), result?.amountOut.toString())
-    // if (!result?.isExceed) {
-    //   const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-    //   const routerPayload = TransactionUtil.buildRouterSwapTransaction(sdk, result!.createTxParams!, byAmountIn, allCoinAsset)
-    //   printTransaction(routerPayload)
-    //   const signer = new RawSigner(sendKeypair, sdk.fullClient)
-    //   const transferTxn = await sendTransaction(signer, routerPayload)
-    //   console.log('router: ', transferTxn)
-    //   console.log(result?.amountIn.toString(), result?.amountOut.toString())
-    // }
-  })
 
   test('integration testnet <= router module', async () => {
     const pools = await sdk.Pool.getPools([])
@@ -180,16 +137,20 @@ describe('Router Module', () => {
     const poolMap = new Map()
 
     for (let i = 0; i < pools.length; i += 1) {
+      if (pools[i].is_pause) {
+        continue
+      }
+
       let coin_a = pools[i].coinTypeA
       let coin_b = pools[i].coinTypeB
 
       coinMap.set(coin_a, {
         address: coin_a,
-        decimals: 9,
+        decimals: 8,
       })
       coinMap.set(coin_b, {
         address: coin_b,
-        decimals: 9,
+        decimals: 6,
       })
 
       const pair = `${coin_a}-${coin_b}`
@@ -206,34 +167,19 @@ describe('Router Module', () => {
     }
 
     const coins: CoinProvider = {
-      coins: Array.from(coinMap.values())
-    } 
+      coins: Array.from(coinMap.values()),
+    }
     const paths: PathProvider = {
-      paths: Array.from(poolMap.values())
+      paths: Array.from(poolMap.values()),
     }
 
     sdk.Router.loadGraph(coins, paths)
 
-    // const byAmountIn = true
-    const byAmountIn = false
+    const byAmountIn = true
 
-    const amount = new BN('11110000')
+    const amount = new BN('100000000')
 
-    // ab - bc
-    // USDT - USDC - ETH
-    const result = await sdk.Router.price(SUI, USDC, amount, byAmountIn, 0.05, '')
-
-    // ba - cb
-    // ETH - USDC - USDT
-    // const result = await sdk.Router.price(ETH, USDT, amount, byAmountIn, 0.05, '')
-
-    // ab - cb
-    // ETH - CETUS - USDC
-    // const result = await sdk.Router.price(ETH, USDC, amount, byAmountIn, 0.05, '')
-
-    // ba - bc
-    // ETH - USDC- CETUS
-    // const result = await sdk.Router.price(CETUS, ETH, amount, byAmountIn, 0.05, '')
+    const result = await sdk.Router.price(ETH, USDT, amount, byAmountIn, 0.05, '')
 
     console.log(result, result?.amountIn.toString(), result?.amountOut.toString())
 
@@ -247,6 +193,21 @@ describe('Router Module', () => {
     //   console.log('router: ', transferTxn)
     //   console.log(result?.amountIn.toString(), result?.amountOut.toString())
     // }
+  })
+
+  test('calculate swap fee Impact', async () => {
+    // All the parameters come from the calculation results of the test case 'integration testnet <= router module'.
+    const swapFee = await sdk.Swap.calculateSwapFeeAndImpact({
+      from_type: "0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT",
+      from_amount : '1000000',
+      to_amount: '31034210',
+      pool_address:"0x8c30b4c434b8acc740e452311147790b67004a3e37387703afe5aa5c9c6a5e3a",
+      router: {
+        pool_address:"0xd1abb32c3ceeebb47b965d6b15790a780268ed69b95199cec3f7edc5b071dd4c",
+        raw_amount_limit: '31071079541'
+      }
+    })
+    console.log('swapFee: ', swapFee)
   })
 
   test('swap without send coin', async () => {
@@ -283,7 +244,18 @@ describe('Router Module', () => {
 
     const coinsA = primaryCoinInputsA
 
-    const { tx: newTx, coins } = createRouterTransaction(sdk, txBlock, pool, a2b, byAmountIn, amount.toString(), amountLimit.toString(), sqrtPriceLimit, (primaryCoinInputsA as TransactionArgument), (primaryCoinInputsB as TransactionArgument))
+    const { tx: newTx, coins } = createRouterTransaction(
+      sdk,
+      txBlock,
+      pool,
+      a2b,
+      byAmountIn,
+      amount.toString(),
+      amountLimit.toString(),
+      sqrtPriceLimit,
+      primaryCoinInputsA as TransactionArgument,
+      primaryCoinInputsB as TransactionArgument
+    )
 
     tx.txBlock = newTx
 
@@ -291,11 +263,22 @@ describe('Router Module', () => {
 
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const resultTxn = await sendTransaction(signer, txBlock)
-    console.log(resultTxn);
+    console.log(resultTxn)
   })
 })
 
-function createRouterTransaction(sdk: SDK, tx: TransactionBlock, pool: Pool, a2b: boolean, byAmountIn: boolean, amount: string, amountLimit: string, sqrtPriceLimit: string, coinsA: TransactionArgument, coinsB: TransactionArgument) {
+function createRouterTransaction(
+  sdk: SDK,
+  tx: TransactionBlock,
+  pool: Pool,
+  a2b: boolean,
+  byAmountIn: boolean,
+  amount: string,
+  amountLimit: string,
+  sqrtPriceLimit: string,
+  coinsA: TransactionArgument,
+  coinsB: TransactionArgument
+) {
   const { clmm } = sdk.sdkOptions
 
   const args = [
@@ -308,12 +291,12 @@ function createRouterTransaction(sdk: SDK, tx: TransactionBlock, pool: Pool, a2b
     tx.pure(amount.toString()),
     tx.pure(amountLimit.toString()),
     tx.pure(sqrtPriceLimit),
-    tx.pure(CLOCK_ADDRESS)
+    tx.pure(CLOCK_ADDRESS),
   ]
 
   const typeArguments = [pool.coinTypeA, pool.coinTypeB]
   const coins: TransactionArgument[] = tx.moveCall({
-    target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::swap_without_send_coin`,
+    target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::swap_without_send_coin`,
     typeArguments,
     arguments: args,
   })

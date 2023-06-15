@@ -1,4 +1,3 @@
-/* eslint-disable camelcase */
 import BN from 'bn.js'
 import { ZERO } from '../math/utils'
 import { Pool } from './clmm_type'

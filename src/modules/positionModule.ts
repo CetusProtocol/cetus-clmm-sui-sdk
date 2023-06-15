@@ -1,10 +1,5 @@
-/* eslint-disable no-bitwise */
-/* eslint-disable no-plusplus */
-/* eslint-disable camelcase */
-/* eslint-disable no-nested-ternary */
-/* eslint-disable class-methods-use-this */
 import BN from 'bn.js'
-import { TransactionBlock, getObjectFields } from '@mysten/sui.js'
+import { TransactionArgument, TransactionBlock, getObjectFields, isValidSuiObjectId } from '@mysten/sui.js'
 import {
   AddLiquidityFixTokenParams,
   AddLiquidityParams,
@@ -24,22 +19,23 @@ import {
   cacheTime5min,
   extractStructTagFromType,
   getFutureTime,
+  getOwnedObjects,
   multiGetObjects,
 } from '../utils'
 import { findAdjustCoin, TransactionUtil } from '../utils/transaction-util'
 import { ClmmIntegratePoolModule, CLOCK_ADDRESS, SuiObjectIdType, SuiResource } from '../types/sui'
-import { SDK } from '../sdk'
+import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 
 /**
  * Helper class to help interact with clmm position with a position router interface.
  */
 export class PositionModule implements IModule {
-  protected _sdk: SDK
+  protected _sdk: CetusClmmSDK
 
   private readonly _cache: Record<string, CachedContent> = {}
 
-  constructor(sdk: SDK) {
+  constructor(sdk: CetusClmmSDK) {
     this._sdk = sdk
   }
 
@@ -66,39 +62,27 @@ export class PositionModule implements IModule {
    */
   async getPositionList(accountAddress: string, assignPoolIds: string[] = []): Promise<Position[]> {
     const allPosition: Position[] = []
-    let cursor = null
 
-    while (true) {
-      // eslint-disable-next-line no-await-in-loop
-      const ownerRes: any = await this._sdk.fullClient.getOwnedObjects({
-        owner: accountAddress,
-        options: { showType: true, showContent: true, showDisplay: true, showOwner: true },
-        cursor,
-        filter: { Package: this._sdk.sdkOptions.clmm.clmm_display },
-      })
+    const ownerRes: any = await getOwnedObjects(this._sdk, accountAddress, {
+      options: { showType: true, showContent: true, showDisplay: true, showOwner: true },
+      filter: { Package: this._sdk.sdkOptions.clmm.clmm_display },
+    })
 
-      const hasAssignPoolIds = assignPoolIds.length > 0
-      for (const item of ownerRes.data as any[]) {
-        const type = extractStructTagFromType(item.data.type)
+    const hasAssignPoolIds = assignPoolIds.length > 0
+    for (const item of ownerRes.data as any[]) {
+      const type = extractStructTagFromType(item.data.type)
 
-        if (type.full_address === this.buildPositionType()) {
-          const position = buildPosition(item)
-          const cacheKey = `${position.pos_object_id}_getPositionList`
-          this.updateCache(cacheKey, position, cacheTime24h)
-          if (hasAssignPoolIds) {
-            if (assignPoolIds.includes(position.pool)) {
-              allPosition.push(position)
-            }
-          } else {
+      if (type.full_address === this.buildPositionType()) {
+        const position = buildPosition(item)
+        const cacheKey = `${position.pos_object_id}_getPositionList`
+        this.updateCache(cacheKey, position, cacheTime24h)
+        if (hasAssignPoolIds) {
+          if (assignPoolIds.includes(position.pool)) {
             allPosition.push(position)
           }
+        } else {
+          allPosition.push(position)
         }
-      }
-
-      if (ownerRes.hasNextPage) {
-        cursor = ownerRes.nextCursor
-      } else {
-        break
       }
     }
 
@@ -212,32 +196,37 @@ export class PositionModule implements IModule {
    * @param posObjectId The ID of the position object.
    * @returns PositionReward object.
    */
-  async getPositionRewarders(positionHandle: string, posObjectId: string): Promise<PositionReward> {
-    const dynamicFieldObject = await this._sdk.fullClient.getDynamicFieldObject({
-      parentId: positionHandle,
-      name: {
-        type: '0x2::object::ID',
-        value: posObjectId,
-      },
-    })
+  async getPositionRewarders(positionHandle: string, posObjectId: string): Promise<PositionReward | undefined> {
+    try {
+      const dynamicFieldObject = await this._sdk.fullClient.getDynamicFieldObject({
+        parentId: positionHandle,
+        name: {
+          type: '0x2::object::ID',
+          value: posObjectId,
+        },
+      })
 
-    const objectFields = getObjectFields(dynamicFieldObject.data as any) as any
+      const objectFields = getObjectFields(dynamicFieldObject.data as any) as any
 
-    const fields = objectFields.value.fields.value
+      const fields = objectFields.value.fields.value
 
-    const positionReward = buildPositionReward(fields)
-    return positionReward
+      const positionReward = buildPositionReward(fields)
+      return positionReward
+    } catch (error) {
+      console.log(error)
+      return undefined
+    }
   }
 
   /**
-   * create add liquidity transaction payload
+   * create add liquidity transaction payload with fix token
    * @param params
    * @param gasEstimateArg : When the fix input amount is SUI, gasEstimateArg can control whether to recalculate the number of SUI to prevent insufficient gas.
    * If this parameter is not passed, gas estimation is not performed
    * @returns
    */
-  async createAddLiquidityTransactionPayload(
-    params: AddLiquidityParams | AddLiquidityFixTokenParams,
+  async createAddLiquidityFixTokenPayload(
+    params: AddLiquidityFixTokenParams,
     gasEstimateArg?: {
       slippage: number
       curSqrtPrice: BN
@@ -255,13 +244,115 @@ export class PositionModule implements IModule {
       if (isFixToken) {
         params = params as AddLiquidityFixTokenParams
         if ((params.fix_amount_a && isAdjustCoinA) || (!params.fix_amount_a && isAdjustCoinB)) {
-          const tx = await TransactionUtil.buildAddLiquidityTransactionForGas(this._sdk, allCoinAsset, params, gasEstimateArg)
+          const tx = await TransactionUtil.buildAddLiquidityFixTokenForGas(this._sdk, allCoinAsset, params, gasEstimateArg)
           return tx
         }
       }
     }
 
-    return TransactionUtil.buildAddLiquidityTransaction(this._sdk, allCoinAsset, params)
+    return TransactionUtil.buildAddLiquidityFixToken(this._sdk, allCoinAsset, params)
+  }
+
+  /**
+   * create add liquidity transaction payload
+   * @param params
+   * @returns
+   */
+  async createAddLiquidityPayload(params: AddLiquidityParams): Promise<TransactionBlock> {
+    const { clmm } = this._sdk.sdkOptions
+    if (this._sdk.senderAddress.length === 0) {
+      throw Error('this config sdk senderAddress is empty')
+    }
+    const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
+    const tick_lower = asUintN(BigInt(params.tick_lower)).toString()
+    const tick_upper = asUintN(BigInt(params.tick_upper)).toString()
+
+    const typeArguments = [params.coinTypeA, params.coinTypeB]
+
+    const tx = new TransactionBlock()
+
+    const needOpenPosition = !isValidSuiObjectId(params.pos_id)
+
+    let positionNft: TransactionArgument[] = []
+
+    if (needOpenPosition) {
+      positionNft = tx.moveCall({
+        target: `${clmm.clmm_display}::pool::open_position`,
+        typeArguments,
+        arguments: [tx.object(clmm.config.global_config_id), tx.object(params.pool_id), tx.pure(tick_lower), tx.pure(tick_upper)],
+      })
+    } else {
+      this._sdk.Rewarder.collectRewarderTransactionPayload(
+        {
+          pool_id: params.pool_id,
+          pos_id: params.pos_id,
+          coinTypeA: params.coinTypeA,
+          coinTypeB: params.coinTypeB,
+          collect_fee: params.collect_fee,
+          rewarder_coin_types: params.rewarder_coin_types,
+        },
+        tx
+      )
+    }
+
+    const max_amount_a = BigInt(params.max_amount_a)
+    const max_amount_b = BigInt(params.max_amount_b)
+
+    const warpInputs: {
+      coinInput: TransactionArgument
+      amount: string
+    }[] = []
+
+    let funName = ''
+
+    if (max_amount_a > 0) {
+      const primaryCoinAInputs: any = TransactionUtil.buildCoinInputForAmount(
+        tx,
+        allCoinAsset,
+        max_amount_a,
+        params.coinTypeA
+      )?.transactionArgument
+      warpInputs.push({
+        coinInput: primaryCoinAInputs,
+        amount: max_amount_a.toString(),
+      })
+      funName = 'add_liquidity_only_a'
+    }
+    if (max_amount_b > 0) {
+      const primaryCoinBInputs: any = TransactionUtil.buildCoinInputForAmount(
+        tx,
+        allCoinAsset,
+        max_amount_b,
+        params.coinTypeB
+      )?.transactionArgument
+      warpInputs.push({
+        coinInput: primaryCoinBInputs,
+        amount: max_amount_b.toString(),
+      })
+      funName = 'add_liquidity_only_b'
+    }
+
+    if (max_amount_a > 0 && max_amount_b > 0) {
+      funName = 'add_liquidity_with_all'
+    }
+
+    tx.moveCall({
+      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::${funName}`,
+      typeArguments,
+      arguments: [
+        tx.object(clmm.config.global_config_id),
+        tx.object(params.pool_id),
+        needOpenPosition ? positionNft[0] : tx.object(params.pos_id),
+        ...warpInputs.map((item) => item.coinInput),
+        ...warpInputs.map((item) => tx.pure(item.amount)),
+        tx.pure(params.delta_liquidity),
+        tx.object(CLOCK_ADDRESS),
+      ],
+    })
+    if (needOpenPosition) {
+      tx.transferObjects([positionNft[0]], tx.object(this._sdk.senderAddress))
+    }
+    return tx
   }
 
   /**
@@ -279,13 +370,17 @@ export class PositionModule implements IModule {
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
 
-    if (params.collect_fee) {
-      tx.moveCall({
-        target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::collect_fee`,
-        typeArguments,
-        arguments: [tx.object(clmm.config.global_config_id), tx.object(params.pool_id), tx.object(params.pos_id)],
-      })
-    }
+    this._sdk.Rewarder.collectRewarderTransactionPayload(
+      {
+        pool_id: params.pool_id,
+        pos_id: params.pos_id,
+        coinTypeA: params.coinTypeA,
+        coinTypeB: params.coinTypeB,
+        collect_fee: params.collect_fee,
+        rewarder_coin_types: params.rewarder_coin_types,
+      },
+      tx
+    )
 
     const args = [
       tx.object(clmm.config.global_config_id),
@@ -298,7 +393,7 @@ export class PositionModule implements IModule {
     ]
 
     tx.moveCall({
-      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::${functionName}`,
+      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::${functionName}`,
       typeArguments,
       arguments: args,
     })
@@ -320,30 +415,20 @@ export class PositionModule implements IModule {
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
 
-    if (params.collect_fee) {
-      tx.moveCall({
-        target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::collect_fee`,
-        typeArguments,
-        arguments: [tx.object(clmm.config.global_config_id), tx.object(params.pool_id), tx.object(params.pos_id)],
-      })
-    }
-
-    params.rewarder_coin_types.forEach((type) => {
-      tx.moveCall({
-        target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::collect_reward`,
-        typeArguments: [...typeArguments, type],
-        arguments: [
-          tx.object(clmm.config.global_config_id),
-          tx.object(params.pool_id),
-          tx.object(params.pos_id),
-          tx.object(clmm.config.global_vault_id),
-          tx.object(CLOCK_ADDRESS),
-        ],
-      })
-    })
+    this._sdk.Rewarder.collectRewarderTransactionPayload(
+      {
+        pool_id: params.pool_id,
+        pos_id: params.pos_id,
+        coinTypeA: params.coinTypeA,
+        coinTypeB: params.coinTypeB,
+        collect_fee: params.collect_fee,
+        rewarder_coin_types: params.rewarder_coin_types,
+      },
+      tx
+    )
 
     tx.moveCall({
-      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::close_position`,
+      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::close_position`,
       typeArguments,
       arguments: [
         tx.object(clmm.config.global_config_id),
@@ -374,7 +459,7 @@ export class PositionModule implements IModule {
     const args = [tx.pure(clmm.config.global_config_id), tx.pure(params.pool_id), tx.pure(tick_lower), tx.pure(tick_upper)]
 
     tx.moveCall({
-      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::open_position`,
+      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::open_position`,
       typeArguments,
       arguments: args,
     })
@@ -387,21 +472,44 @@ export class PositionModule implements IModule {
    * @param params
    * @returns
    */
-  collectFeeTransactionPayload(params: CollectFeeParams): TransactionBlock {
+  collectFeeTransactionPayload(params: CollectFeeParams, tx?: TransactionBlock): TransactionBlock {
     const { clmm } = this.sdk.sdkOptions
 
-    const tx = new TransactionBlock()
+    tx = tx === undefined ? new TransactionBlock() : tx
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
-    const args = [tx.object(clmm.config.global_config_id), tx.pure(params.pool_id), tx.pure(params.pos_id)]
+    const args = [tx.object(clmm.config.global_config_id), tx.object(params.pool_id), tx.object(params.pos_id)]
 
     tx.moveCall({
-      target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::collect_fee`,
+      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::collect_fee`,
       typeArguments,
       arguments: args,
     })
 
     return tx
+  }
+
+  async calculateFee(params: CollectFeeParams) {
+    const paylod = this.collectFeeTransactionPayload(params, new TransactionBlock())
+
+    const res = await this._sdk.fullClient.devInspectTransactionBlock({
+      transactionBlock: paylod,
+      sender: this._sdk.senderAddress,
+    })
+    for (const event of res.events) {
+      if (extractStructTagFromType(event.type).name === 'CollectFeeEvent') {
+        const json = event.parsedJson as any
+        return {
+          feeOwedA: json.amount_a,
+          feeOwedB: json.amount_b,
+        }
+      }
+    }
+
+    return {
+      feeOwedA: '0',
+      feeOwedB: '0',
+    }
   }
 
   /**

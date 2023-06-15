@@ -1,9 +1,9 @@
 import { Ed25519Keypair, RawSigner } from '@mysten/sui.js'
 import BN from 'bn.js'
 import { buildSdk, buildTestAccount, buildTestPool, TokensMapping } from './data/init_test_data'
-import 'isomorphic-fetch';
+import 'isomorphic-fetch'
 import { printTransaction, sendTransaction } from '../src/utils/transaction-util'
-import { adjustForSlippage, d, Percentage } from '../src'
+import { adjustForSlippage, d, Percentage, TickMath } from '../src'
 
 let sendKeypair: Ed25519Keypair
 
@@ -15,7 +15,7 @@ describe('Swap calculate Module', () => {
     const byAmountIn = true
     const amount = new BN('1000')
 
-    const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectId[0]
+    const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectIds[0]
     const currentPool = await buildTestPool(sdk, poolObjectId)
 
     const tickdatas = await sdk.Pool.fetchTicksByRpc(currentPool.ticks_handle)
@@ -41,11 +41,10 @@ describe('Swap calculate Module', () => {
   })
 
   test('fetchTicksByContract', async () => {
-
     const tickdatas = await sdk.Pool.fetchTicks({
-      pool_id: TokensMapping.USDT_USDC_LP.poolObjectId[0],
-      coinTypeA: "0x473d520316e4ea5550657410669c9da6cde191e570d63d754cee353e11746751::usdt::USDT",
-      coinTypeB: "0x473d520316e4ea5550657410669c9da6cde191e570d63d754cee353e11746751::usdc::USDC",
+      pool_id: TokensMapping.USDT_USDC_LP.poolObjectIds[0],
+      coinTypeA: '0x473d520316e4ea5550657410669c9da6cde191e570d63d754cee353e11746751::usdt::USDT',
+      coinTypeB: '0x473d520316e4ea5550657410669c9da6cde191e570d63d754cee353e11746751::usdc::USDC',
     })
     console.log('fetchTicks: ', tickdatas)
   })
@@ -55,15 +54,8 @@ describe('Swap calculate Module', () => {
     console.log('fetchTicks: ', tickdatas)
   })
   test('getTickDataByIndex', async () => {
-    const tickdata = await sdk.Pool.getTickDataByIndex('0x79696ca8bcdc45b9e15ef7da074a9c9a6f94739021590d7f57a3ed4055b93532',-443636)
+    const tickdata = await sdk.Pool.getTickDataByIndex('0x79696ca8bcdc45b9e15ef7da074a9c9a6f94739021590d7f57a3ed4055b93532', -443636)
     console.log('tickdata: ', tickdata)
-  })
-
-  test('getTickDataByObjectId', async () => {
-    const tickdata = await sdk.fullClient.getDynamicFields({parentId: "0x6bb10e21eb4cfbc023a7a5d30ecc07d3b67532ae18aab4369b60a42351ae4ab5"})
-    console.log('tickdata: ', tickdata.data)
-    //const tickdata = await sdk.Pool.getTickDataByObjectId("0x1365a01071ee4f9da231a37480924a5745386af8a17935ed1a4b6bdb7a732a36")
-    // console.log('tickdata: ', tickdata)
   })
 
 
@@ -72,7 +64,7 @@ describe('Swap calculate Module', () => {
     const poolAddresses = [
       '0x018734f81283c5320fd322178f8d4aeafb6e0034959a890987b10705297b61e3',
       '0x684d8a994e695578e5e45ad3aa020a338c9d42879f7b1853a1cede6e317ba900',
-      '0x525d2a587f56a42ea350072d61b0c00283f9587949764332c4c2bb0e6db9b9f8'
+      '0x525d2a587f56a42ea350072d61b0c00283f9587949764332c4c2bb0e6db9b9f8',
     ]
     const pool0 = await buildTestPool(sdk, poolAddresses[0])
     const pool1 = await buildTestPool(sdk, poolAddresses[1])
@@ -108,10 +100,10 @@ describe('Swap calculate Module', () => {
   })
 
   test('preswap', async () => {
-    const a2b = true
-    const pool = await buildTestPool(sdk, "0xccf8fe1a4ae49e60757e807e4750b595062631ae2d19d33458d30e9e467631d4")
+    const a2b = false
+    const pool = await sdk.Pool.getPool('0x2944d4508c6972f858e8919d6e03d3609dfa4a427007c1d637413066b8e93fa7')
     const byAmountIn = false
-    const amount = '11111000000'
+    const amount = '120000'
 
     const res: any = await sdk.Swap.preswap({
       pool: pool,
@@ -144,11 +136,10 @@ describe('Swap Module', () => {
     const byAmountIn = true
     const amount = new BN('1664')
     const slippage = Percentage.fromDecimal(d(0.1))
-    const poolObjectId = "0x1b9b4f2271bc69df97ddafcb3f64599ca0de05cb94d5bb1386693559afdf1757"
+    const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectIds[0]
 
     const currentPool = await buildTestPool(sdk, poolObjectId)
-    console.log("currentPool: ",currentPool);
-
+    console.log('currentPool: ', currentPool)
 
     const tickdatas = await sdk.Pool.fetchTicksByRpc(currentPool.ticks_handle)
 
@@ -177,9 +168,7 @@ describe('Swap Module', () => {
 
     const toAmount = byAmountIn ? res.estimatedAmountOut : res.estimatedAmountIn
 
-    const amountLimit =  adjustForSlippage(toAmount,slippage,!byAmountIn)
-
-    // console.log('swap###params####', { amount: res.amount.toString(), amount_limit: amountLimit.toString() })
+    const amountLimit = adjustForSlippage(toAmount, slippage, !byAmountIn)
 
     const swapPayload = await sdk.Swap.createSwapTransactionPayload({
       pool_id: currentPool.poolAddress,
@@ -189,17 +178,10 @@ describe('Swap Module', () => {
       amount_limit: amountLimit.toString(),
       coinTypeA: currentPool.coinTypeA,
       coinTypeB: currentPool.coinTypeB,
-    }, {
-      byAmountIn,
-      slippage,
-      decimalsA,
-      decimalsB,
-      swapTicks: tickdatas,
-      currentPool
     })
 
     printTransaction(swapPayload)
-    const transferTxn = await sendTransaction(signer,swapPayload,false)
+    const transferTxn = await sendTransaction(signer, swapPayload, false)
     console.log('swap: ', transferTxn)
   })
 })

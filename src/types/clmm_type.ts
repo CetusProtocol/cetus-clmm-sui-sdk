@@ -10,7 +10,6 @@ export enum ClmmPositionStatus {
   'Exists' = 'Exists',
   'NotExists' = 'NotExists',
 }
-
 export type Position = {
   pos_object_id: SuiObjectIdType
   owner: SuiObjectIdType
@@ -93,11 +92,12 @@ export type Rewarder = {
   emissionsEveryDay: number
 }
 
-export type InitEvent = {
+export type ClmmConfig = {
   pools_id: SuiObjectIdType
   global_config_id: SuiObjectIdType
   admin_cap_id: SuiObjectIdType
   global_vault_id: SuiObjectIdType
+  partners_id?: SuiObjectIdType
 }
 
 export type CreatePartnerEvent = {
@@ -161,6 +161,8 @@ export type AddLiquidityParams = {
 export type AddLiquidityCommonParams = {
   tick_lower: string | number
   tick_upper: string | number
+  collect_fee: boolean
+  rewarder_coin_types: SuiAddressType[]
 } & CoinPairType &
   CommonParams
 
@@ -175,6 +177,7 @@ export type RemoveLiquidityParams = {
   min_amount_a: string
   min_amount_b: string
   collect_fee: boolean
+  rewarder_coin_types: string[]
 } & CommonParams &
   CoinPairType
 
@@ -259,4 +262,15 @@ export type CollectRewarderParams = {
 export type RewarderAmountOwed = {
   amount_owed: BN
   coin_address: string
+}
+
+export type CalculateSwapFeeParams = {
+  from_type: string
+  from_amount: string
+  to_amount: string
+  pool_address: string
+  router?: {
+    pool_address: string
+    raw_amount_limit: string
+  }
 }

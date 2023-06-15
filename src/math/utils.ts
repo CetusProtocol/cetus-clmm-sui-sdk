@@ -1,7 +1,6 @@
 import BN from 'bn.js'
 import Decimal from '../utils/decimal'
 
-// eslint-disable-next-line import/no-unresolved
 import { ClmmpoolsError, MathErrorCode } from '../errors/errors'
 
 export const ZERO = new BN(0)

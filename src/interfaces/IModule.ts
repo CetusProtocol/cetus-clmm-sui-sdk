@@ -1,5 +1,5 @@
-import { SDK } from '../sdk'
+import { CetusClmmSDK } from '../sdk'
 
 export interface IModule {
-  readonly sdk: SDK
+  readonly sdk: CetusClmmSDK
 }

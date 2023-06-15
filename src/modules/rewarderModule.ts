@@ -1,26 +1,37 @@
-/* eslint-disable no-bitwise */
-/* eslint-disable no-plusplus */
-/* eslint-disable no-await-in-loop */
-/* eslint-disable camelcase */
 import BN from 'bn.js'
 import { TransactionBlock } from '@mysten/sui.js'
-import { ClmmIntegratePoolModule, CLOCK_ADDRESS } from '../types/sui'
+import { extractStructTagFromType } from '../utils'
+import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS } from '../types/sui'
 import { getRewardInTickRange } from '../utils/tick'
 import { MathUtil, ONE, ZERO } from '../math/utils'
 import { TickData } from '../types/clmmpool'
-import { SDK } from '../sdk'
+import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
-import { CollectRewarderParams, Pool, Position, PositionReward, RewarderAmountOwed } from '../types'
+import { CollectRewarderParams, Pool, Position, PositionReward, Rewarder, RewarderAmountOwed } from '../types'
+
+export type FetchPosRewardParams = {
+  poolAddress: string
+  positionId: string
+  coinTypeA: string
+  coinTypeB: string
+  rewarderInfo: Rewarder[]
+}
+
+export type PosRewarderResult = {
+  poolAddress: string
+  positionId: string
+  rewarderAmountOwed: RewarderAmountOwed[]
+}
 
 /**
  * Helper class to help interact with clmm position rewaeder with a rewaeder router interface.
  */
 export class RewarderModule implements IModule {
-  protected _sdk: SDK
+  protected _sdk: CetusClmmSDK
 
   private growthGlobal: BN[]
 
-  constructor(sdk: SDK) {
+  constructor(sdk: CetusClmmSDK) {
     this._sdk = sdk
     this.growthGlobal = [ZERO, ZERO, ZERO]
   }
@@ -158,6 +169,7 @@ export class RewarderModule implements IModule {
       growthInside.push(rewardersInside[0])
       AmountOwed.push({
         amount_owed: new BN(position.reward_amount_owed_0).add(amountOwed_0),
+
         coin_address: pool.rewarder_infos[0].coinAddress,
       })
     }
@@ -194,6 +206,104 @@ export class RewarderModule implements IModule {
     return AmountOwed
   }
 
+  /**
+   * Fetches the Position reward amount for a given list of addresses.
+   * @param params  An array of FetchPosRewardParams objects containing the target addresses and their corresponding amounts.
+   * @returns
+   */
+  async fetchPosRewardersAmount(params: FetchPosRewardParams[]) {
+    const { clmm, simulationAccount } = this.sdk.sdkOptions
+    const tx = new TransactionBlock()
+
+    for (const paramItem of params) {
+      const typeArguments = [paramItem.coinTypeA, paramItem.coinTypeB]
+      const args = [
+        tx.object(clmm.config.global_config_id),
+        tx.object(paramItem.poolAddress),
+        tx.pure(paramItem.positionId),
+        tx.object(CLOCK_ADDRESS),
+      ]
+      tx.moveCall({
+        target: `${clmm.clmm_router}::${ClmmFetcherModule}::fetch_position_rewards`,
+        arguments: args,
+        typeArguments,
+      })
+    }
+
+    const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: simulationAccount.address,
+    })
+
+    const valueData: any = simulateRes.events?.filter((item: any) => {
+      return extractStructTagFromType(item.type).name === `FetchPositionRewardsEvent`
+    })
+    if (valueData.length === 0) {
+      return null
+    }
+
+    if (valueData.length !== params.length) {
+      throw new Error('valueData.length !== params.pools.length')
+    }
+
+    const result: PosRewarderResult[] = []
+
+    for (let i = 0; i < valueData.length; i += 1) {
+      const posRrewarderResult: PosRewarderResult = {
+        poolAddress: params[i].poolAddress,
+        positionId: params[i].positionId,
+        rewarderAmountOwed: [],
+      }
+
+      for (let j = 0; j < params[i].rewarderInfo.length; j += 1) {
+        posRrewarderResult.rewarderAmountOwed.push({
+          amount_owed: new BN(valueData[i].parsedJson.data[j]),
+          coin_address: params[i].rewarderInfo[j].coinAddress,
+        })
+      }
+
+      result.push(posRrewarderResult)
+    }
+
+    return result
+  }
+
+  /**
+   * Fetches the pool reward amount for a given account and pool object id.
+   * @param {string} account - The target account.
+   * @param {string} poolObjectId - The target pool object id.
+   * @returns {Promise<number|null>} - A Promise that resolves with the fetched pool reward amount for the specified account and pool, or null if the fetch is unsuccessful.
+   */
+  async fetchPoolRewardersAmount(account: string, poolObjectId: string) {
+    const pool: Pool = await this.sdk.Pool.getPool(poolObjectId)
+    const positions = await this.sdk.Position.getPositionList(account, [poolObjectId])
+
+    const params: FetchPosRewardParams[] = []
+
+    for (const position of positions) {
+      params.push({
+        poolAddress: pool.poolAddress,
+        positionId: position.pos_object_id,
+        rewarderInfo: pool.rewarder_infos,
+        coinTypeA: pool.coinTypeA,
+        coinTypeB: pool.coinTypeB,
+      })
+    }
+
+    const result = await this.fetchPosRewardersAmount(params)
+
+    const rewarderAmount = [ZERO, ZERO, ZERO]
+
+    if (result != null) {
+      for (const posRewarderInfo of result) {
+        for (let j = 0; j < posRewarderInfo.rewarderAmountOwed.length; j += 1) {
+          rewarderAmount[j] = rewarderAmount[j].add(posRewarderInfo.rewarderAmountOwed[j].amount_owed)
+        }
+      }
+    }
+    return rewarderAmount
+  }
+
   private async getPoolLowerAndUpperTicks(ticksHandle: string, positions: Position[]): Promise<TickData[][]> {
     const lowerTicks: TickData[] = []
     const upperTicks: TickData[] = []
@@ -214,33 +324,38 @@ export class RewarderModule implements IModule {
    * @param gasBudget
    * @returns
    */
-  collectRewarderTransactionPayload(params: CollectRewarderParams): TransactionBlock {
+  collectRewarderTransactionPayload(params: CollectRewarderParams, tx?: TransactionBlock): TransactionBlock {
     const { clmm } = this.sdk.sdkOptions
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
 
-    const tx = new TransactionBlock()
+    tx = tx === undefined ? new TransactionBlock() : tx
 
     if (params.collect_fee) {
-      tx.moveCall({
-        target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::collect_fee`,
-        typeArguments,
-        arguments: [tx.object(clmm.config.global_config_id), tx.object(params.pool_id), tx.object(params.pos_id)],
-      })
+      this._sdk.Position.collectFeeTransactionPayload(
+        {
+          pool_id: params.pool_id,
+          pos_id: params.pos_id,
+          coinTypeA: params.coinTypeA,
+          coinTypeB: params.coinTypeB,
+        },
+        tx
+      )
     }
-
     params.rewarder_coin_types.forEach((type) => {
-      tx.moveCall({
-        target: `${clmm.clmm_router.cetus}::${ClmmIntegratePoolModule}::collect_reward`,
-        typeArguments: [...typeArguments, type],
-        arguments: [
-          tx.object(clmm.config.global_config_id),
-          tx.object(params.pool_id),
-          tx.object(params.pos_id),
-          tx.object(clmm.config.global_vault_id),
-          tx.object(CLOCK_ADDRESS),
-        ],
-      })
+      if (tx) {
+        tx.moveCall({
+          target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::collect_reward`,
+          typeArguments: [...typeArguments, type],
+          arguments: [
+            tx.object(clmm.config.global_config_id),
+            tx.object(params.pool_id),
+            tx.object(params.pos_id),
+            tx.object(clmm.config.global_vault_id),
+            tx.object(CLOCK_ADDRESS),
+          ],
+        })
+      }
     })
 
     return tx

@@ -1,23 +1,22 @@
-/* eslint-disable class-methods-use-this */
 import { Base64 } from 'js-base64'
-import { getObjectPreviousTransactionDigest, TransactionBlock } from '@mysten/sui.js'
+import { getObjectPreviousTransactionDigest, normalizeSuiObjectId, TransactionBlock } from '@mysten/sui.js'
 import { PoolInfo, TokenConfigEvent, TokenInfo } from '../types'
 import { SuiResource, SuiAddressType } from '../types/sui'
 import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils/cachedContent'
 import { extractStructTagFromType, normalizeCoinType } from '../utils/contracts'
-import { SDK } from '../sdk'
+import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
-import { loopToGetAllQueryEvents } from '../utils'
+import { queryEvents } from '../utils'
 
 /**
- * Helper class to help interact with pool and token
+ * Helper class to help interact with pool and token config
  */
 export class TokenModule implements IModule {
-  protected _sdk: SDK
+  protected _sdk: CetusClmmSDK
 
   private readonly _cache: Record<string, CachedContent> = {}
 
-  constructor(sdk: SDK) {
+  constructor(sdk: CetusClmmSDK) {
     this._sdk = sdk
   }
 
@@ -121,7 +120,6 @@ export class TokenModule implements IModule {
       if (metadata !== undefined) {
         tokenMap[coinType] = metadata as TokenInfo
       } else {
-        // eslint-disable-next-line no-await-in-loop
         const data = await this._sdk.fullClient.getCoinMetadata({
           coinType,
         })
@@ -172,7 +170,7 @@ export class TokenModule implements IModule {
           ? [tx.pure(token.config.coin_registry_id), tx.pure(listOwnerAddr), tx.pure(index), tx.pure(limit)]
           : [tx.pure(token.config.coin_registry_id), tx.pure(index), tx.pure(limit)],
       })
-      // eslint-disable-next-line no-await-in-loop
+
       const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
         transactionBlock: tx,
         sender: simulationAccount.address,
@@ -222,7 +220,6 @@ export class TokenModule implements IModule {
           : [tx.pure(token.config.pool_registry_id), tx.pure(index), tx.pure(limit)],
       })
 
-      // eslint-disable-next-line no-await-in-loop
       const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
         transactionBlock: tx,
         sender: simulationAccount.address,
@@ -272,6 +269,12 @@ export class TokenModule implements IModule {
     return lpPoolArray
   }
 
+  /**
+   * Get the token config event.
+   *
+   * @param forceRefresh Whether to force a refresh of the event.
+   * @returns The token config event.
+   */
   async getTokenConfigEvent(forceRefresh = false): Promise<TokenConfigEvent> {
     const packageObjectId = this._sdk.sdkOptions.token.token_display
     const cacheKey = `${packageObjectId}_getTokenConfigEvent`
@@ -290,16 +293,13 @@ export class TokenModule implements IModule {
     })
 
     const previousTx = getObjectPreviousTransactionDigest(packageObject) as string
-    const objects = await loopToGetAllQueryEvents(this._sdk, {
-      query: { Transaction: previousTx },
-    })
+    const objects = await queryEvents(this._sdk, { Transaction: previousTx })
     const tokenConfigEvent: TokenConfigEvent = {
       coin_registry_id: '',
       pool_registry_id: '',
       coin_list_owner: '',
       pool_list_owner: '',
     }
-    // console.log(objects.data)
 
     if (objects.data.length > 0) {
       objects.data.forEach((item: any) => {
@@ -356,8 +356,10 @@ export class TokenModule implements IModule {
         if (key === 'labels') {
           try {
             value = JSON.parse(decodeURIComponent(Base64.decode(value)))
-            // eslint-disable-next-line no-empty
           } catch (error) {}
+        }
+        if (key === 'pyth_id') {
+          value = normalizeSuiObjectId(value)
         }
         token[key] = value
       }
@@ -366,7 +368,14 @@ export class TokenModule implements IModule {
     return token
   }
 
-  public updateCache(key: string, data: SuiResource, time = cacheTime5min) {
+  /**
+   * Updates the cache for the given key.
+   *
+   * @param key The key of the cache entry to update.
+   * @param data The data to store in the cache.
+   * @param time The time in minutes after which the cache entry should expire.
+   */
+  updateCache(key: string, data: SuiResource, time = cacheTime5min) {
     let cacheData = this._cache[key]
     if (cacheData) {
       cacheData.overdueTime = getFutureTime(time)
@@ -377,12 +386,22 @@ export class TokenModule implements IModule {
     this._cache[key] = cacheData
   }
 
-  private getCache<T>(key: string, forceRefresh = false): T | undefined {
+  /**
+   * Gets the cache entry for the given key.
+   *
+   * @param key The key of the cache entry to get.
+   * @param forceRefresh Whether to force a refresh of the cache entry.
+   * @returns The cache entry for the given key, or undefined if the cache entry does not exist or is expired.
+   */
+  getCache<T>(key: string, forceRefresh = false): T | undefined {
     const cacheData = this._cache[key]
-    if (!forceRefresh && cacheData?.isValid()) {
+    const isValid = cacheData?.isValid()
+    if (!forceRefresh && isValid) {
       return cacheData.value as T
     }
-    delete this._cache[key]
+    if (!isValid) {
+      delete this._cache[key]
+    }
     return undefined
   }
 }

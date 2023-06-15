@@ -1,4 +1,3 @@
-/* eslint-disable camelcase */
 import BN from 'bn.js'
 import { Pool, Position } from '../types'
 import { TickData } from '../types/clmmpool'
@@ -21,7 +20,14 @@ export type CollectFeesQuote = {
   feeOwedA: BN
   feeOwedB: BN
 }
-
+/**
+ * Get the fee growth in the given tick range.
+ *
+ * @param clmmpool The CLMM pool.
+ * @param tickLower The lower tick.
+ * @param tickUpper The upper tick.
+ * @returns The fee growth in the given tick range.
+ */
 function getFeeInTickRange(clmmpool: Pool, tickLower: TickData, tickUpper: TickData): { fee_growth_inside_a: BN; fee_growth_inside_b: BN } {
   let fee_growth_below_a = new BN(0)
   let fee_growth_below_b = new BN(0)
@@ -53,8 +59,6 @@ function getFeeInTickRange(clmmpool: Pool, tickLower: TickData, tickUpper: TickD
     fee_growth_above_b
   )
 
-  // console.log('fee_growth_inside_a: ', fee_growth_inside_a.toString())
-  // console.log('fee_growth_inside_b: ', fee_growth_inside_b.toString())
   return { fee_growth_inside_a, fee_growth_inside_b }
 }
 
@@ -64,7 +68,6 @@ function updateFees(position: Position, fee_growth_inside_a: BN, fee_growth_insi
   const growth_delta_b = MathUtil.subUnderflowU128(fee_growth_inside_b, new BN(position.fee_growth_inside_b))
   const fee_delta_b = new BN(position.liquidity).mul(growth_delta_b).shrn(64)
 
-  // console.log('updateFees: ', { fee_delta_a, fee_delta_b })
   const fee_owed_a = new BN(position.fee_owed_a).add(fee_delta_a)
   const fee_owed_b = new BN(position.fee_owed_b).add(fee_delta_b)
 

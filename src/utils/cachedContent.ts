@@ -6,7 +6,9 @@ export const cacheTime24h = 24 * 60 * 60 * 1000
 export function getFutureTime(interval: number) {
   return Date.parse(new Date().toString()) + interval
 }
-
+/**
+ * Defines the structure of a CachedContent object, used for caching resources in memory.
+ */
 export class CachedContent {
   overdueTime: number
 

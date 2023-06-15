@@ -1,17 +1,13 @@
 import { Connection, JsonRpcProvider, PaginatedCoins } from '@mysten/sui.js'
-import { BoosterModule } from './modules/boosterModule'
-import { LaunchpadModule } from './modules/launchpadModule'
-import { MakerModule } from './modules/makerModule'
 import { PoolModule } from './modules/poolModule'
 import { PositionModule } from './modules/positionModule'
 import { RewarderModule } from './modules/rewarderModule'
 import { RouterModule } from './modules/routerModule'
 import { SwapModule } from './modules/swapModule'
 import { TokenModule } from './modules/tokenModule'
-import { XCetusModule } from './modules/xcetusModule'
 import { SuiObjectIdType } from './types/sui'
 import { extractStructTagFromType, patchFixSuiObjectId } from './utils'
-import { CoinAsset } from './types'
+import { ClmmConfig, CoinAsset, TokenConfig } from './types'
 
 export type SdkOptions = {
   fullRpcUrl: string
@@ -21,93 +17,61 @@ export type SdkOptions = {
   }
   token: {
     token_display: SuiObjectIdType
-    config: {
-      coin_registry_id: SuiObjectIdType
-      coin_list_owner: SuiObjectIdType
-      pool_registry_id: SuiObjectIdType
-      pool_list_owner: SuiObjectIdType
-    }
-  }
-  launchpad: {
-    ido_display: SuiObjectIdType
-    ido_router: SuiObjectIdType
-    config_display: SuiObjectIdType
-    config: {
-      pools_id: SuiObjectIdType
-      admin_cap_id: SuiObjectIdType
-      config_cap_id: SuiObjectIdType
-      config_pools_id: SuiObjectIdType
-    }
-  }
-  xcetus: {
-    xcetus_display: SuiObjectIdType
-    xcetus_router: SuiObjectIdType
-    dividends_display: SuiObjectIdType
-    dividends_router: SuiObjectIdType
-    cetus_faucet: SuiObjectIdType
-    config: {
-      xcetus_manager_id: SuiObjectIdType
-      lock_manager_id: SuiObjectIdType
-      lock_handle_id: SuiObjectIdType
-      dividend_manager_id: SuiObjectIdType
-    }
-  }
-  booster: {
-    booster_display: SuiObjectIdType
-    booster_router: SuiObjectIdType
-    config: {
-      booster_config_id: SuiObjectIdType
-      booster_pool_handle: SuiObjectIdType
-    }
-  }
-  maker_bonus: {
-    maker_display: SuiObjectIdType
-    maker_router: SuiObjectIdType
-    config: {
-      maker_config_id: SuiObjectIdType
-      maker_pool_handle: SuiObjectIdType
-    }
+    config: TokenConfig
   }
   clmm: {
     clmm_display: SuiObjectIdType
-    config: {
-      global_config_id: SuiObjectIdType
-      global_vault_id: SuiObjectIdType
-      pools_id: SuiObjectIdType
-      admin_cap_id?: SuiObjectIdType
-    }
-    clmm_router: {
-      cetus: SuiObjectIdType
-      deepbook: SuiObjectIdType
-    }
+    clmm_router: SuiObjectIdType
+    config: ClmmConfig
   }
 }
-
-export class SDK {
+/**
+ * The entry class of CetusClmmSDK, which is almost responsible for all interactions with CLMM.
+ */
+export class CetusClmmSDK {
+  /**
+   * RPC provider on the SUI chain
+   */
   protected _fullClient: JsonRpcProvider
 
+  /**
+   * Provide interact with clmm pools with a pool router interface.
+   */
   protected _pool: PoolModule
 
+  /**
+   * Provide interact with clmm position with a position router interface.
+   */
   protected _position: PositionModule
 
+  /**
+   * Provide interact with a pool swap router interface.
+   */
   protected _swap: SwapModule
 
+  /**
+   * Provide interact  with a position rewarder interface.
+   */
   protected _rewarder: RewarderModule
 
+  /**
+   * Provide interact with a pool router interface.
+   */
   protected _router: RouterModule
 
+  /**
+   * Provide interact with pool and token config (contain token base info for metadat).
+   */
   protected _token: TokenModule
 
+  /**
+   *  Provide sdk options
+   */
   protected _sdkOptions: SdkOptions
 
-  protected _launchpad: LaunchpadModule
-
-  protected _xcetusModule: XCetusModule
-
-  protected _boosterModule: BoosterModule
-
-  protected _makerModule: MakerModule
-
+  /**
+   * After connecting the wallet, set the current wallet address to senderAddress.
+   */
   protected _senderAddress = ''
 
   constructor(options: SdkOptions) {
@@ -124,10 +88,6 @@ export class SDK {
     this._rewarder = new RewarderModule(this)
     this._router = new RouterModule(this)
     this._token = new TokenModule(this)
-    this._launchpad = new LaunchpadModule(this)
-    this._xcetusModule = new XCetusModule(this)
-    this._boosterModule = new BoosterModule(this)
-    this._makerModule = new MakerModule(this)
 
     patchFixSuiObjectId(this._sdkOptions)
   }
@@ -172,22 +132,6 @@ export class SDK {
     return this._token
   }
 
-  get Launchpad() {
-    return this._launchpad
-  }
-
-  get XCetusModule() {
-    return this._xcetusModule
-  }
-
-  get BoosterModule() {
-    return this._boosterModule
-  }
-
-  get MakerModule() {
-    return this._makerModule
-  }
-
   /**
    * Gets all coin assets for the given owner and coin type.
    *
@@ -200,7 +144,6 @@ export class SDK {
     let nextCursor: string | null = null
 
     while (true) {
-      // eslint-disable-next-line no-await-in-loop
       const allCoinObject: PaginatedCoins = await (coinType
         ? this.fullClient.getCoins({
             owner: suiAddress,
