@@ -4,7 +4,6 @@ import 'isomorphic-fetch'
 const sdk = buildSdk()
 
 describe('sdk config', () => {
-
   test('clmmConfig', async () => {
     try {
       const clmmConfig = await sdk.Pool.getClmmConfigs()
@@ -14,10 +13,10 @@ describe('sdk config', () => {
     }
   })
 
-  test('tokenConfig', async () => {
+  test('cetusConfig', async () => {
     try {
-      const tokenConfig = await sdk.Token.getTokenConfigEvent()
-      console.log('tokenConfig: ', tokenConfig)
+      const cetusConfig = await sdk.CetusConfig.getCetusConfig()
+      console.log('cetusConfig: ', cetusConfig)
     } catch (error) {
       console.log(error)
     }
@@ -25,18 +24,19 @@ describe('sdk config', () => {
 })
 
 describe('warp sdk config', () => {
-  const config  = {
+  const config = {
     clmmConfig: {
       pools_id: '',
       global_config_id: '',
       global_vault_id: '',
-      admin_cap_id: ''
+      admin_cap_id: '',
     },
-    tokenConfig: {
-      coin_registry_id: '',
-      pool_registry_id: '',
-      coin_list_owner: '',
-      pool_list_owner: '',
+    cetusConfig: {
+      coin_list_id: '',
+      launchpad_pools_id: '',
+      clmm_pools_id: '',
+      admin_cap_id: '',
+      global_config_id: '',
     },
   }
 
@@ -52,9 +52,9 @@ describe('warp sdk config', () => {
     }
 
     try {
-      if (sdkOptions.token.token_display.length > 0) {
-        const tokenConfig = await sdk.Token.getTokenConfigEvent()
-        config.tokenConfig = tokenConfig
+      if (sdkOptions.cetus_config.config_display.length > 0) {
+        const cetusConfig = await sdk.CetusConfig.getCetusConfig()
+        config.cetusConfig = cetusConfig
       }
     } catch (error) {
       console.log('tokenConfig', error)

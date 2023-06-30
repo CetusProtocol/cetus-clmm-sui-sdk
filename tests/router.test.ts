@@ -1,6 +1,6 @@
 import BN from 'bn.js'
 import { buildSdk, buildTestAccount, buildTestPool, TokensMapping } from './data/init_test_data'
-import { CoinProvider, OnePath, PreRouterSwapParams } from '../src/modules/routerModule'
+import { CoinProvider, OnePath, PreRouterSwapParams, SwapWithRouterParams } from '../src/modules/routerModule'
 import SDK, { CoinAsset, CoinAssist, Pool, printTransaction, sendTransaction, SwapUtils, TransactionUtil } from '../src'
 import { Ed25519Keypair, FaucetCoinInfo, RawSigner, TransactionArgument, TransactionBlock } from '@mysten/sui.js'
 import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS } from '../src/types/sui'
@@ -131,57 +131,81 @@ describe('Router Module', () => {
   }
 
   test('integration testnet <= router module', async () => {
-    const pools = await sdk.Pool.getPools([])
+    // const pools = await sdk.Pool.getPools([])
 
-    const coinMap = new Map()
-    const poolMap = new Map()
+    // const coinMap = new Map()
+    // const poolMap = new Map()
 
-    for (let i = 0; i < pools.length; i += 1) {
-      if (pools[i].is_pause) {
-        continue
-      }
+    // for (let i = 0; i < pools.length; i += 1) {
+    //   if (pools[i].is_pause) {
+    //     continue
+    //   }
 
-      let coin_a = pools[i].coinTypeA
-      let coin_b = pools[i].coinTypeB
+    //   let coin_a = pools[i].coinTypeA
+    //   let coin_b = pools[i].coinTypeB
 
-      coinMap.set(coin_a, {
-        address: coin_a,
-        decimals: 8,
-      })
-      coinMap.set(coin_b, {
-        address: coin_b,
-        decimals: 6,
-      })
+    //   coinMap.set(coin_a, {
+    //     address: coin_a,
+    //     decimals: 8,
+    //   })
+    //   coinMap.set(coin_b, {
+    //     address: coin_b,
+    //     decimals: 6,
+    //   })
 
-      const pair = `${coin_a}-${coin_b}`
-      const pathProvider = poolMap.get(pair)
-      if (pathProvider) {
-        pathProvider.addressMap.set(pools[i].fee_rate, pools[i].poolAddress)
-      } else {
-        poolMap.set(pair, {
-          base: coin_a,
-          quote: coin_b,
-          addressMap: new Map([[pools[i].fee_rate, pools[i].poolAddress]]),
-        })
-      }
-    }
+    //   const pair = `${coin_a}-${coin_b}`
+    //   const pathProvider = poolMap.get(pair)
+    //   if (pathProvider) {
+    //     pathProvider.addressMap.set(pools[i].fee_rate, pools[i].poolAddress)
+    //   } else {
+    //     poolMap.set(pair, {
+    //       base: coin_a,
+    //       quote: coin_b,
+    //       addressMap: new Map([[pools[i].fee_rate, pools[i].poolAddress]]),
+    //     })
+    //   }
+    // }
 
-    const coins: CoinProvider = {
-      coins: Array.from(coinMap.values()),
-    }
-    const paths: PathProvider = {
-      paths: Array.from(poolMap.values()),
-    }
+    // const coins: CoinProvider = {
+    //   coins: Array.from(coinMap.values()),
+    // }
+    // const paths: PathProvider = {
+    //   paths: Array.from(poolMap.values()),
+    // }
 
-    sdk.Router.loadGraph(coins, paths)
-
+    // sdk.Router.loadGraph(coins, paths)
     const byAmountIn = true
+    const amount = new BN('2000000')
 
-    const amount = new BN('100000000')
-
-    const result = await sdk.Router.price(ETH, USDT, amount, byAmountIn, 0.05, '')
+    const result = await sdk.Router.price(
+      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
+      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
+      amount,
+      byAmountIn,
+      0.05,
+      ''
+    )
 
     console.log(result, result?.amountIn.toString(), result?.amountOut.toString())
+
+    const params: SwapWithRouterParams = {
+      paths: [result?.paths![0]!, result?.paths![1]!],
+      partner: '',
+      priceSplitPoint: 0,
+    }
+
+    const signer = new RawSigner(sendKeypair, sdk.fullClient)
+    const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
+    const routerPayload = TransactionUtil.buildRouterSwapTransactionWithDeepbook(
+      sdk,
+      params,
+      true,
+      allCoinAsset,
+      '0x86246e5ee123b05735077ed389f2f1920cd0e74c570990d21ac7bc1bcbb5aa23'
+    )
+    printTransaction(routerPayload)
+    const transferTxn = await sendTransaction(signer, routerPayload)
+    console.log('only open position: ', transferTxn)
 
     // console.log(result?.amountIn.toString(), result?.amountOut.toString())
     // if (!result?.isExceed) {
@@ -197,17 +221,17 @@ describe('Router Module', () => {
 
   test('calculate swap fee Impact', async () => {
     // All the parameters come from the calculation results of the test case 'integration testnet <= router module'.
-    const swapFee = await sdk.Swap.calculateSwapFeeAndImpact({
-      from_type: "0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT",
-      from_amount : '1000000',
+    const res = await sdk.Swap.calculateSwapFeeAndImpact({
+      from_type: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
+      from_amount: '1000000',
       to_amount: '31034210',
-      pool_address:"0x8c30b4c434b8acc740e452311147790b67004a3e37387703afe5aa5c9c6a5e3a",
+      pool_address: '0x8c30b4c434b8acc740e452311147790b67004a3e37387703afe5aa5c9c6a5e3a',
       router: {
-        pool_address:"0xd1abb32c3ceeebb47b965d6b15790a780268ed69b95199cec3f7edc5b071dd4c",
-        raw_amount_limit: '31071079541'
-      }
+        pool_address: '0xd1abb32c3ceeebb47b965d6b15790a780268ed69b95199cec3f7edc5b071dd4c',
+        raw_amount_limit: '31071079541',
+      },
     })
-    console.log('swapFee: ', swapFee)
+    console.log('res: ', res)
   })
 
   test('swap without send coin', async () => {
@@ -264,6 +288,26 @@ describe('Router Module', () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const resultTxn = await sendTransaction(signer, txBlock)
     console.log(resultTxn)
+  })
+
+  test('test get deepbook pools', async () => {
+    const pools = await sdk.Router.getDeepbookPools()
+    console.log(pools)
+  })
+
+  test('test get deepbook pool asks and bids', async () => {
+    const asks = await sdk.Router.getDeepbookPoolsAsks()
+    console.log(asks)
+
+    const bids = await sdk.Router.getDeepbookPoolsBids()
+    console.log(bids)
+  })
+
+  test('test get uesr account cap', async () => {
+    const accountAddress = '0x62fe3d8c28f01c8bca462abbf420d5c6eaa7b4e7bfdbbe86c0e8a0de1ff44db7'
+
+    const accountCap = await sdk.Router.getDeepbookAccountCap(accountAddress)
+    console.log(accountCap)
   })
 })
 

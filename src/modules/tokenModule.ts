@@ -10,6 +10,7 @@ import { queryEvents } from '../utils'
 
 /**
  * Helper class to help interact with pool and token config
+ * @deprecated TokenModule is no longer maintained. Please use ConfigModule instead
  */
 export class TokenModule implements IModule {
   protected _sdk: CetusClmmSDK
@@ -160,6 +161,10 @@ export class TokenModule implements IModule {
     let index = 0
     let allTokenList: TokenInfo[] = []
 
+    if (token === undefined) {
+      throw Error('please config token ofsdkOptions')
+    }
+
     while (true) {
       const tx = new TransactionBlock()
       tx.moveCall({
@@ -209,6 +214,11 @@ export class TokenModule implements IModule {
     const limit = 512
     let index = 0
     const isOwnerRequest = listOwnerAddr.length > 0
+
+    if (token === undefined) {
+      throw Error('please config token ofsdkOptions')
+    }
+
     while (true) {
       const tx = new TransactionBlock()
       tx.moveCall({
@@ -276,7 +286,7 @@ export class TokenModule implements IModule {
    * @returns The token config event.
    */
   async getTokenConfigEvent(forceRefresh = false): Promise<TokenConfigEvent> {
-    const packageObjectId = this._sdk.sdkOptions.token.token_display
+    const packageObjectId = this._sdk.sdkOptions.token!.token_display
     const cacheKey = `${packageObjectId}_getTokenConfigEvent`
 
     const cacheData = this.getCache<TokenConfigEvent>(cacheKey, forceRefresh)

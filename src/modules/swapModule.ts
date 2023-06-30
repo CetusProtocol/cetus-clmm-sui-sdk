@@ -21,7 +21,7 @@ import { IModule } from '../interfaces/IModule'
 import { SwapUtils } from '../math/swap'
 import { computeSwap } from '../math/clmm'
 import { TickMath } from '../math/tick'
-import { d, fromDecimalsAmount, toDecimalsAmount } from '../utils'
+import { d, fromDecimalsAmount } from '../utils'
 
 export const AMM_SWAP_MODULE = 'amm_swap'
 export const POOL_STRUCT = 'Pool'

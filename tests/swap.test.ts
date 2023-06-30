@@ -58,7 +58,6 @@ describe('Swap calculate Module', () => {
     console.log('tickdata: ', tickdata)
   })
 
-
   test('preSwapWithMultiPool', async () => {
     const a2b = true
     const poolAddresses = [
@@ -101,7 +100,7 @@ describe('Swap calculate Module', () => {
 
   test('preswap', async () => {
     const a2b = false
-    const pool = await sdk.Pool.getPool('0x2944d4508c6972f858e8919d6e03d3609dfa4a427007c1d637413066b8e93fa7')
+    const pool = await sdk.Pool.getPool('0x24cf587b8ef333a9806485128527209e4d2740fb3e118d6837ae5bc184719e1c')
     const byAmountIn = false
     const amount = '120000'
 

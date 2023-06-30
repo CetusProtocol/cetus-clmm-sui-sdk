@@ -7,21 +7,24 @@
 
 ## The SDK functions are described as follows
 
-- Fetch token list and pool list config for cetus config contract. [More](./docs/token.md)
-- Fetch clmm pool and position from cetus clmm contract. [More](./docs/pool.md)
-- Create clmm pool. [More](./docs/create-pool.md)
-- The add liquidity for clmm position. [More](./docs/add-liquidity.md)
-- The remove liquidity for clmm position. [More](./docs/remove-liquidity.md)
-- The open position for clmm pool. [More](./docs/open-position.md)
-- The close position for clmm pool. [More](./docs/close-position.md)
-- The swap for clmm pool. [More](./docs/swap.md)
-- Swap in best Router. [More](./docs/router.md)
-- The collect fee for clmm position . [More](./docs/collect-fee.md)
-- The collect rewarder for clmm position earn. [More](./docs/collect-rewarder.md)
-- Relevant mathematical methods for cetus clmm. [More](./docs/mathematical.md)
+- Fetch coin list and clmm pool list config for cetus config contract. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/cetus-config.md)
+- Fetch clmm pool and position from cetus clmm contract. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/pool.md)
+- Create clmm pool. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/create-pool.md)
+- The add liquidity for clmm position. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/add-liquidity.md)
+- The remove liquidity for clmm position. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/remove-liquidity.md)
+- The open position for clmm pool. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/open-position.md)
+- The close position for clmm pool. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/close-position.md)
+- The swap for clmm pool. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/swap.md)
+- Swap in best Router. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/router.md)
+- The collect fee for clmm position . [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/collect-fee.md)
+- The collect rewarder for clmm position earn. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/collect-rewarder.md)
+- Relevant mathematical methods for cetus clmm. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/mathematical.md)
 - The partner. [More](./docs/partner.md)
+
 
 ## Quick Start
 
-- Current dependent SDK NPM version is [3.0.5](https://www.npmjs.com/package/@cetusprotocol/cetus-sui-clmm-sdk/v/3.0.5)
-- The Quick Start provides developers with a streamlined process for integrating and using the SDK.[More](./docs/quick-start.md)
+- Current dependent SDK NPM version is [3.2.1](https://www.npmjs.com/package/@cetusprotocol/cetus-sui-clmm-sdk/v/3.2.1)
+- The Quick Start provides developers with a streamlined process for integrating and using the SDK.[More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/quick-start.md)
+
+

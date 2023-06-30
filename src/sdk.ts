@@ -7,7 +7,8 @@ import { SwapModule } from './modules/swapModule'
 import { TokenModule } from './modules/tokenModule'
 import { SuiObjectIdType } from './types/sui'
 import { extractStructTagFromType, patchFixSuiObjectId } from './utils'
-import { ClmmConfig, CoinAsset, TokenConfig } from './types'
+import { CetusConfigs, ClmmConfig, CoinAsset, TokenConfig } from './types'
+import { ConfigModule } from './modules'
 
 export type SdkOptions = {
   fullRpcUrl: string
@@ -15,14 +16,27 @@ export type SdkOptions = {
   simulationAccount: {
     address: string
   }
-  token: {
+  /**
+   * token is no longer maintained. Please use cetus_config instead.
+   * @deprecated
+   */
+  token?: {
     token_display: SuiObjectIdType
     config: TokenConfig
+  }
+  cetus_config: {
+    config_display: SuiObjectIdType
+    config_router: SuiObjectIdType
+    config: CetusConfigs
   }
   clmm: {
     clmm_display: SuiObjectIdType
     clmm_router: SuiObjectIdType
     config: ClmmConfig
+  }
+  deepbook: {
+    deepbook_display: SuiObjectIdType
+    deepbook_endpoint_v2: SuiObjectIdType
   }
 }
 /**
@@ -64,6 +78,8 @@ export class CetusClmmSDK {
    */
   protected _token: TokenModule
 
+  protected _config: ConfigModule
+
   /**
    *  Provide sdk options
    */
@@ -88,6 +104,7 @@ export class CetusClmmSDK {
     this._rewarder = new RewarderModule(this)
     this._router = new RouterModule(this)
     this._token = new TokenModule(this)
+    this._config = new ConfigModule(this)
 
     patchFixSuiObjectId(this._sdkOptions)
   }
@@ -128,8 +145,15 @@ export class CetusClmmSDK {
     return this._router
   }
 
+  /**
+   * @deprecated Token is no longer maintained. Please use CetusConfig instead
+   */
   get Token() {
     return this._token
+  }
+
+  get CetusConfig() {
+    return this._config
   }
 
   /**

@@ -657,12 +657,239 @@ export class TransactionUtil {
           tx.pure(sqrtPriceLimit.toString()),
           tx.object(CLOCK_ADDRESS),
         ]
-        const typeArguments = swapParams.a2b ? [swapParams.coinTypeA, swapParams.coinTypeB] : [swapParams.coinTypeB, swapParams.coinTypeA]
+        const typeArguments = swapParams.a2b ? [swapParams.coinTypeA, swapParams.coinTypeB] : [swapParams.coinTypeA, swapParams.coinTypeB]
         tx.moveCall({
           target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::${functionName}`,
           typeArguments,
           arguments: args,
         })
+      } else {
+        const amount_0 = byAmountIn ? params.paths[i].amountIn : params.paths[i].rawAmountLimit[0]
+        const amount_1 = byAmountIn ? params.paths[i].rawAmountLimit[0] : params.paths[i].amountOut
+
+        const swapParams = {
+          pool_0_id: params.paths[i].poolAddress[0],
+          pool_1_id: params.paths[i].poolAddress[1],
+          a2b_0: params.paths[i].a2b[0],
+          a2b_1: params.paths[i].a2b[1],
+          byAmountIn,
+          amount_0,
+          amount_1,
+          amount_limit_0: adjustForSlippage(
+            new BN(params.paths[i].rawAmountLimit[0]),
+            Percentage.fromDecimal(d(params.priceSplitPoint)),
+            !byAmountIn
+          ).toString(),
+          amount_limit_1: adjustForSlippage(
+            new BN(params.paths[i].rawAmountLimit[1]),
+            Percentage.fromDecimal(d(params.priceSplitPoint)),
+            !byAmountIn
+          ).toString(),
+          swap_partner: '',
+          coinTypeA: params.paths[i].coinType[0],
+          coinTypeB: params.paths[i].coinType[1],
+          coinTypeC: params.paths[i].coinType[2],
+        }
+
+        const buildCoinResult = TransactionUtil.buildCoinInputForAmount(
+          tx,
+          coinAssets,
+          BigInt(byAmountIn ? swapParams.amount_0.toString() : swapParams.amount_limit_0),
+          swapParams.coinTypeA,
+          false
+        )
+
+        const coin_a = buildCoinResult?.transactionArgument
+        coinAssets = buildCoinResult!.remainCoins
+
+        const coin_c = TransactionUtil.moveCallCoinZero(tx, swapParams.coinTypeC)
+
+        let functionName = ''
+        if (swapParams.a2b_0) {
+          if (swapParams.a2b_1) {
+            functionName = 'swap_ab_bc'
+          } else {
+            functionName = 'swap_ab_cb'
+          }
+        } else if (swapParams.a2b_1) {
+          functionName = 'swap_ba_bc'
+        } else {
+          functionName = 'swap_ba_cb'
+        }
+        const sqrtPriceLimit0 = SwapUtils.getDefaultSqrtPriceLimit(params.paths[i].a2b[0])
+        const sqrtPriceLimit1 = SwapUtils.getDefaultSqrtPriceLimit(params.paths[i].a2b[1])
+        const args: any = [
+          tx.object(global_config_id),
+          tx.object(swapParams.pool_0_id),
+          tx.object(swapParams.pool_1_id),
+          coin_a!,
+          coin_c,
+          tx.pure(byAmountIn),
+          tx.pure(swapParams.amount_0.toString()),
+          tx.pure(swapParams.amount_1.toString()),
+          tx.pure(swapParams.amount_limit_0),
+          tx.pure(swapParams.amount_limit_1),
+          tx.pure(sqrtPriceLimit0.toString()),
+          tx.pure(sqrtPriceLimit1.toString()),
+          tx.object(CLOCK_ADDRESS),
+        ]
+        const typeArguments = [swapParams.coinTypeA, swapParams.coinTypeB, swapParams.coinTypeC]
+        tx.moveCall({
+          target: `${clmm.clmm_router}::${ClmmIntegrateRouterModule}::${functionName}`,
+          typeArguments,
+          arguments: args,
+        })
+      }
+    }
+
+    return tx
+  }
+
+  // -------------------------------------deepbook--------------------------------------------//
+  public static buildRouterSwapTransactionWithDeepbook(
+    sdk: SDK,
+    params: SwapWithRouterParams,
+    byAmountIn: boolean,
+    allCoinAsset: CoinAsset[],
+    accountCap: string
+  ): TransactionBlock {
+    // const accountCap = '0x86246e5ee123b05735077ed389f2f1920cd0e74c570990d21ac7bc1bcbb5aa23'
+    const tx = new TransactionBlock()
+    tx.setGasBudget(100000000)
+    const { clmm, deepbook } = sdk.sdkOptions
+
+    const global_config_id = clmm.config?.global_config_id
+    let coinAssets: CoinAsset[] = allCoinAsset
+
+    for (let i = 0; i < params.paths.length; i += 1) {
+      if (params.paths[i].poolAddress.length === 1) {
+        if (params.paths[i].poolType[0] === 'clmm') {
+          // -------protect
+          const swapParams = {
+            pool_id: params.paths[i].poolAddress[0],
+            a2b: params.paths[i].a2b[0],
+            byAmountIn,
+            amount: byAmountIn ? params.paths[i].amountIn.toString() : params.paths[i].amountOut.toString(),
+            amount_limit: adjustForSlippage(
+              new BN(params.paths[i].rawAmountLimit[0]),
+              Percentage.fromDecimal(d(params.priceSplitPoint)),
+              !byAmountIn
+            ).toString(),
+            swap_partner: '',
+            coinTypeA: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
+            coinTypeB: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
+          }
+
+          const coinType = swapParams.a2b ? swapParams.coinTypeA : swapParams.coinTypeB
+
+          const buildCoinResult = TransactionUtil.buildCoinInputForAmount(
+            tx,
+            coinAssets,
+            BigInt(byAmountIn ? params.paths[i].amountIn.toString() : swapParams.amount_limit),
+            coinType
+          )
+          const coin_a = buildCoinResult?.transactionArgument
+          coinAssets = buildCoinResult!.remainCoins
+
+          const functionName = swapParams.a2b ? 'swap_a2b' : 'swap_b2a'
+          const sqrtPriceLimit = SwapUtils.getDefaultSqrtPriceLimit(swapParams.a2b)
+          const args: any = [
+            tx.object(global_config_id),
+            tx.object(swapParams.pool_id),
+            coin_a!,
+            tx.pure(byAmountIn),
+            tx.pure(swapParams.amount),
+            tx.pure(swapParams.amount_limit),
+            tx.pure(sqrtPriceLimit.toString()),
+            tx.object(CLOCK_ADDRESS),
+          ]
+          const typeArguments = swapParams.a2b ? [swapParams.coinTypeA, swapParams.coinTypeB] : [swapParams.coinTypeB, swapParams.coinTypeA]
+          tx.moveCall({
+            target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::${functionName}`,
+            typeArguments,
+            arguments: args,
+          })
+          // protect-------
+        } else {
+          const swapParams = {
+            pool_id: params.paths[i].poolAddress[0],
+            a2b: params.paths[i].a2b[0],
+            byAmountIn,
+            amount: byAmountIn ? params.paths[i].amountIn.toString() : params.paths[i].amountOut.toString(),
+            amount_limit: adjustForSlippage(
+              new BN(params.paths[i].rawAmountLimit[0]),
+              Percentage.fromDecimal(d(params.priceSplitPoint)),
+              !byAmountIn
+            ).toString(),
+            swap_partner: '',
+            coinTypeA: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
+            coinTypeB: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
+          }
+
+          const functionName = swapParams.a2b ? 'swap_exact_base_for_quote' : 'swap_exact_quote_for_base'
+
+          if (swapParams.a2b) {
+            const buildCoinResultBase = TransactionUtil.buildCoinInputForAmount(
+              tx,
+              coinAssets,
+              BigInt(params.paths[i].amountIn.toString()),
+              swapParams.coinTypeA,
+              false
+            )
+            const baseAsset = buildCoinResultBase?.transactionArgument
+            coinAssets = buildCoinResultBase!.remainCoins
+            const quoteAsset = TransactionUtil.moveCallCoinZero(tx, swapParams.coinTypeB)
+
+            const args: any = [
+              tx.object(swapParams.pool_id),
+              tx.pure('10'),
+              tx.object(accountCap),
+              tx.pure(swapParams.amount),
+              baseAsset,
+              quoteAsset!,
+              tx.object(CLOCK_ADDRESS),
+            ]
+
+            const typeArguments = [
+              '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
+              '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
+            ]
+            const coins: TransactionArgument[] = tx.moveCall({
+              target: `${deepbook.deepbook_display}::clob_v2::${functionName}`,
+              typeArguments,
+              arguments: args,
+            })
+            tx.transferObjects([coins[0], coins[1]], tx.object(sdk.senderAddress))
+          } else {
+            const buildCoinResultQuote = TransactionUtil.buildCoinInputForAmount(
+              tx,
+              coinAssets,
+              BigInt(params.paths[i].amountIn.toString()),
+              swapParams.coinTypeB
+            )
+            const quoteAsset = buildCoinResultQuote?.transactionArgument
+            coinAssets = buildCoinResultQuote!.remainCoins
+
+            const args: any = [
+              tx.object(swapParams.pool_id),
+              tx.object('10'),
+              tx.pure(accountCap),
+              tx.pure(swapParams.amount),
+              tx.object(CLOCK_ADDRESS),
+              quoteAsset!,
+            ]
+
+            const typeArguments = [
+              '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
+              '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
+            ]
+            tx.moveCall({
+              target: `${deepbook.deepbook_display}::clob_v2::${functionName}`,
+              typeArguments,
+              arguments: args,
+            })
+          }
+        }
       } else {
         const amount_0 = byAmountIn ? params.paths[i].amountIn : params.paths[i].rawAmountLimit[0]
         const amount_1 = byAmountIn ? params.paths[i].rawAmountLimit[0] : params.paths[i].amountOut

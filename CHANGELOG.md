@@ -1,12 +1,16 @@
 # @cetusprotocol/cetus-sui-clmm-sdk
 
 
-## 3.0.x
+## 3.2.1
 
 ### Patch Changes
 
 - Add `calculateFee` in `PositionModule`
 - Add `calculateSwapFeeAndImpact` in `SwapModule`
+- Add `CetusConfigModule` to help interact with clmm pool and coin and launchpad pool config
+- Updated dependencies
+  - @mysten/sui.js@0.36.0
+  - @mysten/bcs@0.7.2
 
 ## 3.0.2
 
