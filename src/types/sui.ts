@@ -16,6 +16,10 @@ export const CoinInfoAddress = '0x1::coin::CoinInfo'
 export const CoinStoreAddress = '0x1::coin::CoinStore'
 export const PoolLiquidityCoinType = 'PoolLiquidityCoin'
 
+export const DeepbookCustodianV2Moudle = 'custodian_v2'
+export const DeepbookClobV2Moudle = 'clob_v2'
+export const DeepbookEndpointsV2Moudle = 'endpoints_v2'
+
 export type SuiResource = any
 
 export type DataPage = {

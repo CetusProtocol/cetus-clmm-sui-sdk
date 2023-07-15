@@ -21,18 +21,12 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('open_and_add_liquidity_fix_token', async () => {
-    const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectIds[0]
+    const poolObjectId =  TokensMapping.USDT_USDC_LP.poolObjectIds[0]
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const pool = await buildTestPool(sdk, poolObjectId)
-    const lowerTick = TickMath.getPrevInitializableTickIndex(
-      new BN(pool.current_tick_index).toNumber(),
-      new BN(pool.tickSpacing).toNumber()
-    )
-    const upperTick = TickMath.getNextInitializableTickIndex(
-      new BN(pool.current_tick_index).toNumber(),
-      new BN(pool.tickSpacing).toNumber()
-    )
-    const coinAmount = new BN(100000)
+    const lowerTick = 0
+    const upperTick =6
+    const coinAmount = new BN(100)
     const fix_amount_a = true
     const slippage = 0.05
     const curSqrtPrice = new BN(pool.current_sqrt_price)
@@ -79,13 +73,11 @@ describe('Position add Liquidity Module', () => {
   test('add_liquidity_fix_token', async () => {
     const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectIds[0]
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
-    // const pool = await buildTestPool(sdk, poolObjectId)
-    const pool = await sdk.Pool.getPool('0x24cf587b8ef333a9806485128527209e4d2740fb3e118d6837ae5bc184719e1c')
-    // const position = (await buildTestPosition(sdk, position_object_id)) as Position
-    const position = (await buildTestPosition(sdk, '0xbdf8b49fe48428e9699b5229542f034d070a3500da1a125d839e25d31fc7e047')) as Position
+    const pool = await buildTestPool(sdk, poolObjectId)
+    const position = (await buildTestPosition(sdk, position_object_id)) as Position
     const lowerTick = position.tick_lower_index
     const upperTick = position.tick_upper_index
-    const coinAmount = new BN(2100000)
+    const coinAmount = new BN(100)
     const fix_amount_a = true
     const slippage = 0.05
     const curSqrtPrice = new BN(pool.current_sqrt_price)

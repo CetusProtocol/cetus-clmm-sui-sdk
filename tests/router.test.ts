@@ -1,7 +1,7 @@
 import BN from 'bn.js'
-import { buildSdk, buildTestAccount, buildTestPool, TokensMapping } from './data/init_test_data'
+import { buildSdk, buildTestAccountNew, buildTestPool, TokensMapping } from './data/init_test_data'
 import { CoinProvider, OnePath, PreRouterSwapParams, SwapWithRouterParams } from '../src/modules/routerModule'
-import SDK, { CoinAsset, CoinAssist, Pool, printTransaction, sendTransaction, SwapUtils, TransactionUtil } from '../src'
+import SDK, { CoinAsset, CoinAssist, DeepbookUtils, Pool, printTransaction, sendTransaction, SwapUtils, TransactionUtil } from '../src'
 import { Ed25519Keypair, FaucetCoinInfo, RawSigner, TransactionArgument, TransactionBlock } from '@mysten/sui.js'
 import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS } from '../src/types/sui'
 import { TxBlock } from '../src/utils/tx-block'
@@ -10,7 +10,7 @@ import { PathProvider } from '../src/modules/routerModule'
 
 describe('Router Module', () => {
   const sdk = buildSdk()
-  const sendKeypair = buildTestAccount()
+  const sendKeypair = buildTestAccountNew()
   sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()
 
   // const USDC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
@@ -201,11 +201,11 @@ describe('Router Module', () => {
       params,
       true,
       allCoinAsset,
-      '0x86246e5ee123b05735077ed389f2f1920cd0e74c570990d21ac7bc1bcbb5aa23'
+      await DeepbookUtils.getAccountCap(sdk)
     )
     printTransaction(routerPayload)
     const transferTxn = await sendTransaction(signer, routerPayload)
-    console.log('only open position: ', transferTxn)
+    console.log('router: ', transferTxn)
 
     // console.log(result?.amountIn.toString(), result?.amountOut.toString())
     // if (!result?.isExceed) {
@@ -291,23 +291,167 @@ describe('Router Module', () => {
   })
 
   test('test get deepbook pools', async () => {
-    const pools = await sdk.Router.getDeepbookPools()
+    const pools = await DeepbookUtils.getPools(sdk)
     console.log(pools)
   })
 
   test('test get deepbook pool asks and bids', async () => {
-    const asks = await sdk.Router.getDeepbookPoolsAsks()
+    const coin_a = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
+    const coin_b = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
+
+    // const pool_address = '0xeb91fb7e1050fd6aa209d529a3f6bd8149a62f2f447f6abbe805a921983eb76c'
+    const pool_address = '0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b'
+
+    const asks = await DeepbookUtils.getPoolAsks(sdk, pool_address, coin_a, coin_b)
     console.log(asks)
 
-    const bids = await sdk.Router.getDeepbookPoolsBids()
+    const bids = await DeepbookUtils.getPoolBids(sdk, pool_address, coin_a, coin_b)
     console.log(bids)
   })
 
   test('test get uesr account cap', async () => {
-    const accountAddress = '0x62fe3d8c28f01c8bca462abbf420d5c6eaa7b4e7bfdbbe86c0e8a0de1ff44db7'
-
-    const accountCap = await sdk.Router.getDeepbookAccountCap(accountAddress)
+    const accountCap = await DeepbookUtils.getAccountCap(sdk)
     console.log(accountCap)
+  })
+
+  test('test deposit_base', async () => {
+    const { clmm, deepbook } = sdk.sdkOptions
+    const tx = new TransactionBlock()
+    tx.setGasBudget(100000000)
+
+    const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
+
+    const buildCoinResult = TransactionUtil.buildCoinInputForAmount(
+      tx,
+      allCoinAsset,
+      BigInt('10000000000'),
+      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
+    )
+    const coin_a = buildCoinResult?.transactionArgument
+
+    const args: any = [
+      tx.object('0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b'),
+      coin_a,
+      tx.object('0x8f5eb21819fa1e5d4a7acb3c0d6c00f2a50108b1196d7d96317b87e8f9d4e954'),
+      tx.pure(10000000),
+      // tx.object(CLOCK_ADDRESS),
+    ]
+    const typeArguments = [
+      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
+      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
+    ]
+    tx.moveCall({
+      target: `${deepbook.deepbook_endpoint_v2}::endpoints_v2::deposit_base`,
+      typeArguments,
+      arguments: args,
+    })
+
+    const signer = new RawSigner(sendKeypair, sdk.fullClient)
+    const transferTxn = await sendTransaction(signer, tx)
+    console.log('only open position: ', transferTxn)
+  })
+
+  test('test deposit_quote', async () => {
+    const { clmm, deepbook } = sdk.sdkOptions
+    const tx = new TransactionBlock()
+    tx.setGasBudget(100000000)
+
+    const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
+
+    const buildCoinResult = TransactionUtil.buildCoinInputForAmount(
+      tx,
+      allCoinAsset,
+      BigInt('10000000000'),
+      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
+    )
+    const coin_a = buildCoinResult?.transactionArgument
+
+    const args: any = [
+      tx.object('0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b'),
+      coin_a,
+      tx.object('0x8f5eb21819fa1e5d4a7acb3c0d6c00f2a50108b1196d7d96317b87e8f9d4e954'),
+      tx.pure(10000000),
+      // tx.object(CLOCK_ADDRESS),
+    ]
+    const typeArguments = [
+      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
+      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
+    ]
+    tx.moveCall({
+      target: `${deepbook.deepbook_endpoint_v2}::endpoints_v2::deposit_quote`,
+      typeArguments,
+      arguments: args,
+    })
+
+    const signer = new RawSigner(sendKeypair, sdk.fullClient)
+    const transferTxn = await sendTransaction(signer, tx)
+    console.log('only open position: ', transferTxn)
+  })
+
+  test('test deposit_quote', async () => {
+    const { clmm, deepbook } = sdk.sdkOptions
+    const tx = new TransactionBlock()
+    tx.setGasBudget(100000000)
+
+    // const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
+
+    // const buildCoinResult = TransactionUtil.buildCoinInputForAmount(
+    //   tx,
+    //   allCoinAsset,
+    //   BigInt('10000000000'),
+    //   '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
+    // )
+    // const coin_a = buildCoinResult?.transactionArgument
+
+    const args: any = [
+      tx.object('0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b'),
+      tx.pure(990000000),
+      tx.pure(9000000000),
+      tx.pure(false),
+      tx.pure(1699124350),
+      tx.pure(0),
+      tx.object(CLOCK_ADDRESS),
+      tx.object('0x8f5eb21819fa1e5d4a7acb3c0d6c00f2a50108b1196d7d96317b87e8f9d4e954'),
+      // tx.pure(10000000),
+      // tx.object(CLOCK_ADDRESS),
+    ]
+    const typeArguments = [
+      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
+      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
+    ]
+    tx.moveCall({
+      target: `${deepbook.deepbook_endpoint_v2}::endpoints_v2::place_limit_order`,
+      typeArguments,
+      arguments: args,
+    })
+
+    const signer = new RawSigner(sendKeypair, sdk.fullClient)
+    const transferTxn = await sendTransaction(signer, tx)
+    console.log('only open position: ', transferTxn)
+  })
+
+  test('create account cap', async () => {
+    let tx = new TransactionBlock()
+    const createAccountCapResult = DeepbookUtils.createAccountCap(sdk.senderAddress, sdk.sdkOptions, tx, false)
+    const cap = createAccountCapResult[0] as TransactionArgument
+    tx = createAccountCapResult[1] as TransactionBlock
+    tx.transferObjects([cap], tx.pure(sdk.senderAddress))
+
+    const signer = new RawSigner(sendKeypair, sdk.fullClient)
+    const transferTxn = await sendTransaction(signer, tx)
+    console.log('create account cap: ', transferTxn)
+  })
+
+  test('delete account cap', async () => {
+    const accountCap = await DeepbookUtils.getAccountCap(sdk)
+    console.log(`deleted account cap: ${accountCap}}`)
+    let tx = new TransactionBlock()
+
+    tx = DeepbookUtils.deleteAccountCap(accountCap, sdk.sdkOptions, tx)
+
+    const signer = new RawSigner(sendKeypair, sdk.fullClient)
+    const transferTxn = await sendTransaction(signer, tx)
+    console.log('delete account cap: ', transferTxn)
   })
 })
 

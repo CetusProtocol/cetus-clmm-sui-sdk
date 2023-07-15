@@ -488,12 +488,12 @@ export class ClmmPoolUtil {
     const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(lowerTick)
     const upperSqrtPrice = TickMath.tickIndexToSqrtPriceX64(upperTick)
     let liquidity
-    if (currentTick <= lowerTick) {
+    if (currentTick < lowerTick) {
       if (!iscoinA) {
         throw new Error('lower tick cannot calculate liquidity by coinB')
       }
       liquidity = estimateLiquidityForCoinA(lowerSqrtPrice, upperSqrtPrice, coinAmount)
-    } else if (currentTick >= upperTick) {
+    } else if (currentTick > upperTick) {
       if (iscoinA) {
         throw new Error('upper tick cannot calculate liquidity by coinA')
       }

@@ -43,7 +43,7 @@ export type LaunchpadPoolConfig = {
   coin_icon: string
   banners: string[]
   introduction: string
-  is_close: boolean
+  is_closed: boolean
   pool_address: string
   project_details: string
   regulation: string

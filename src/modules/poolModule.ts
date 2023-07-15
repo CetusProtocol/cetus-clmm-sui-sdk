@@ -1,5 +1,5 @@
-import { DynamicFieldPage } from '@mysten/sui.js/dist/types/dynamic_fields'
 import {
+  DynamicFieldPage,
   getObjectPreviousTransactionDigest,
   normalizeSuiAddress,
   SuiObjectResponse,

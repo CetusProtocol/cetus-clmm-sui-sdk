@@ -99,10 +99,10 @@ describe('Swap calculate Module', () => {
   })
 
   test('preswap', async () => {
-    const a2b = false
-    const pool = await sdk.Pool.getPool('0x24cf587b8ef333a9806485128527209e4d2740fb3e118d6837ae5bc184719e1c')
-    const byAmountIn = false
-    const amount = '120000'
+    const a2b = true
+    const pool = await sdk.Pool.getPool('0xc41621d02d5ee00a7a993b912a8550df50524c9b2494339691e5896936ff269b')
+    const byAmountIn = true
+    const amount = '1000000'
 
     const res: any = await sdk.Swap.preswap({
       pool: pool,

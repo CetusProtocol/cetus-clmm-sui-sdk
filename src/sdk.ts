@@ -5,6 +5,7 @@ import { RewarderModule } from './modules/rewarderModule'
 import { RouterModule } from './modules/routerModule'
 import { SwapModule } from './modules/swapModule'
 import { TokenModule } from './modules/tokenModule'
+import { RouterModuleV2 } from './modules/routerModuleV2'
 import { SuiObjectIdType } from './types/sui'
 import { extractStructTagFromType, patchFixSuiObjectId } from './utils'
 import { CetusConfigs, ClmmConfig, CoinAsset, TokenConfig } from './types'
@@ -38,6 +39,7 @@ export type SdkOptions = {
     deepbook_display: SuiObjectIdType
     deepbook_endpoint_v2: SuiObjectIdType
   }
+  aggregatorUrl: string
 }
 /**
  * The entry class of CetusClmmSDK, which is almost responsible for all interactions with CLMM.
@@ -73,6 +75,8 @@ export class CetusClmmSDK {
    */
   protected _router: RouterModule
 
+  protected _router_v2: RouterModuleV2
+
   /**
    * Provide interact with pool and token config (contain token base info for metadat).
    */
@@ -103,6 +107,7 @@ export class CetusClmmSDK {
     this._position = new PositionModule(this)
     this._rewarder = new RewarderModule(this)
     this._router = new RouterModule(this)
+    this._router_v2 = new RouterModuleV2(this)
     this._token = new TokenModule(this)
     this._config = new ConfigModule(this)
 
@@ -143,6 +148,10 @@ export class CetusClmmSDK {
 
   get Router() {
     return this._router
+  }
+
+  get RouterV2() {
+    return this._router_v2
   }
 
   /**

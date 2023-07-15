@@ -34,11 +34,12 @@ export const clmm_mainnet = {
   },
   clmm: {
     clmm_display: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb',
-    clmm_router: '0x886b3ff4623c7a9d101e0470012e0612621fbc67fa4cedddd3b17b273e35a50e',
+    clmm_router: '0xf58457acfccac2b252150ed6f12acba1f1fe48340127a21247450867ea10f240',
     config: SDKConfig.clmmConfig,
   },
   deepbook: {
     deepbook_display: '0x000000000000000000000000000000000000000000000000000000000000dee9',
-    deepbook_endpoint_v2: '0xeab65f3cec37f1936ea4751b87c37b8d3d1dc0f2d3242cd532d787d63774ebfa',
+    deepbook_endpoint_v2: '0x69cbacf622b5074c460da71a246a923cf16a45793f0da31cf26fa739fea0505b',
   },
+  aggregatorUrl: 'http://192.168.1.45:8080/router',
 }

@@ -1,6 +1,13 @@
 # @cetusprotocol/cetus-sui-clmm-sdk
 
 
+## 3.2.4
+
+### Patch Changes
+- Updated dependencies
+  - @mysten/sui.js@0.37.1
+  - @mysten/bcs@0.7.3
+
 ## 3.2.1
 
 ### Patch Changes

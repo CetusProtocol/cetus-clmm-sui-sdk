@@ -1,4 +1,5 @@
 import {
+  DynamicFieldPage,
   Ed25519Keypair,
   getMoveObjectType,
   getObjectDeletedResponse,
@@ -20,7 +21,6 @@ import {
 } from '@mysten/sui.js'
 import BN from 'bn.js'
 import { fromB64, fromHEX } from '@mysten/bcs'
-import { DynamicFieldPage } from '@mysten/sui.js/dist/types/dynamic_fields'
 import { ClmmPositionStatus, Pool, Position, PositionReward, Rewarder } from '../types'
 import { MathUtil } from '../math'
 import { DataPage, NFT, PaginationArgs, SuiObjectIdType } from '../types/sui'
