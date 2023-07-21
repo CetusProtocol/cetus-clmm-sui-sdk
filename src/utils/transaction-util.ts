@@ -9,6 +9,7 @@ import {
 import BN from 'bn.js'
 import { CoinAssist } from '../math/CoinAssist'
 import { OnePath, SwapWithRouterParams } from '../modules/routerModule'
+
 import { TickData } from '../types/clmmpool'
 import { ClmmIntegratePoolModule, ClmmIntegrateRouterModule, ClmmIntegrateUtilsModule, CLOCK_ADDRESS } from '../types/sui'
 import SDK, {
@@ -991,6 +992,8 @@ export class TransactionUtil {
 
     return tx
   }
+
+  // public static buildRouterSwapTransaction
 
   static buildCoinTypePair(coinTypes: string[], partitionQuantities: number[]): string[][] {
     const coinTypePair: string[][] = []
