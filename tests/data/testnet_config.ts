@@ -18,7 +18,8 @@ const SDKConfig = {
 }
 
 export const clmm_testnet = {
-  fullRpcUrl: 'https://fullnode.testnet.sui.io',
+  // fullRpcUrl: 'https://fullnode.testnet.sui.io',
+  fullRpcUrl: 'https://testnet.artifact.systems/sui',
   faucetURL: '',
   faucet: {
     faucet_display: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc',
@@ -34,11 +35,12 @@ export const clmm_testnet = {
   },
   clmm: {
     clmm_display: '0x0868b71c0cba55bf0faf6c40df8c179c67a4d0ba0e79965b68b3d72d7dfbf666',
-    clmm_router: '0x2b9b944d978c3fef70b818af306fad4f4f8dbaa9cc9210143dbd6c34f6593d45',
+    clmm_router: '0xefc29cc84ae810fa228af9bfa6915ed42d409e9b39ca6d2c6a11843a622fa6c3',
     config: SDKConfig.clmmConfig,
   },
   deepbook: {
     deepbook_display: '0x000000000000000000000000000000000000000000000000000000000000dee9',
-    deepbook_endpoint_v2: '0xba50b24c139b2594befd4c1d32e1947c29b9300864a926f8dc9d0a6ed08382f9',
+    deepbook_endpoint_v2: '0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6',
   },
+  aggregatorUrl: 'https://api-sui.devcetus.com/router',
 }

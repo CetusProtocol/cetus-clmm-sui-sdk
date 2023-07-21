@@ -7,11 +7,12 @@ import {
   normalizeSuiObjectId,
   ObjectContentFields,
   ObjectType,
+  SuiObjectResponse,
 } from '@mysten/sui.js'
 import { CetusConfigs, ClmmPoolConfig, CoinConfig, LaunchpadPoolConfig } from '../types'
 import { SuiResource, SuiAddressType } from '../types/sui'
 import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils/cachedContent'
-import { extractStructTagFromType, normalizeCoinType } from '../utils/contracts'
+import { extractStructTagFromType, fixCoinType, normalizeCoinType } from '../utils/contracts'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { getDynamicFields, multiGetObjects, queryEvents } from '../utils'
@@ -79,6 +80,8 @@ export class ConfigModule implements IModule {
           tokenMap[coinType] = token
 
           this.updateCache(metadataKey, token, cacheTime24h)
+        } else {
+          console.log(`not found ${coinType}`)
         }
       }
     }
@@ -105,24 +108,50 @@ export class ConfigModule implements IModule {
     const objects = await multiGetObjects(this._sdk, warpIds, { showContent: true })
     const coinList: CoinConfig[] = []
     objects.forEach((object) => {
-      let fields = getObjectFields(object) as ObjectContentFields
-      fields = fields.value.fields
-      const coin: any = { ...fields }
-
-      coin.id = getObjectId(object)
-      coin.address = extractStructTagFromType(fields.coin_type.fields.name).full_address
-      if (fields.pyth_id) {
-        coin.pyth_id = normalizeSuiObjectId(fields.pyth_id)
-      }
-
-      this.transformExtensions(coin, fields.extension_fields.fields.contents, transformExtensions)
-
-      delete coin.coin_type
-
+      const coin = this.buildCoinConfig(object, transformExtensions)
+      this.updateCache(`${coin_list_handle}_${coin.address}_getCoinConfig`, coin, cacheTime24h)
       coinList.push({ ...coin })
     })
     this.updateCache(cacheKey, coinList, cacheTime24h)
     return coinList
+  }
+
+  async getCoinConfig(coinType: string, forceRefresh = false, transformExtensions = true): Promise<CoinConfig> {
+    const { coin_list_handle } = this.sdk.sdkOptions.cetus_config.config
+    const cacheKey = `${coin_list_handle}_${coinType}_getCoinConfig`
+    const cacheData = this.getCache<CoinConfig>(cacheKey, forceRefresh)
+    if (cacheData) {
+      return cacheData
+    }
+    const object = await this._sdk.fullClient.getDynamicFieldObject({
+      parentId: coin_list_handle,
+      name: {
+        type: '0x1::type_name::TypeName',
+        value: {
+          name: fixCoinType(coinType),
+        },
+      },
+    })
+    const coin = this.buildCoinConfig(object, transformExtensions)
+    this.updateCache(cacheKey, coin, cacheTime24h)
+    return coin
+  }
+
+  private buildCoinConfig(object: SuiObjectResponse, transformExtensions = true) {
+    let fields = getObjectFields(object) as ObjectContentFields
+    fields = fields.value.fields
+    const coin: any = { ...fields }
+
+    coin.id = getObjectId(object)
+    coin.address = extractStructTagFromType(fields.coin_type.fields.name).full_address
+    if (fields.pyth_id) {
+      coin.pyth_id = normalizeSuiObjectId(fields.pyth_id)
+    }
+
+    this.transformExtensions(coin, fields.extension_fields.fields.contents, transformExtensions)
+
+    delete coin.coin_type
+    return coin
   }
 
   /**
@@ -144,19 +173,43 @@ export class ConfigModule implements IModule {
     const objects = await multiGetObjects(this._sdk, warpIds, { showContent: true })
     const poolList: ClmmPoolConfig[] = []
     objects.forEach((object) => {
-      let fields = getObjectFields(object) as ObjectContentFields
-      fields = fields.value.fields
-      const pool: any = { ...fields }
-
-      pool.id = getObjectId(object)
-      pool.pool_address = normalizeSuiObjectId(fields.pool_address)
-
-      this.transformExtensions(pool, fields.extension_fields.fields.contents, transformExtensions)
-
+      const pool = this.buildClmmPoolConfig(object, transformExtensions)
+      this.updateCache(`${pool.pool_address}_getClmmPoolConfig`, pool, cacheTime24h)
       poolList.push({ ...pool })
     })
     this.updateCache(cacheKey, poolList, cacheTime24h)
     return poolList
+  }
+
+  async getClmmPoolConfig(poolAddress: string, forceRefresh = false, transformExtensions = true): Promise<ClmmPoolConfig> {
+    const { clmm_pools_handle } = this.sdk.sdkOptions.cetus_config.config
+    const cacheKey = `${poolAddress}_getClmmPoolConfig`
+    const cacheData = this.getCache<ClmmPoolConfig>(cacheKey, forceRefresh)
+    if (cacheData) {
+      return cacheData
+    }
+    const object = await this._sdk.fullClient.getDynamicFieldObject({
+      parentId: clmm_pools_handle,
+      name: {
+        type: 'address',
+        value: poolAddress,
+      },
+    })
+    const pool = this.buildClmmPoolConfig(object, transformExtensions)
+    this.updateCache(cacheKey, pool, cacheTime24h)
+    return pool
+  }
+
+  private buildClmmPoolConfig(object: SuiObjectResponse, transformExtensions = true) {
+    let fields = getObjectFields(object) as ObjectContentFields
+    fields = fields.value.fields
+    const pool: any = { ...fields }
+
+    pool.id = getObjectId(object)
+    pool.pool_address = normalizeSuiObjectId(fields.pool_address)
+
+    this.transformExtensions(pool, fields.extension_fields.fields.contents, transformExtensions)
+    return pool
   }
 
   /**
@@ -178,35 +231,60 @@ export class ConfigModule implements IModule {
     const objects = await multiGetObjects(this._sdk, warpIds, { showContent: true })
     const poolList: LaunchpadPoolConfig[] = []
     objects.forEach((object) => {
-      let fields = getObjectFields(object) as ObjectContentFields
-      fields = fields.value.fields
-      const pool: any = { ...fields }
-
-      pool.id = getObjectId(object)
-      pool.pool_address = normalizeSuiObjectId(fields.pool_address)
-
-      this.transformExtensions(pool, fields.extension_fields.fields.contents, transformExtensions)
-      const social_medias: {
-        name: string
-        link: string
-      }[] = []
-      fields.social_media.fields.contents.forEach((item: any) => {
-        social_medias.push({
-          name: item.fields.value.fields.name,
-          link: item.fields.value.fields.link,
-        })
-      })
-      pool.social_media = social_medias
-      try {
-        pool.regulation = decodeURIComponent(Base64.decode(pool.regulation).replace(/%/g, '%25'))
-      } catch (error) {
-        pool.regulation = Base64.decode(pool.regulation)
-      }
-
+      const pool = this.buildLaunchpadPoolConfig(object, transformExtensions)
+      this.updateCache(`${pool.pool_address}_getLaunchpadPoolConfig`, pool, cacheTime24h)
       poolList.push({ ...pool })
     })
     this.updateCache(cacheKey, poolList, cacheTime24h)
     return poolList
+  }
+
+  async getLaunchpadPoolConfig(poolAddress: string, forceRefresh = false, transformExtensions = true): Promise<LaunchpadPoolConfig> {
+    const { launchpad_pools_handle } = this.sdk.sdkOptions.cetus_config.config
+    const cacheKey = `${poolAddress}_getLaunchpadPoolConfig`
+    const cacheData = this.getCache<LaunchpadPoolConfig>(cacheKey, forceRefresh)
+    if (cacheData) {
+      return cacheData
+    }
+    const object = await this._sdk.fullClient.getDynamicFieldObject({
+      parentId: launchpad_pools_handle,
+      name: {
+        type: 'address',
+        value: poolAddress,
+      },
+    })
+    const pool = this.buildLaunchpadPoolConfig(object, transformExtensions)
+    this.updateCache(cacheKey, pool, cacheTime24h)
+    return pool
+  }
+
+  private buildLaunchpadPoolConfig(object: SuiObjectResponse, transformExtensions = true) {
+    let fields = getObjectFields(object) as ObjectContentFields
+    fields = fields.value.fields
+    const pool: any = { ...fields }
+
+    pool.id = getObjectId(object)
+    pool.pool_address = normalizeSuiObjectId(fields.pool_address)
+
+    this.transformExtensions(pool, fields.extension_fields.fields.contents, transformExtensions)
+    const social_medias: {
+      name: string
+      link: string
+    }[] = []
+    fields.social_media.fields.contents.forEach((item: any) => {
+      social_medias.push({
+        name: item.fields.value.fields.name,
+        link: item.fields.value.fields.link,
+      })
+    })
+    pool.social_media = social_medias
+    try {
+      pool.regulation = decodeURIComponent(Base64.decode(pool.regulation).replace(/%/g, '%25'))
+    } catch (error) {
+      pool.regulation = Base64.decode(pool.regulation)
+    }
+
+    return pool
   }
 
   private transformExtensions(coin: any, dataArray: any[], transformExtensions = true) {
@@ -219,13 +297,14 @@ export class ConfigModule implements IModule {
           value = JSON.parse(decodeURIComponent(Base64.decode(value)))
         } catch (error) {}
       }
-      coin[key] = value
+      if (transformExtensions) {
+        coin[key] = value
+      }
       extensions.push({
         key,
         value,
       })
     }
-
     delete coin.extension_fields
 
     if (!transformExtensions) {

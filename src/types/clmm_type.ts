@@ -263,14 +263,3 @@ export type RewarderAmountOwed = {
   amount_owed: BN
   coin_address: string
 }
-
-export type CalculateSwapFeeParams = {
-  from_type: string
-  from_amount: string
-  to_amount: string
-  pool_address: string
-  router?: {
-    pool_address: string
-    raw_amount_limit: string
-  }
-}

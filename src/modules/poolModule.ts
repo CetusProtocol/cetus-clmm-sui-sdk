@@ -1,5 +1,5 @@
-import { DynamicFieldPage } from '@mysten/sui.js/dist/types/dynamic_fields'
 import {
+  DynamicFieldPage,
   getObjectPreviousTransactionDigest,
   normalizeSuiAddress,
   SuiObjectResponse,
@@ -173,11 +173,11 @@ export class PoolModule implements IModule {
    * @param paginationArgs The cursor and limit to start at.
    * @returns array of PoolImmutable objects.
    */
-  async getPoolImmutablesWithPage(paginationArgs: PaginationArgs = 'all', forceRefresh = false): Promise<DataPage> {
+  async getPoolImmutablesWithPage(paginationArgs: PaginationArgs = 'all', forceRefresh = false): Promise<DataPage<PoolImmutables>> {
     const clmmIntegrate = this._sdk.sdkOptions.clmm.clmm_display
 
     const allPools: PoolImmutables[] = []
-    const dataPage: DataPage = {
+    const dataPage: DataPage<PoolImmutables> = {
       data: [],
       hasNextPage: false,
     }

@@ -11,15 +11,20 @@ export const ClmmIntegratePoolModule = 'pool_script'
 export const ClmmIntegrateRouterModule = 'router'
 export const ClmmFetcherModule = 'fetcher_script'
 export const ClmmExpectSwapModule = 'expect_swap'
+export const ClmmIntegrateUtilsModule = 'utils'
 
 export const CoinInfoAddress = '0x1::coin::CoinInfo'
 export const CoinStoreAddress = '0x1::coin::CoinStore'
 export const PoolLiquidityCoinType = 'PoolLiquidityCoin'
 
+export const DeepbookCustodianV2Moudle = 'custodian_v2'
+export const DeepbookClobV2Moudle = 'clob_v2'
+export const DeepbookEndpointsV2Moudle = 'endpoints_v2'
+
 export type SuiResource = any
 
-export type DataPage = {
-  data: any[]
+export type DataPage<T> = {
+  data: T[]
   nextCursor?: any
   hasNextPage: boolean
 }

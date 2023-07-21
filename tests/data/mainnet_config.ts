@@ -19,6 +19,7 @@ const SDKConfig = {
 
 export const clmm_mainnet = {
   fullRpcUrl: 'https://sui-mainnet-rpc.allthatnode.com',
+  // fullRpcUrl: 'https://sui-mainnet-endpoint.blockvision.org/',
   faucetURL: '',
   faucet: {
     faucet_display: '0x0588cff9a50e0eaf4cd50d337c1a36570bc1517793fd3303e1513e8ad4d2aa96',
@@ -34,11 +35,12 @@ export const clmm_mainnet = {
   },
   clmm: {
     clmm_display: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb',
-    clmm_router: '0x886b3ff4623c7a9d101e0470012e0612621fbc67fa4cedddd3b17b273e35a50e',
+    clmm_router: '0xb47968b137e4233a814b3ba1e85ab9b76b9c9c9164b695f126a14d1fd6a9c562',
     config: SDKConfig.clmmConfig,
   },
   deepbook: {
     deepbook_display: '0x000000000000000000000000000000000000000000000000000000000000dee9',
-    deepbook_endpoint_v2: '0xeab65f3cec37f1936ea4751b87c37b8d3d1dc0f2d3242cd532d787d63774ebfa',
+    deepbook_endpoint_v2: '0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7',
   },
+  aggregatorUrl: 'https://api-sui.cetus.zone/router1',
 }

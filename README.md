@@ -21,10 +21,7 @@
 - Relevant mathematical methods for cetus clmm. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/mathematical.md)
 - The partner. [More](./docs/partner.md)
 
-
 ## Quick Start
 
-- Current dependent SDK NPM version is [3.2.1](https://www.npmjs.com/package/@cetusprotocol/cetus-sui-clmm-sdk/v/3.2.1)
+- Current dependent SDK NPM version is [3.3.0](https://www.npmjs.com/package/@cetusprotocol/cetus-sui-clmm-sdk/v/3.3.0)
 - The Quick Start provides developers with a streamlined process for integrating and using the SDK.[More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/quick-start.md)
-
-

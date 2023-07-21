@@ -4,7 +4,6 @@ import Decimal from 'decimal.js'
 import {
   CalculateRatesParams,
   CalculateRatesResult,
-  CalculateSwapFeeParams,
   Pool,
   PreSwapParams,
   PreSwapWithMultiPoolParams,
@@ -21,7 +20,8 @@ import { IModule } from '../interfaces/IModule'
 import { SwapUtils } from '../math/swap'
 import { computeSwap } from '../math/clmm'
 import { TickMath } from '../math/tick'
-import { d, fromDecimalsAmount } from '../utils'
+import { d } from '../utils'
+import { SplitPath } from './routerModuleV2'
 
 export const AMM_SWAP_MODULE = 'amm_swap'
 export const POOL_STRUCT = 'Pool'
@@ -40,51 +40,66 @@ export class SwapModule implements IModule {
     return this._sdk
   }
 
-  async calculateSwapFeeAndImpact(params: CalculateSwapFeeParams) {
-    let swapFee = d(0)
-    const { from_amount, from_type } = params
+  calculateSwapFee(paths: SplitPath[]) {
+    let fee = d(0)
+    paths.forEach((item) => {
+      const pathCount = item.basePaths.length
+      if (pathCount > 0) {
+        const path = item.basePaths[0]
+        const feeRate = path.label === 'Cetus' ? new Decimal(path.feeRate).div(10 ** 6) : new Decimal(path.feeRate).div(10 ** 9)
+        const feeAmount = d(path.inputAmount)
+          .div(10 ** path.fromDecimal)
+          .mul(feeRate)
+        fee = fee.add(feeAmount)
+        if (pathCount > 1) {
+          const path2 = item.basePaths[1]
+          const price1 = path.direction ? path.currentPrice : new Decimal(1).div(path.currentPrice)
+          const price2 = path2.direction ? path2.currentPrice : new Decimal(1).div(path2.currentPrice)
+          const feeRate2 = path2.label === 'Cetus' ? new Decimal(path.feeRate).div(10 ** 6) : new Decimal(path.feeRate).div(10 ** 9)
 
-    const poolA = await this.sdk.Pool.getPool(params.pool_address, false)
-    const calculateResultA = await this.calculateFee(from_type, poolA, from_amount, params.router?.raw_amount_limit)
-    swapFee = swapFee.add(calculateResultA.fee)
+          const feeAmount2 = d(path2.outputAmount)
+            .div(10 ** path2.toDecimal)
+            .mul(feeRate2)
+          const fee2 = feeAmount2.div(price1.mul(price2))
+          fee = fee.add(fee2)
+        }
+      }
+    })
 
-    let priceImpact
+    return fee.toString()
+  }
 
-    const priceReverse = d(params.to_amount).div(params.from_amount)
-    const currentPriceDirectA = params.from_type === poolA.coinTypeA ? calculateResultA.currPrice : d(1).div(calculateResultA.currPrice)
+  calculateSwapPriceImpact(paths: SplitPath[]) {
+    let impactValue = d(0)
+    paths.forEach((item) => {
+      const pathCount = item.basePaths.length
+      if (pathCount === 1) {
+        const path = item.basePaths[0]
+        const outputAmount = d(path.outputAmount).div(10 ** path.toDecimal)
+        const inputAmount = d(path.inputAmount).div(10 ** path.fromDecimal)
+        const rate = outputAmount.div(inputAmount)
+        const cprice = path.direction ? new Decimal(path.currentPrice) : new Decimal(1).div(path.currentPrice)
+        impactValue = impactValue.add(this.calculateSingleImpact(rate, cprice))
+      }
+      if (pathCount === 2) {
+        const path = item.basePaths[0]
+        const path2 = item.basePaths[1]
+        const cprice1 = path.direction ? new Decimal(path.currentPrice) : new Decimal(1).div(path.currentPrice)
+        const cprice2 = path2.direction ? new Decimal(path2.currentPrice) : new Decimal(1).div(path2.currentPrice)
+        const cprice = cprice1.mul(cprice2)
+        const outputAmount = new Decimal(path2.outputAmount).div(10 ** path2.toDecimal)
+        const inputAmount = new Decimal(path.inputAmount).div(10 ** path.fromDecimal)
+        const rate = outputAmount.div(inputAmount)
+        impactValue = impactValue.add(this.calculateSingleImpact(rate, cprice))
+      }
+    })
 
-    if (params.router) {
-      const poolB = await this.sdk.Pool.getPool(params.router.pool_address, false)
-      const calculateResultB = await this.calculateFee(calculateResultA.to_type, poolB, calculateResultA.to_amount!.toString())
-      const a2b = poolA.coinTypeB === params.from_type
-      const { decimalsA } = calculateResultA
-      const { decimalsB } = calculateResultA
+    return impactValue.toString()
+  }
 
-      const warpAfee = this.changeAmount(
-        a2b,
-        calculateResultB.fee.toString(),
-        calculateResultA.currPrice.toString(),
-        a2b ? decimalsA - decimalsB : decimalsB - decimalsA
-      )
-      swapFee = swapFee.add(warpAfee)
-
-      const currentPriceDirectB =
-        calculateResultA.to_type === poolB.coinTypeA ? calculateResultB.currPrice : d(1).div(calculateResultB.currPrice)
-
-      priceImpact = new Decimal(currentPriceDirectA.mul(currentPriceDirectB))
-        .sub(priceReverse)
-        .div(new Decimal(currentPriceDirectA.mul(currentPriceDirectB)))
-        .mul(new Decimal(100))
-        .toNumber()
-    } else {
-      priceImpact = new Decimal(currentPriceDirectA)
-        .sub(priceReverse)
-        .div(new Decimal(currentPriceDirectA))
-        .mul(new Decimal(100))
-        .toNumber()
-    }
-    const fee = fromDecimalsAmount(swapFee.toString(), calculateResultA.decimalsA)
-    return { fee, priceImpact }
+  private calculateSingleImpact = (rate: Decimal, cprice: Decimal) => {
+    // ((cprice - rate)/cprice)*100
+    return cprice.minus(rate).div(cprice).mul(100)
   }
 
   private async calculateFee(fromType: string, pool: Pool, from_amount: string, raw_amount_limit?: string) {

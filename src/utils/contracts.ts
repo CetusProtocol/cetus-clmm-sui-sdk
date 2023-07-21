@@ -1,6 +1,7 @@
 import { normalizeSuiObjectId } from '@mysten/sui.js'
 import { SuiAddressType, SuiStructTag } from '../types/sui'
 import { CoinAssist } from '../math/CoinAssist'
+import { removeHexPrefix } from './hex'
 
 const EQUAL = 0
 const LESS_THAN = 1
@@ -58,36 +59,47 @@ export function extractAddressFromType(type: string) {
 }
 
 export function extractStructTagFromType(type: string): SuiStructTag {
-  let _type = type.replace(/\s/g, '')
+  try {
+    let _type = type.replace(/\s/g, '')
 
-  const genericsString = _type.match(/(<.+>)$/)
-  const generics = genericsString?.[0]?.match(/(\w+::\w+::\w+)(?:<.*?>(?!>))?/g)
-  if (generics) {
-    _type = _type.slice(0, _type.indexOf('<'))
-    const tag = extractStructTagFromType(_type)
-    const structTag: SuiStructTag = {
-      ...tag,
-      type_arguments: generics.map((item) => extractStructTagFromType(item).source_address),
+    const genericsString = _type.match(/(<.+>)$/)
+    const generics = genericsString?.[0]?.match(/(\w+::\w+::\w+)(?:<.*?>(?!>))?/g)
+    if (generics) {
+      _type = _type.slice(0, _type.indexOf('<'))
+      const tag = extractStructTagFromType(_type)
+      const structTag: SuiStructTag = {
+        ...tag,
+        type_arguments: generics.map((item) => extractStructTagFromType(item).source_address),
+      }
+      structTag.type_arguments = structTag.type_arguments.map((item) => {
+        return CoinAssist.isSuiCoin(item) ? item : extractStructTagFromType(item).source_address
+      })
+      structTag.source_address = composeType(structTag.full_address, structTag.type_arguments)
+      return structTag
     }
-    structTag.type_arguments = structTag.type_arguments.map((item) => {
-      return CoinAssist.isSuiCoin(item) ? item : extractStructTagFromType(item).source_address
-    })
+    const parts = _type.split('::')
+
+    const structTag: SuiStructTag = {
+      full_address: _type,
+      address: parts[2] === 'SUI' ? '0x2' : normalizeSuiObjectId(parts[0]),
+      module: parts[1],
+      name: parts[2],
+      type_arguments: [],
+      source_address: '',
+    }
+    structTag.full_address = `${structTag.address}::${structTag.module}::${structTag.name}`
     structTag.source_address = composeType(structTag.full_address, structTag.type_arguments)
     return structTag
+  } catch (error) {
+    return {
+      full_address: type,
+      address: '',
+      module: '',
+      name: '',
+      type_arguments: [],
+      source_address: type,
+    }
   }
-  const parts = _type.split('::')
-
-  const structTag: SuiStructTag = {
-    full_address: _type,
-    address: parts[2] === 'SUI' ? '0x2' : normalizeSuiObjectId(parts[0]),
-    module: parts[1],
-    name: parts[2],
-    type_arguments: [],
-    source_address: '',
-  }
-  structTag.full_address = `${structTag.address}::${structTag.module}::${structTag.name}`
-  structTag.source_address = composeType(structTag.full_address, structTag.type_arguments)
-  return structTag
 }
 
 export function normalizeCoinType(coinType: string): string {
@@ -99,6 +111,16 @@ export function fixSuiObjectId(value: string): string {
     return normalizeSuiObjectId(value)
   }
   return value
+}
+
+export const fixCoinType = (coinType: string, removePrefix = true) => {
+  const arr = coinType.split('::')
+  const address = arr.shift() as string
+  let normalizeAddress = normalizeSuiObjectId(address)
+  if (removePrefix) {
+    normalizeAddress = removeHexPrefix(normalizeAddress)
+  }
+  return `${normalizeAddress}::${arr.join('::')}`
 }
 
 export function patchFixSuiObjectId(data: any) {

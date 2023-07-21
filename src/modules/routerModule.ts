@@ -2,48 +2,11 @@ import BN from 'bn.js'
 import { Graph, GraphEdge, GraphVertex } from '@syntsugar/cc-graph'
 import { TransactionBlock } from '@mysten/sui.js'
 import { PreSwapWithMultiPoolParams } from '../types'
-import { extractStructTagFromType, getOwnedObjects, queryEvents } from '../utils'
-import { CLOCK_ADDRESS, ClmmExpectSwapModule, ClmmIntegrateRouterModule, SuiAddressType } from '../types/sui'
+import { extractStructTagFromType, printTransaction } from '../utils'
+import { ClmmExpectSwapModule, ClmmIntegrateRouterModule, SuiAddressType } from '../types/sui'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { U64_MAX, ZERO } from '../math'
-
-const FLOAT_SCALING_U128 = new BN(1000000000)
-
-function unsafe_mul_round(x: number, y: number): [boolean, BN] {
-  const xB = new BN(x)
-  const yB = new BN(y)
-  let is_round_down = true
-  if (xB.mul(yB).mod(FLOAT_SCALING_U128).eq(new BN(0))) {
-    is_round_down = false
-  }
-  return [is_round_down, xB.mul(yB).div(FLOAT_SCALING_U128)]
-}
-
-function unsafe_div_round(x: number, y: number): [boolean, BN] {
-  const xB = new BN(x)
-  const yB = new BN(y)
-  let is_round_down = true
-  if (xB.mul(FLOAT_SCALING_U128).mod(yB).eq(new BN(0))) {
-    is_round_down = false
-  }
-  return [is_round_down, xB.mul(FLOAT_SCALING_U128).div(yB)]
-}
-
-function unsafe_div(x: number, y: number): number {
-  const [, result] = unsafe_div_round(x, y)
-  return Number(result)
-}
-
-function unsafe_mul(x: number, y: number): number {
-  const [, result] = unsafe_mul_round(x, y)
-  return Number(result)
-}
-
-export type Order = {
-  quantity: number
-  price: number
-}
 
 // prepare router data
 // includes coin and path
@@ -74,7 +37,6 @@ export type OnePath = {
   rawAmountLimit: BN[]
   isExceed: boolean
   coinType: string[]
-  poolType: string[]
 }
 
 export type AddressAndDirection = {
@@ -159,7 +121,7 @@ export class RouterModule implements IModule {
     this.coinProviders = {
       coins: [],
     }
-    this.graph = new Graph()
+    this.graph = new Graph(false)
     this._coinAddressMap = new Map()
     this.poolAddressMap = new Map()
     this._sdk = sdk
@@ -175,267 +137,6 @@ export class RouterModule implements IModule {
 
   get sdk() {
     return this._sdk
-  }
-
-  async getDeepbookPools() {
-    const deepbook = this._sdk.sdkOptions.deepbook.deepbook_display
-
-    const allPools: any[] = []
-
-    try {
-      const objects = await queryEvents(this._sdk, { MoveEventType: `${deepbook}::clob_v2::PoolCreated` })
-
-      objects.data.forEach((object: any) => {
-        const fields = object.parsedJson
-        if (fields) {
-          allPools.push({
-            poolAddress: fields.pool_id,
-            tickSpacing: fields.tick_spacing,
-            coinTypeA: extractStructTagFromType(fields.coin_type_a).full_address,
-            coinTypeB: extractStructTagFromType(fields.coin_type_b).full_address,
-          })
-        }
-      })
-    } catch (error) {
-      console.log('getPoolImmutables', error)
-    }
-
-    console.log('allPools', allPools)
-  }
-
-  async getDeepbookPoolsAsks() {
-    const { simulationAccount } = this.sdk.sdkOptions
-    const { deepbook_endpoint_v2 } = this._sdk.sdkOptions.deepbook
-
-    const tx = new TransactionBlock()
-
-    const coin_a = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
-    const coin_b = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
-
-    // const pool_address = '0xeb91fb7e1050fd6aa209d529a3f6bd8149a62f2f447f6abbe805a921983eb76c'
-    const pool_address = '0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b'
-
-    const asks: Order[] = []
-
-    const typeArguments = [coin_a, coin_b]
-    const args = [tx.pure(pool_address), tx.pure('0'), tx.pure('999999999999'), tx.pure(CLOCK_ADDRESS)]
-    tx.moveCall({
-      target: `${deepbook_endpoint_v2}::endpoints_v2::get_level2_book_status_ask_side`,
-      arguments: args,
-      typeArguments,
-    })
-
-    const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
-      transactionBlock: tx,
-      sender: simulationAccount.address,
-    })
-
-    const valueData: any = simulateRes.events?.filter((item: any) => {
-      return extractStructTagFromType(item.type).name === `BookStatus`
-    })
-    if (valueData.length === 0) {
-      return null
-    }
-
-    for (let i = 0; i < valueData[0].parsedJson.depths.length; i++) {
-      const price = valueData[0].parsedJson.price[i]
-      const depth = valueData[0].parsedJson.depths[i]
-      const ask: Order = {
-        price: parseInt(price, 10),
-        quantity: parseInt(depth, 10),
-      }
-      asks.push(ask)
-    }
-
-    // asks.sort((a, b) => {
-    //   return a.price - b.price
-    // })
-
-    return asks
-  }
-
-  async getDeepbookPoolsBids() {
-    const { simulationAccount } = this.sdk.sdkOptions
-    const { deepbook_endpoint_v2 } = this._sdk.sdkOptions.deepbook
-
-    const tx = new TransactionBlock()
-
-    const coin_a = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
-    const coin_b = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
-
-    // const pool_address = '0xeb91fb7e1050fd6aa209d529a3f6bd8149a62f2f447f6abbe805a921983eb76c'
-    const pool_address = '0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b'
-
-    const bids: Order[] = []
-
-    const typeArguments = [coin_a, coin_b]
-    const args = [tx.pure(pool_address), tx.pure('0'), tx.pure('999999999999'), tx.pure(CLOCK_ADDRESS)]
-    tx.moveCall({
-      target: `${deepbook_endpoint_v2}::endpoints_v2::get_level2_book_status_bid_side`,
-      arguments: args,
-      typeArguments,
-    })
-
-    const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
-      transactionBlock: tx,
-      sender: simulationAccount.address,
-    })
-
-    const valueData: any = simulateRes.events?.filter((item: any) => {
-      return extractStructTagFromType(item.type).name === `BookStatus`
-    })
-    if (valueData.length === 0) {
-      return null
-    }
-
-    for (let i = 0; i < valueData[0].parsedJson.depths.length; i++) {
-      const price = valueData[0].parsedJson.price[i]
-      const depth = valueData[0].parsedJson.depths[i]
-      const bid: Order = {
-        price: parseInt(price, 10),
-        quantity: parseInt(depth, 10),
-      }
-      bids.push(bid)
-    }
-
-    // sort bids from highest to lowest
-    // bids.sort((a, b) => {
-    //   return b.price - a.price
-    // })
-
-    return bids
-  }
-
-  async getDeepbookAccountCap(accountAddress: string): Promise<string> {
-    const ownerRes: any = await getOwnedObjects(this._sdk, accountAddress, {
-      options: { showType: true, showContent: true, showDisplay: true, showOwner: true },
-      filter: {
-        MoveModule: {
-          package: this._sdk.sdkOptions.deepbook.deepbook_display,
-          module: 'custodian_v2',
-        },
-      },
-    })
-
-    if (ownerRes.data.length === 0) {
-      return ''
-    }
-
-    const accountCap = ownerRes.data[0].data.objectId
-
-    return accountCap
-  }
-
-  async deepbookPreswap(pool: string, is_bid: boolean, amount_in: number, taker_fee_rate: number) {
-    const amount_in_t = amount_in
-    amount_in *= 1000000000
-    let amount_out = 0
-    let target_sqrt_price = ZERO
-    let current_sqrt_price = ZERO
-    let is_exceed = false
-    if (!is_bid) {
-      // base to quote
-      const asks = await this._sdk.Router.getDeepbookPoolsAsks()!
-      if (asks!.length === 0) {
-        is_exceed = true
-        amount_out = 0
-      } else {
-        current_sqrt_price = new BN(Math.sqrt(asks![0].price))
-        for (const ask of asks!) {
-          if (amount_in > ask.quantity) {
-            amount_in -= ask.quantity
-            const filled_quote_amount = ask.quantity * ask.price
-            // eslint-disable-next-line prefer-const
-            let [is_round_down, fee] = unsafe_mul_round(filled_quote_amount, taker_fee_rate)
-            if (is_round_down) {
-              fee = fee.addn(1)
-            }
-            amount_out += filled_quote_amount - fee.toNumber()
-          } else {
-            const filled_quote_amount = amount_in * ask.price
-            // eslint-disable-next-line prefer-const
-            let [is_round_down, fee] = unsafe_mul_round(filled_quote_amount, taker_fee_rate)
-            if (is_round_down) {
-              fee = fee.addn(1)
-            }
-            amount_out += filled_quote_amount - fee.toNumber()
-
-            target_sqrt_price = new BN(Math.sqrt(ask.price))
-            break
-          }
-        }
-
-        // if (amount_in > 0) {
-        //   is_exceed = true
-        //   amount_out = 0
-        // }
-      }
-    } else {
-      // quote to base
-      const bids = await this._sdk.Router.getDeepbookPoolsBids()!
-      if (bids!.length === 0) {
-        is_exceed = true
-        amount_out = 0
-      } else {
-        for (const bid of bids!) {
-          const maker_quote_quantity_without_fee = bid.quantity * bid.price
-          // eslint-disable-next-line prefer-const
-          let [is_round_down, fee] = unsafe_mul_round(maker_quote_quantity_without_fee, taker_fee_rate)
-          if (is_round_down) {
-            fee = fee.addn(1)
-          }
-          const maker_quote_quantity = maker_quote_quantity_without_fee + Number(fee)
-
-          let filled_base_quantity: number
-          let filled_quote_quantity: number
-          let filled_quote_quantity_without_fee: number
-          if (amount_in > maker_quote_quantity) {
-            filled_quote_quantity = maker_quote_quantity
-            filled_quote_quantity_without_fee = maker_quote_quantity_without_fee
-            filled_base_quantity = bid.quantity
-            amount_out += filled_base_quantity
-            amount_in -= filled_quote_quantity
-          } else {
-            filled_quote_quantity_without_fee = unsafe_div(amount_in, Number(FLOAT_SCALING_U128) + taker_fee_rate)
-            filled_base_quantity = unsafe_div(filled_quote_quantity_without_fee, bid.price)
-            const filled_base_lot = Math.floor(filled_base_quantity / 100000000)
-            filled_base_quantity = filled_base_lot * 100000000
-            filled_quote_quantity_without_fee = unsafe_mul(filled_base_quantity, bid.price)
-            // eslint-disable-next-line prefer-const
-            let [is_round_down, fee] = unsafe_mul_round(filled_quote_quantity_without_fee, taker_fee_rate)
-            if (is_round_down) {
-              fee = fee.addn(1)
-            }
-            filled_quote_quantity = filled_quote_quantity_without_fee + Number(fee)
-            amount_out += filled_base_quantity
-            amount_in -= filled_quote_quantity
-            target_sqrt_price = new BN(Math.sqrt(bid.price))
-            break
-          }
-        }
-
-        // if (amount_in > 0) {
-        //   is_exceed = true
-        //   amount_out = 0
-        // }
-      }
-    }
-
-    amount_in /= 1000000000
-    amount_out /= 1000000000
-
-    return {
-      poolAddress: pool,
-      currentSqrtPrice: current_sqrt_price,
-      estimatedAmountIn: amount_in_t,
-      estimatedAmountOut: amount_out,
-      estimatedEndSqrtPrice: target_sqrt_price,
-      estimatedFeeAmount: 0,
-      isExceed: is_exceed,
-      amount: amount_in,
-      aToB: is_bid,
-      byAmountIn: true,
-    }
   }
 
   getPoolAddressMapAndDirection(base: string, quote: string): AddressAndDirection | undefined {
@@ -523,122 +224,55 @@ export class RouterModule implements IModule {
     return this._coinAddressMap.get(key)
   }
 
+  getFeeRate(from: string, to: string, address: string): number {
+    const poolSymbol = _pairSymbol(from, to).pair
+    const addressMap = this.poolAddressMap.get(poolSymbol)
+    if (addressMap != null) {
+      // get value by key from map
+      for (const [key, value] of addressMap.entries()) {
+        if (value === address) {
+          return key * 100
+        }
+      }
+    }
+    const poolSymbolRev = _pairSymbol(from, to).reversePair
+    const addressMapRev = this.poolAddressMap.get(poolSymbolRev)
+    if (addressMapRev != null) {
+      // get value by key from map
+      for (const [key, value] of addressMapRev.entries()) {
+        console.log({ key, value })
+        if (value === address) {
+          return key * 100
+        }
+      }
+    }
+    return 0
+  }
+
   async price(
-    base: string,
-    quote: string,
+    from: string,
+    to: string,
     amount: BN,
     byAmountIn: boolean,
     priceSplitPoint: number,
     partner: string,
     swapWithMultiPoolParams?: PreSwapWithMultiPoolParams
   ): Promise<PriceResult | undefined> {
-    if (
-      (base === '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT' &&
-        quote === '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC') ||
-      (quote === '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT' &&
-        base === '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC')
-    ) {
-      const a2b = base === '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
+    const fromCoin = this.tokenInfo(from)
+    const toCoin = this.tokenInfo(to)
 
-      const pool = await this.sdk.Pool.getPool('0x4038aea2341070550e9c1f723315624c539788d0ca9212dca7eb4b36147c0fcb')
-      const decimalsA = 6
-      const decimalsB = 6
-      const by_amount_in = true
-      const clmm_result = await this._sdk.Swap.preswap({
-        pool,
-        current_sqrt_price: pool.current_sqrt_price,
-        decimalsA,
-        decimalsB,
-        a2b,
-        by_amount_in,
-        amount: amount.divn(2).toString(),
-        coinTypeA: pool.coinTypeA,
-        coinTypeB: pool.coinTypeB,
-      })
-
-      const deepbook_result = await this._sdk.Router.deepbookPreswap(
-        '0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b',
-        a2b,
-        amount.sub(amount.divn(2)).toNumber(),
-        2500000
-      )
-
-      const clmmPath =
-        clmm_result == null
-          ? {
-              amountIn: ZERO,
-              amountOut: ZERO,
-              poolAddress: [],
-              a2b: [],
-              rawAmountLimit: [],
-              isExceed: true,
-              coinType: [],
-              poolType: [],
-            }
-          : {
-              amountIn: new BN(clmm_result!.estimatedAmountIn),
-              amountOut: new BN(clmm_result!.estimatedAmountOut),
-              poolAddress: [clmm_result!.poolAddress],
-              a2b: [clmm_result!.aToB],
-              rawAmountLimit: [clmm_result!.estimatedAmountOut],
-              isExceed: clmm_result!.isExceed,
-              coinType: [base, quote],
-              poolType: ['clmm'],
-            }
-
-      const deepbookPath: OnePath = {
-        amountIn: new BN(deepbook_result!.estimatedAmountIn),
-        amountOut: new BN(deepbook_result!.estimatedAmountOut),
-        poolAddress: [deepbook_result!.poolAddress],
-        a2b: [deepbook_result!.aToB],
-        rawAmountLimit: [new BN(deepbook_result!.estimatedAmountOut)],
-        isExceed: deepbook_result!.isExceed,
-        coinType: [
-          '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
-          '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
-        ],
-        poolType: ['deepbook'],
-      }
-
-      const swapWithRouterParams = {
-        paths: [clmmPath, deepbookPath],
-        partner,
-        priceSplitPoint,
-      }
-
-      const result: PriceResult = {
-        amountIn: clmmPath.amountIn.add(new BN(deepbook_result!.estimatedAmountIn)),
-        amountOut: clmmPath.amountOut.add(new BN(deepbook_result!.estimatedAmountOut)),
-        paths: clmmPath == null ? [deepbookPath] : [clmmPath, deepbookPath],
-        a2b: clmmPath.a2b[0],
-        b2c: undefined,
-        byAmountIn,
-        isExceed: clmmPath!.isExceed && deepbook_result!.isExceed,
-        targetSqrtPrice: [],
-        currentSqrtPrice: [new BN(pool.current_sqrt_price)],
-        coinTypeA: base,
-        coinTypeB: quote,
-        coinTypeC: undefined,
-        createTxParams: swapWithRouterParams,
-      }
-      return result
-    }
-    const baseCoin = this.tokenInfo(base)
-    const quoteCoin = this.tokenInfo(quote)
-
-    if (baseCoin === undefined || quoteCoin === undefined) {
-      return undefined
+    if (fromCoin === undefined || toCoin === undefined) {
+      throw new Error('From/To coin is undefined')
     }
 
-    const sourceVertex = this.graph.getVertexByKey(baseCoin.address)
-    const targetVertex = this.graph.getVertexByKey(quoteCoin.address)
+    const sourceVertex = this.graph.getVertexByKey(fromCoin.address)
+    const targetVertex = this.graph.getVertexByKey(toCoin.address)
 
-    // find all paths
     const pathIter = this.graph.findAllPath(sourceVertex, targetVertex)
     const allPaths = Array.from(pathIter)
 
     if (allPaths.length === 0) {
-      return undefined
+      throw new Error('No find valid path in coin graph')
     }
 
     const preRouterSwapParams: PreRouterSwapParams[] = []
@@ -650,22 +284,23 @@ export class RouterModule implements IModule {
       if (path.length > 3) {
         continue
       }
-      const baseQuote = []
+      const fromAndTo = []
       const swapDirection = []
 
       const poolsAB: string[] = []
       const poolsBC: string[] = []
 
       for (let j = 0; j < path.length - 1; j += 1) {
-        const base = path[j].value.toString()
-        const quote = path[j + 1].value.toString()
-        const addressMap = this.getPoolAddressMapAndDirection(base, quote)?.addressMap
-        const direction = this.getPoolAddressMapAndDirection(base, quote)?.direction
+        const subFrom = path[j].value.toString()
+        const subTo = path[j + 1].value.toString()
+        const addressMapAndDirection = this.getPoolAddressMapAndDirection(subFrom, subTo)
+        const addressMap = addressMapAndDirection?.addressMap
+        const direction = addressMapAndDirection?.direction
 
-        if (addressMap !== undefined && direction !== undefined) {
+        if (addressMap != null && direction != null) {
           swapDirection.push(direction)
-          baseQuote.push(base)
-          baseQuote.push(quote)
+          fromAndTo.push(subFrom)
+          fromAndTo.push(subTo)
           addressMap.forEach((address) => {
             if (j === 0) {
               poolsAB.push(address)
@@ -687,9 +322,9 @@ export class RouterModule implements IModule {
               b2c: swapDirection[1],
               amount,
               byAmountIn,
-              coinTypeA: baseQuote[0],
-              coinTypeB: baseQuote[1],
-              coinTypeC: baseQuote[3],
+              coinTypeA: fromAndTo[0],
+              coinTypeB: fromAndTo[1],
+              coinTypeC: fromAndTo[3],
             }
             preRouterSwapParams.push(param)
           }
@@ -702,8 +337,8 @@ export class RouterModule implements IModule {
             b2c: undefined,
             amount,
             byAmountIn,
-            coinTypeA: baseQuote[0],
-            coinTypeB: baseQuote[1],
+            coinTypeA: fromAndTo[0],
+            coinTypeB: fromAndTo[1],
             coinTypeC: undefined,
           }
           preRouterSwapParams.push(param)
@@ -722,8 +357,7 @@ export class RouterModule implements IModule {
           a2b: [preSwapResult!.aToB],
           rawAmountLimit: byAmountIn ? [preSwapResult!.estimatedAmountOut] : [preSwapResult!.estimatedAmountIn],
           isExceed: preSwapResult!.isExceed,
-          coinType: [base, quote],
-          poolType: ['clmm', 'clmm'],
+          coinType: [from, to],
         }
 
         const swapWithRouterParams = {
@@ -742,14 +376,14 @@ export class RouterModule implements IModule {
           isExceed: preSwapResult!.isExceed,
           targetSqrtPrice: [preSwapResult!.estimatedEndSqrtPrice],
           currentSqrtPrice: [preSwapResult!.estimatedStartSqrtPrice],
-          coinTypeA: base,
-          coinTypeB: quote,
+          coinTypeA: from,
+          coinTypeB: to,
           coinTypeC: undefined,
           createTxParams: swapWithRouterParams,
         }
         return result
       }
-      return undefined
+      throw new Error('No parameters available for service downgrade')
     }
 
     const preSwapResult = await this.preRouterSwapA2B2C(preRouterSwapParams.slice(0, 64))
@@ -764,8 +398,7 @@ export class RouterModule implements IModule {
           a2b: [preSwapResult!.aToB],
           rawAmountLimit: byAmountIn ? [preSwapResult!.estimatedAmountOut] : [preSwapResult!.estimatedAmountIn],
           isExceed: preSwapResult!.isExceed,
-          coinType: [base, quote],
-          poolType: ['clmm', 'clmm'],
+          coinType: [from, to],
         }
 
         const swapWithRouterParams = {
@@ -784,8 +417,8 @@ export class RouterModule implements IModule {
           isExceed: preSwapResult!.isExceed,
           targetSqrtPrice: [preSwapResult!.estimatedEndSqrtPrice],
           currentSqrtPrice: [preSwapResult!.estimatedStartSqrtPrice],
-          coinTypeA: base,
-          coinTypeB: quote,
+          coinTypeA: from,
+          coinTypeB: to,
           coinTypeC: undefined,
           createTxParams: swapWithRouterParams,
         }
@@ -842,7 +475,6 @@ export class RouterModule implements IModule {
       rawAmountLimit,
       isExceed: preSwapResult!.isExceed,
       coinType: coinTypes,
-      poolType: ['clmm', 'clmm'],
     }
 
     const swapWithRouterParams = {
@@ -900,8 +532,6 @@ export class RouterModule implements IModule {
           typeArguments.push(param.coinTypeC!, param.coinTypeB)
         }
 
-        console.log(args, typeArguments)
-
         tx.moveCall({
           target: `${clmm.clmm_router}::${ClmmIntegrateRouterModule}::calculate_router_swap_result`,
           typeArguments,
@@ -917,6 +547,8 @@ export class RouterModule implements IModule {
         })
       }
     }
+
+    printTransaction(tx, true)
 
     const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
       transactionBlock: tx,

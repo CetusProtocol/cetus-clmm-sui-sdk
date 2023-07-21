@@ -60,18 +60,14 @@ const liquidityNet: new BN(BigInt.asIntN(128, BigInt(BigInt(tick.liquidityNet.to
 
 ## 6. Calculate swap fee and price impact
 
-All the parameters come from the calculation results of the `sdk.Router.price(ETH, USDT, amount, byAmountIn, 0.05, '')`.
-
 ```ts
-    const res = await sdk.Swap.calculateSwapFeeAndImpact({
-      from_type: "0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT",
-      from_amount : '1000000',
-      to_amount: '31034210',
-      pool_address:"0x8c30b4c434b8acc740e452311147790b67004a3e37387703afe5aa5c9c6a5e3a",
-      router: {
-        pool_address:"0xd1abb32c3ceeebb47b965d6b15790a780268ed69b95199cec3f7edc5b071dd4c",
-        raw_amount_limit: '31071079541'
-      }
-    })
-    console.log('res: ', res)
+    const res = await sdk.RouterV2.getBestRouter(USDT, USDC, 100000000, true, 5, '', undefined, true, false)
+    let param: any
+    if (res.version === 'v2') {
+      param = res.result
+      printAggregatorResult(param! as AggregatorResult)
+    }
+    const fee =  sdk.Swap.calculateSwapFee(res.result.splitPaths)
+    const priceImpact =  sdk.Swap.calculateSwapPriceImpact(res.result.splitPaths)
+    console.log('result: ', {fee , priceImpact })
 ```

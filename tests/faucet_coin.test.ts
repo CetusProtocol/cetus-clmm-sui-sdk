@@ -1,12 +1,5 @@
-import {
-  Ed25519Keypair,
-} from '@mysten/sui.js'
-import {
-  buildSdk,
-  buildTestAccount,
-  mintAll,
-  faucet,
-} from './data/init_test_data'
+import { Ed25519Keypair } from '@mysten/sui.js'
+import { buildSdk, buildTestAccount, mintAll, faucet } from './data/init_test_data'
 import 'isomorphic-fetch'
 
 const sdk = buildSdk()
@@ -25,5 +18,4 @@ describe('faucet coin test', () => {
   test('faucetCoins', async () => {
     await mintAll(sdk, sendKeypair, faucet, 'faucet')
   })
-
 })
