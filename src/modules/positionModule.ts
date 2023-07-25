@@ -9,6 +9,7 @@ import {
   Position,
   PositionReward,
   RemoveLiquidityParams,
+  getPackagerConfigs,
 } from '../types'
 import {
   CachedContent,
@@ -49,7 +50,7 @@ export class PositionModule implements IModule {
    * @returns The full address of the Position type.
    */
   buildPositionType() {
-    const cetusClmm = this._sdk.sdkOptions.clmm.clmm_display
+    const cetusClmm = this._sdk.sdkOptions.clmm_pool.package_id
     return `${cetusClmm}::position::Position`
   }
 
@@ -65,7 +66,7 @@ export class PositionModule implements IModule {
 
     const ownerRes: any = await getOwnedObjects(this._sdk, accountAddress, {
       options: { showType: true, showContent: true, showDisplay: true, showOwner: true },
-      filter: { Package: this._sdk.sdkOptions.clmm.clmm_display },
+      filter: { Package: this._sdk.sdkOptions.clmm_pool.package_id },
     })
 
     const hasAssignPoolIds = assignPoolIds.length > 0
@@ -259,7 +260,7 @@ export class PositionModule implements IModule {
    * @returns
    */
   async createAddLiquidityPayload(params: AddLiquidityParams): Promise<TransactionBlock> {
-    const { clmm } = this._sdk.sdkOptions
+    const { integrate, clmm_pool } = this._sdk.sdkOptions
     if (this._sdk.senderAddress.length === 0) {
       throw Error('this config sdk senderAddress is empty')
     }
@@ -277,9 +278,14 @@ export class PositionModule implements IModule {
 
     if (needOpenPosition) {
       positionNft = tx.moveCall({
-        target: `${clmm.clmm_display}::pool::open_position`,
+        target: `${integrate.published_at}::pool::open_position`,
         typeArguments,
-        arguments: [tx.object(clmm.config.global_config_id), tx.object(params.pool_id), tx.pure(tick_lower), tx.pure(tick_upper)],
+        arguments: [
+          tx.object(getPackagerConfigs(clmm_pool).global_config_id),
+          tx.object(params.pool_id),
+          tx.pure(tick_lower),
+          tx.pure(tick_upper),
+        ],
       })
     } else {
       this._sdk.Rewarder.collectRewarderTransactionPayload(
@@ -337,10 +343,10 @@ export class PositionModule implements IModule {
     }
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::${funName}`,
+      target: `${integrate.published_at}::${ClmmIntegratePoolModule}::${funName}`,
       typeArguments,
       arguments: [
-        tx.object(clmm.config.global_config_id),
+        tx.object(getPackagerConfigs(clmm_pool).global_config_id),
         tx.object(params.pool_id),
         needOpenPosition ? positionNft[0] : tx.object(params.pos_id),
         ...warpInputs.map((item) => item.coinInput),
@@ -362,7 +368,7 @@ export class PositionModule implements IModule {
    * @returns
    */
   removeLiquidityTransactionPayload(params: RemoveLiquidityParams): TransactionBlock {
-    const { clmm } = this.sdk.sdkOptions
+    const { clmm_pool, integrate } = this.sdk.sdkOptions
 
     const functionName = 'remove_liquidity'
 
@@ -383,7 +389,7 @@ export class PositionModule implements IModule {
     )
 
     const args = [
-      tx.object(clmm.config.global_config_id),
+      tx.object(getPackagerConfigs(clmm_pool).global_config_id),
       tx.object(params.pool_id),
       tx.object(params.pos_id),
       tx.pure(params.delta_liquidity),
@@ -393,7 +399,7 @@ export class PositionModule implements IModule {
     ]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::${functionName}`,
+      target: `${integrate.published_at}::${ClmmIntegratePoolModule}::${functionName}`,
       typeArguments,
       arguments: args,
     })
@@ -409,7 +415,7 @@ export class PositionModule implements IModule {
    */
 
   closePositionTransactionPayload(params: ClosePositionParams): TransactionBlock {
-    const { clmm } = this.sdk.sdkOptions
+    const { clmm_pool, integrate } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
 
@@ -428,10 +434,10 @@ export class PositionModule implements IModule {
     )
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::close_position`,
+      target: `${integrate.published_at}::${ClmmIntegratePoolModule}::close_position`,
       typeArguments,
       arguments: [
-        tx.object(clmm.config.global_config_id),
+        tx.object(getPackagerConfigs(clmm_pool).global_config_id),
         tx.object(params.pool_id),
         tx.object(params.pos_id),
         tx.pure(params.min_amount_a),
@@ -449,17 +455,22 @@ export class PositionModule implements IModule {
    * @returns
    */
   openPositionTransactionPayload(params: OpenPositionParams): TransactionBlock {
-    const { clmm } = this.sdk.sdkOptions
+    const { clmm_pool, integrate } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
     const tick_lower = asUintN(BigInt(params.tick_lower)).toString()
     const tick_upper = asUintN(BigInt(params.tick_upper)).toString()
-    const args = [tx.pure(clmm.config.global_config_id), tx.pure(params.pool_id), tx.pure(tick_lower), tx.pure(tick_upper)]
+    const args = [
+      tx.pure(getPackagerConfigs(clmm_pool).global_config_id),
+      tx.pure(params.pool_id),
+      tx.pure(tick_lower),
+      tx.pure(tick_upper),
+    ]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::open_position`,
+      target: `${integrate.published_at}::${ClmmIntegratePoolModule}::open_position`,
       typeArguments,
       arguments: args,
     })
@@ -473,15 +484,15 @@ export class PositionModule implements IModule {
    * @returns
    */
   collectFeeTransactionPayload(params: CollectFeeParams, tx?: TransactionBlock): TransactionBlock {
-    const { clmm } = this.sdk.sdkOptions
+    const { clmm_pool, integrate } = this.sdk.sdkOptions
 
     tx = tx === undefined ? new TransactionBlock() : tx
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
-    const args = [tx.object(clmm.config.global_config_id), tx.object(params.pool_id), tx.object(params.pos_id)]
+    const args = [tx.object(getPackagerConfigs(clmm_pool).global_config_id), tx.object(params.pool_id), tx.object(params.pos_id)]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::collect_fee`,
+      target: `${integrate.published_at}::${ClmmIntegratePoolModule}::collect_fee`,
       typeArguments,
       arguments: args,
     })

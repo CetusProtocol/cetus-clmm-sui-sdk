@@ -2,7 +2,6 @@ import BN from 'bn.js'
 import { buildSdk, buildTestAccountNew as buildTestAccount, buildTestPool, TokensMapping } from './data/init_test_data'
 import { CoinProvider, OnePath, PreRouterSwapParams, SwapWithRouterParams } from '../src/modules/routerModule'
 import SDK, { CoinAsset, CoinAssist, DeepbookUtils, Pool, printTransaction, sendTransaction, SwapUtils, TransactionUtil } from '../src'
-import SDK, { CoinAsset, CoinAssist, DeepbookUtils, Pool, printTransaction, sendTransaction, SwapUtils, TransactionUtil } from '../src'
 import { Ed25519Keypair, FaucetCoinInfo, RawSigner, TransactionArgument, TransactionBlock } from '@mysten/sui.js'
 import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS } from '../src/types/sui'
 import { TxBlock } from '../src/utils/tx-block'
@@ -104,39 +103,6 @@ describe('Router Module', () => {
     const coinMap = new Map()
     const poolMap = new Map()
 
-    // const poolsInfo: any = await fetch('https://api-sui.devcetus.com/v2/sui/pools_info')
-    // if (poolsInfo.code === 200) {
-    //   for (const pool of poolsInfo.data.lp_list) {
-    //     if (pool.is_closed) {
-    //       continue
-    //     }
-
-    //     let coin_a = pool.coin_a.address
-    //     let coin_b = pool.coin_b.address
-
-    //     coinMap.set(coin_a, {
-    //       address: pool.coin_a.address,
-    //       decimals: pool.coin_a.decimals,
-    //     })
-    //     coinMap.set(coin_b, {
-    //       address: pool.coin_b.address,
-    //       decimals: pool.coin_b.decimals,
-    //     })
-
-    //     const pair = `${coin_a}-${coin_b}`
-    //     const pathProvider = poolMap.get(pair)
-    //     if (pathProvider) {
-    //       pathProvider.addressMap.set(Number(pool.fee) * 10000, pool.address)
-    //     } else {
-    //       poolMap.set(pair, {
-    //         base: coin_a,
-    //         quote: coin_b,
-    //         addressMap: new Map([[Number(pool.fee) * 10000, pool.address]]),
-    //       })
-    //     }
-    //   }
-    // }
-
     for (let i = 0; i < pools.length; i += 1) {
       if (pools[i].is_pause) {
         continue
@@ -176,39 +142,39 @@ describe('Router Module', () => {
 
     sdk.Router.loadGraph(coins, paths)
 
-    const byAmountIn = false
-    const amount = new BN('1000000')
+    const byAmountIn = true
+    const amount = new BN('271113')
 
-    const result = await sdk.Router.price(USDT, USDC, amount, byAmountIn, 0.05, '')
+    const result = await sdk.Router.price(USDC, CETUS, amount, byAmountIn, 0.05, '')
 
     console.log(result, result?.amountIn.toString(), result?.amountOut.toString())
 
     const params: SwapWithRouterParams = {
       paths: [result?.paths![0]!, result?.paths![1]!],
       partner: '',
-      priceSplitPoint: 0,
+      priceSplitPoint: 5,
     }
 
     const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
     const routerPayload = await TransactionUtil.buildRouterSwapTransaction(sdk, params, byAmountIn, allCoinAsset)
     printTransaction(routerPayload)
 
-    const simulateRes = await sdk.fullClient.devInspectTransactionBlock({
-      transactionBlock: routerPayload,
-      sender: simulationAccount.address,
-    })
-    console.log('simulateRes', simulateRes)
+    // const simulateRes = await sdk.fullClient.devInspectTransactionBlock({
+    //   transactionBlock: routerPayload,
+    //   sender: simulationAccount.address,
+    // })
+    // console.log('simulateRes', simulateRes)
 
-    // console.log(result?.amountIn.toString(), result?.amountOut.toString())
-    // if (!result?.isExceed) {
-    //   const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-    //   const routerPayload = await TransactionUtil.buildRouterSwapTransaction(sdk, params, byAmountIn, allCoinAsset)
-    //   printTransaction(routerPayload)
-    //   const signer = new RawSigner(sendKeypair, sdk.fullClient)
-    //   const transferTxn = await sendTransaction(signer, routerPayload)
-    //   console.log('router: ', transferTxn)
-    //   console.log(result?.amountIn.toString(), result?.amountOut.toString())
-    // }
+    console.log(result?.amountIn.toString(), result?.amountOut.toString())
+    if (!result?.isExceed) {
+      const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
+      const routerPayload = await TransactionUtil.buildRouterSwapTransaction(sdk, params, byAmountIn, allCoinAsset)
+      printTransaction(routerPayload)
+      const signer = new RawSigner(sendKeypair, sdk.fullClient)
+      const transferTxn = await sendTransaction(signer, routerPayload)
+      console.log('router: ', transferTxn)
+      console.log(result?.amountIn.toString(), result?.amountOut.toString())
+    }
   })
 
   test('calculate swap fee Impact', async () => {

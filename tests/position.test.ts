@@ -21,14 +21,14 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('open_and_add_liquidity_fix_token', async () => {
-    const poolObjectId =  TokensMapping.USDT_USDC_LP.poolObjectIds[0]
+    const poolObjectId = "0xcf994611fd4c48e277ce3ffd4d4364c914af2c3cbb05f7bf6facd371de688630" ;//  TokensMapping.USDT_USDC_LP.poolObjectIds[0]
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const pool = await buildTestPool(sdk, poolObjectId)
-    const lowerTick = 0
-    const upperTick =6
+    const lowerTick = TickMath.getPrevInitializableTickIndex(new BN(pool.current_tick_index).toNumber(), new BN(pool.tickSpacing).toNumber())
+    const upperTick = TickMath.getNextInitializableTickIndex(new BN(pool.current_tick_index).toNumber(), new BN(pool.tickSpacing).toNumber())
     const coinAmount = new BN(100)
     const fix_amount_a = true
-    const slippage = 0.05
+    const slippage = 0.01
     const curSqrtPrice = new BN(pool.current_sqrt_price)
 
     const liquidityInput = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(

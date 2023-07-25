@@ -7,7 +7,7 @@ import { MathUtil, ONE, ZERO } from '../math/utils'
 import { TickData } from '../types/clmmpool'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
-import { CollectRewarderParams, Pool, Position, PositionReward, Rewarder, RewarderAmountOwed } from '../types'
+import { CollectRewarderParams, getPackagerConfigs, Pool, Position, PositionReward, Rewarder, RewarderAmountOwed } from '../types'
 
 export type FetchPosRewardParams = {
   poolAddress: string
@@ -212,19 +212,19 @@ export class RewarderModule implements IModule {
    * @returns
    */
   async fetchPosRewardersAmount(params: FetchPosRewardParams[]) {
-    const { clmm, simulationAccount } = this.sdk.sdkOptions
+    const { clmm_pool, integrate, simulationAccount } = this.sdk.sdkOptions
     const tx = new TransactionBlock()
 
     for (const paramItem of params) {
       const typeArguments = [paramItem.coinTypeA, paramItem.coinTypeB]
       const args = [
-        tx.object(clmm.config.global_config_id),
+        tx.object(getPackagerConfigs(clmm_pool).global_config_id),
         tx.object(paramItem.poolAddress),
         tx.pure(paramItem.positionId),
         tx.object(CLOCK_ADDRESS),
       ]
       tx.moveCall({
-        target: `${clmm.clmm_router}::${ClmmFetcherModule}::fetch_position_rewards`,
+        target: `${integrate.published_at}::${ClmmFetcherModule}::fetch_position_rewards`,
         arguments: args,
         typeArguments,
       })
@@ -325,7 +325,7 @@ export class RewarderModule implements IModule {
    * @returns
    */
   collectRewarderTransactionPayload(params: CollectRewarderParams, tx?: TransactionBlock): TransactionBlock {
-    const { clmm } = this.sdk.sdkOptions
+    const { clmm_pool, integrate } = this.sdk.sdkOptions
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
 
@@ -342,16 +342,17 @@ export class RewarderModule implements IModule {
         tx
       )
     }
+    const clmmConfigs = getPackagerConfigs(clmm_pool)
     params.rewarder_coin_types.forEach((type) => {
       if (tx) {
         tx.moveCall({
-          target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::collect_reward`,
+          target: `${integrate.published_at}::${ClmmIntegratePoolModule}::collect_reward`,
           typeArguments: [...typeArguments, type],
           arguments: [
-            tx.object(clmm.config.global_config_id),
+            tx.object(clmmConfigs.global_config_id),
             tx.object(params.pool_id),
             tx.object(params.pos_id),
-            tx.object(clmm.config.global_vault_id),
+            tx.object(clmmConfigs.global_vault_id),
             tx.object(CLOCK_ADDRESS),
           ],
         })

@@ -1,3 +1,5 @@
+import { SdkOptions } from '../../src'
+
 const SDKConfig = {
   clmmConfig: {
     pools_id: '0xf699e7f2276f5c9a75944b37a0c5b5d9ddfd2471bf6242483b03ab2887d198d0',
@@ -17,30 +19,33 @@ const SDKConfig = {
   },
 }
 
-export const clmm_mainnet = {
-  fullRpcUrl: 'https://sui-mainnet-rpc.allthatnode.com',
-  // fullRpcUrl: 'https://sui-mainnet-endpoint.blockvision.org/',
-  faucetURL: '',
-  faucet: {
-    faucet_display: '0x0588cff9a50e0eaf4cd50d337c1a36570bc1517793fd3303e1513e8ad4d2aa96',
-    faucet_router: '0x0588cff9a50e0eaf4cd50d337c1a36570bc1517793fd3303e1513e8ad4d2aa96',
-  },
+export const clmm_mainnet: SdkOptions = {
+  //fullRpcUrl: 'https://sui-mainnet-rpc.allthatnode.com',
+  fullRpcUrl: 'https://sui-mainnet-endpoint.blockvision.org/',
   simulationAccount: {
     address: '0x326ce9894f08dcaa337fa232641cc34db957aec9ff6614c1186bc9a7508df0bb',
   },
   cetus_config: {
-    config_display: '0x95b8d278b876cae22206131fb9724f701c9444515813042f54f0a426c9a3bc2f',
-    config_router: '0x95b8d278b876cae22206131fb9724f701c9444515813042f54f0a426c9a3bc2f',
+    package_id: '0x95b8d278b876cae22206131fb9724f701c9444515813042f54f0a426c9a3bc2f',
+    published_at: '0x95b8d278b876cae22206131fb9724f701c9444515813042f54f0a426c9a3bc2f',
     config: SDKConfig.cetusConfig,
   },
-  clmm: {
-    clmm_display: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb',
-    clmm_router: '0xb47968b137e4233a814b3ba1e85ab9b76b9c9c9164b695f126a14d1fd6a9c562',
+  clmm_pool: {
+    package_id: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb',
+    published_at: '0xfa36bcb799278bddaf295991b2d3ce039013b1dd60dfd7183dee135fdadbc4be',
     config: SDKConfig.clmmConfig,
   },
-  deepbook: {
-    deepbook_display: '0x000000000000000000000000000000000000000000000000000000000000dee9',
-    deepbook_endpoint_v2: '0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7',
+  integrate: {
+    package_id: '0x996c4d9480708fb8b92aa7acf819fb0497b5ec8e65ba06601cae2fb6db3312c3',
+    published_at: '0x996c4d9480708fb8b92aa7acf819fb0497b5ec8e65ba06601cae2fb6db3312c3',
   },
-  aggregatorUrl: 'https://api-sui.cetus.zone/router1',
+  deepbook: {
+    package_id: '0x000000000000000000000000000000000000000000000000000000000000dee9',
+    published_at: '0x000000000000000000000000000000000000000000000000000000000000dee9',
+  },
+  deepbook_endpoint_v2: {
+    package_id: '0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7',
+    published_at: '0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7',
+  },
+  aggregatorUrl: 'https://api-sui.cetus.zone/router',
 }

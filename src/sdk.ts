@@ -6,41 +6,26 @@ import { RouterModule } from './modules/routerModule'
 import { SwapModule } from './modules/swapModule'
 import { TokenModule } from './modules/tokenModule'
 import { RouterModuleV2 } from './modules/routerModuleV2'
-import { SuiObjectIdType } from './types/sui'
 import { extractStructTagFromType, patchFixSuiObjectId } from './utils'
-import { CetusConfigs, ClmmConfig, CoinAsset, TokenConfig } from './types'
+import { CetusConfigs, ClmmConfig, CoinAsset, Package, TokenConfig } from './types'
 import { ConfigModule } from './modules'
 
 export type SdkOptions = {
   fullRpcUrl: string
-  faucetURL: string
+  faucetURL?: string
   simulationAccount: {
     address: string
   }
-  /**
-   * token is no longer maintained. Please use cetus_config instead.
-   * @deprecated
-   */
-  token?: {
-    token_display: SuiObjectIdType
-    config: TokenConfig
-  }
-  cetus_config: {
-    config_display: SuiObjectIdType
-    config_router: SuiObjectIdType
-    config: CetusConfigs
-  }
-  clmm: {
-    clmm_display: SuiObjectIdType
-    clmm_router: SuiObjectIdType
-    config: ClmmConfig
-  }
-  deepbook: {
-    deepbook_display: SuiObjectIdType
-    deepbook_endpoint_v2: SuiObjectIdType
-  }
+  faucet?: Package
+  token?: Package<TokenConfig>
+  cetus_config: Package<CetusConfigs>
+  clmm_pool: Package<ClmmConfig>
+  integrate: Package
+  deepbook: Package
+  deepbook_endpoint_v2: Package
   aggregatorUrl: string
 }
+
 /**
  * The entry class of CetusClmmSDK, which is almost responsible for all interactions with CLMM.
  */

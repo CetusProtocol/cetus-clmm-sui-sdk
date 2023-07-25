@@ -9,7 +9,7 @@ import {
   ObjectType,
   SuiObjectResponse,
 } from '@mysten/sui.js'
-import { CetusConfigs, ClmmPoolConfig, CoinConfig, LaunchpadPoolConfig } from '../types'
+import { CetusConfigs, ClmmPoolConfig, CoinConfig, getPackagerConfigs, LaunchpadPoolConfig } from '../types'
 import { SuiResource, SuiAddressType } from '../types/sui'
 import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils/cachedContent'
 import { extractStructTagFromType, fixCoinType, normalizeCoinType } from '../utils/contracts'
@@ -35,7 +35,7 @@ export class ConfigModule implements IModule {
 
   async getTokenListByCoinTypes(coinTypes: SuiAddressType[]): Promise<Record<string, CoinConfig>> {
     const tokenMap: Record<string, CoinConfig> = {}
-    const { coin_list_handle } = this.sdk.sdkOptions.cetus_config.config
+    const { coin_list_handle } = getPackagerConfigs(this.sdk.sdkOptions.cetus_config)
     const cacheKey = `${coin_list_handle}_getCoinConfigs`
     const cacheData = this.getCache<CoinConfig[]>(cacheKey)
 
@@ -95,7 +95,7 @@ export class ConfigModule implements IModule {
    * @returns
    */
   async getCoinConfigs(forceRefresh = false, transformExtensions = true): Promise<CoinConfig[]> {
-    const { coin_list_handle } = this.sdk.sdkOptions.cetus_config.config
+    const { coin_list_handle } = getPackagerConfigs(this.sdk.sdkOptions.cetus_config)
     const cacheKey = `${coin_list_handle}_getCoinConfigs`
     const cacheData = this.getCache<CoinConfig[]>(cacheKey, forceRefresh)
     if (cacheData) {
@@ -117,7 +117,7 @@ export class ConfigModule implements IModule {
   }
 
   async getCoinConfig(coinType: string, forceRefresh = false, transformExtensions = true): Promise<CoinConfig> {
-    const { coin_list_handle } = this.sdk.sdkOptions.cetus_config.config
+    const { coin_list_handle } = getPackagerConfigs(this.sdk.sdkOptions.cetus_config)
     const cacheKey = `${coin_list_handle}_${coinType}_getCoinConfig`
     const cacheData = this.getCache<CoinConfig>(cacheKey, forceRefresh)
     if (cacheData) {
@@ -160,7 +160,7 @@ export class ConfigModule implements IModule {
    * @returns
    */
   async getClmmPoolConfigs(forceRefresh = false, transformExtensions = true): Promise<ClmmPoolConfig[]> {
-    const { clmm_pools_handle } = this.sdk.sdkOptions.cetus_config.config
+    const { clmm_pools_handle } = getPackagerConfigs(this.sdk.sdkOptions.cetus_config)
     const cacheKey = `${clmm_pools_handle}_getClmmPoolConfigs`
     const cacheData = this.getCache<ClmmPoolConfig[]>(cacheKey, forceRefresh)
     if (cacheData) {
@@ -182,7 +182,7 @@ export class ConfigModule implements IModule {
   }
 
   async getClmmPoolConfig(poolAddress: string, forceRefresh = false, transformExtensions = true): Promise<ClmmPoolConfig> {
-    const { clmm_pools_handle } = this.sdk.sdkOptions.cetus_config.config
+    const { clmm_pools_handle } = getPackagerConfigs(this.sdk.sdkOptions.cetus_config)
     const cacheKey = `${poolAddress}_getClmmPoolConfig`
     const cacheData = this.getCache<ClmmPoolConfig>(cacheKey, forceRefresh)
     if (cacheData) {
@@ -218,7 +218,7 @@ export class ConfigModule implements IModule {
    * @returns
    */
   async getLaunchpadPoolConfigs(forceRefresh = false, transformExtensions = true): Promise<LaunchpadPoolConfig[]> {
-    const { launchpad_pools_handle } = this.sdk.sdkOptions.cetus_config.config
+    const { launchpad_pools_handle } = getPackagerConfigs(this.sdk.sdkOptions.cetus_config)
     const cacheKey = `${launchpad_pools_handle}_getLaunchpadPoolConfigs`
     const cacheData = this.getCache<LaunchpadPoolConfig[]>(cacheKey, forceRefresh)
     if (cacheData) {
@@ -240,7 +240,7 @@ export class ConfigModule implements IModule {
   }
 
   async getLaunchpadPoolConfig(poolAddress: string, forceRefresh = false, transformExtensions = true): Promise<LaunchpadPoolConfig> {
-    const { launchpad_pools_handle } = this.sdk.sdkOptions.cetus_config.config
+    const { launchpad_pools_handle } = getPackagerConfigs(this.sdk.sdkOptions.cetus_config)
     const cacheKey = `${poolAddress}_getLaunchpadPoolConfig`
     const cacheData = this.getCache<LaunchpadPoolConfig>(cacheKey, forceRefresh)
     if (cacheData) {
@@ -319,7 +319,7 @@ export class ConfigModule implements IModule {
    * @returns The token config event.
    */
   async getCetusConfig(forceRefresh = false): Promise<CetusConfigs> {
-    const packageObjectId = this._sdk.sdkOptions.cetus_config.config_display
+    const packageObjectId = this._sdk.sdkOptions.cetus_config.package_id
     const cacheKey = `${packageObjectId}_getCetusConfig`
 
     const cacheData = this.getCache<CetusConfigs>(cacheKey, forceRefresh)
@@ -398,8 +398,6 @@ export class ConfigModule implements IModule {
         default:
           break
       }
-      console.log('type : ', type)
-      console.log('fields : ', fields)
     })
 
     return tokenConfig

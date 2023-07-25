@@ -262,6 +262,11 @@ export class RouterModuleV2 implements IModule {
       version = 'v1'
       result = aggregatorResult
     }
+
+    result.splitPaths.sort((a, b) => {
+      return b.outputAmount - a.outputAmount
+    })
+
     return { result, version }
   }
 }

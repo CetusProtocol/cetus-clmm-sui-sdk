@@ -28,7 +28,7 @@ describe('Pool Module', () => {
   })
 
   test('get ower position list', async () => {
-    const res = await sdk.Position.getPositionList(buildTestAccount().getPublicKey().toSuiAddress(),["0x17fd50d35d1c2de65c37d2c9745a79de34433e43742f176f91bca580362e8b98"])
+    const res = await sdk.Position.getPositionList(buildTestAccount().getPublicKey().toSuiAddress(),["0x83c101a55563b037f4cd25e5b326b26ae6537dc8048004c1408079f7578dd160"])
     console.log('getPositionList####', res)
   })
 

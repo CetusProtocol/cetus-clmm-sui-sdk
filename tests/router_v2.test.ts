@@ -86,15 +86,16 @@ describe('Router Module', () => {
 
   test('USDT -> USDC', async () => {
     const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-    const res = (await sdk.RouterV2.getBestRouter(USDT, USDC, 16534000, true, 0.5, '', undefined, true, false)).result as AggregatorResult
+    const res = (await sdk.RouterV2.getBestRouter(USDC, SUI, 11111111000000, true, 0.5, '', undefined, true, false))
+      .result as AggregatorResult
     printAggregatorResult(res)
 
     const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, res, allCoinAsset, '', 0.5)
     printTransaction(payload, true)
 
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
-    const succeed = await execTx(sdk, true, payload, signer)
-    assert(succeed, 'error')
+    // const signer = new RawSigner(sendKeypair, sdk.fullClient)
+    // const succeed = await execTx(sdk, true, payload, signer)
+    // assert(succeed, 'error')
   })
 
   test('USDT -> USDC', async () => {

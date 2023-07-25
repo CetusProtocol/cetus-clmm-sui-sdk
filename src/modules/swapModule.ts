@@ -135,14 +135,14 @@ export class SwapModule implements IModule {
    * @returns {Promise<SwapWithMultiPoolData>} A promise that resolves to the swap data.
    */
   async preSwapWithMultiPool(params: PreSwapWithMultiPoolParams) {
-    const { clmm, simulationAccount } = this.sdk.sdkOptions
+    const { integrate, simulationAccount } = this.sdk.sdkOptions
     const tx = new TransactionBlock()
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
     for (let i = 0; i < params.poolAddresses.length; i += 1) {
       const args = [tx.pure(params.poolAddresses[i]), tx.pure(params.a2b), tx.pure(params.byAmountIn), tx.pure(params.amount)]
       tx.moveCall({
-        target: `${clmm.clmm_router}::${ClmmFetcherModule}::calculate_swap_result`,
+        target: `${integrate.published_at}::${ClmmFetcherModule}::calculate_swap_result`,
         arguments: args,
         typeArguments,
       })
@@ -206,7 +206,7 @@ export class SwapModule implements IModule {
    * @returns {Promise<PreSwapParams>} A promise that resolves to the swap data.
    */
   async preswap(params: PreSwapParams) {
-    const { clmm, simulationAccount } = this.sdk.sdkOptions
+    const { integrate, simulationAccount } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
 
@@ -214,7 +214,7 @@ export class SwapModule implements IModule {
     const args = [tx.pure(params.pool.poolAddress), tx.pure(params.a2b), tx.pure(params.by_amount_in), tx.pure(params.amount)]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmFetcherModule}::calculate_swap_result`,
+      target: `${integrate.published_at}::${ClmmFetcherModule}::calculate_swap_result`,
       arguments: args,
       typeArguments,
     })

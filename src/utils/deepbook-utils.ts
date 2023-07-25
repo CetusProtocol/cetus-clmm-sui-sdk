@@ -30,7 +30,7 @@ export class DeepbookUtils {
     const { deepbook } = sdkOptions
 
     const [cap] = tx.moveCall({
-      target: `${deepbook.deepbook_display}::${DeepbookClobV2Moudle}::create_account`,
+      target: `${deepbook.published_at}::${DeepbookClobV2Moudle}::create_account`,
       typeArguments: [],
       arguments: [],
     })
@@ -48,7 +48,7 @@ export class DeepbookUtils {
     const args = [tx.pure(accountCap)]
 
     tx.moveCall({
-      target: `${deepbook.deepbook_display}::${DeepbookCustodianV2Moudle}::delete_account_cap`,
+      target: `${deepbook.published_at}::${DeepbookCustodianV2Moudle}::delete_account_cap`,
       typeArguments: [],
       arguments: args,
     })
@@ -60,7 +60,7 @@ export class DeepbookUtils {
       options: { showType: true, showContent: true, showDisplay: true, showOwner: true },
       filter: {
         MoveModule: {
-          package: sdk.sdkOptions.deepbook.deepbook_display,
+          package: sdk.sdkOptions.deepbook.package_id,
           module: DeepbookCustodianV2Moudle,
         },
       },
@@ -76,7 +76,7 @@ export class DeepbookUtils {
   }
 
   static async getPools(sdk: SDK): Promise<DeepbookPool[]> {
-    const deepbook = sdk.sdkOptions.deepbook.deepbook_display
+    const deepbook = sdk.sdkOptions.deepbook.package_id
 
     const allPools: DeepbookPool[] = []
 
@@ -107,7 +107,7 @@ export class DeepbookUtils {
 
   static async getPoolAsks(sdk: SDK, poolAddress: string, baseCoin: string, quoteCoin: string): Promise<Order[]> {
     const { simulationAccount } = sdk.sdkOptions
-    const { deepbook_endpoint_v2 } = sdk.sdkOptions.deepbook
+    const { deepbook_endpoint_v2 } = sdk.sdkOptions
 
     const tx = new TransactionBlock()
 
@@ -116,7 +116,7 @@ export class DeepbookUtils {
     const typeArguments = [baseCoin, quoteCoin]
     const args = [tx.pure(poolAddress), tx.pure('0'), tx.pure('999999999999'), tx.pure(CLOCK_ADDRESS)]
     tx.moveCall({
-      target: `${deepbook_endpoint_v2}::endpoints_v2::get_level2_book_status_ask_side`,
+      target: `${deepbook_endpoint_v2.published_at}::endpoints_v2::get_level2_book_status_ask_side`,
       arguments: args,
       typeArguments,
     })
@@ -148,7 +148,7 @@ export class DeepbookUtils {
 
   static async getPoolBids(sdk: SDK, poolAddress: string, baseCoin: string, quoteCoin: string): Promise<Order[]> {
     const { simulationAccount } = sdk.sdkOptions
-    const { deepbook_endpoint_v2 } = sdk.sdkOptions.deepbook
+    const { deepbook_endpoint_v2 } = sdk.sdkOptions
 
     const tx = new TransactionBlock()
 
@@ -157,7 +157,7 @@ export class DeepbookUtils {
     const typeArguments = [baseCoin, quoteCoin]
     const args = [tx.pure(poolAddress), tx.pure('0'), tx.pure('999999999999'), tx.pure(CLOCK_ADDRESS)]
     tx.moveCall({
-      target: `${deepbook_endpoint_v2}::endpoints_v2::get_level2_book_status_bid_side`,
+      target: `${deepbook_endpoint_v2.published_at}::endpoints_v2::get_level2_book_status_bid_side`,
       arguments: args,
       typeArguments,
     })
@@ -265,7 +265,7 @@ export class DeepbookUtils {
   }
 
   static async simulateSwap(sdk: SDK, poolID: string, baseCoin: string, quoteCoin: string, a2b: boolean, amount: number) {
-    const { deepbook } = sdk.sdkOptions
+    const { deepbook_endpoint_v2 } = sdk.sdkOptions
 
     let tx = new TransactionBlock()
 
@@ -301,7 +301,7 @@ export class DeepbookUtils {
     ]
 
     tx.moveCall({
-      target: `${deepbook.deepbook_endpoint_v2}::${DeepbookEndpointsV2Moudle}::swap`,
+      target: `${deepbook_endpoint_v2.published_at}::${DeepbookEndpointsV2Moudle}::swap`,
       arguments: args,
       typeArguments,
     })

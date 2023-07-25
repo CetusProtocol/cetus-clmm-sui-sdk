@@ -23,5 +23,5 @@
 
 ## Quick Start
 
-- Current dependent SDK NPM version is [3.3.0](https://www.npmjs.com/package/@cetusprotocol/cetus-sui-clmm-sdk/v/3.3.0)
+- Current dependent SDK NPM version is [3.5.0](https://www.npmjs.com/package/@cetusprotocol/cetus-sui-clmm-sdk/v/3.5.0)
 - The Quick Start provides developers with a streamlined process for integrating and using the SDK.[More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/quick-start.md)

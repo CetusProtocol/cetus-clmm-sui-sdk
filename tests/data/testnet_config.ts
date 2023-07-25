@@ -1,3 +1,5 @@
+import { SdkOptions } from '../../src'
+
 const SDKConfig = {
   clmmConfig: {
     pools_id: '0xc090b101978bd6370def2666b7a31d7d07704f84e833e108a969eda86150e8cf',
@@ -17,30 +19,38 @@ const SDKConfig = {
   },
 }
 
-export const clmm_testnet = {
-  // fullRpcUrl: 'https://fullnode.testnet.sui.io',
-  fullRpcUrl: 'https://testnet.artifact.systems/sui',
-  faucetURL: '',
-  faucet: {
-    faucet_display: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc',
-    faucet_router: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc',
-  },
+export const clmm_testnet: SdkOptions = {
+  fullRpcUrl: 'https://fullnode.testnet.sui.io',
+  //fullRpcUrl: 'https://testnet.artifact.systems/sui',
   simulationAccount: {
     address: '0xcd0247d0b67e53dde69b285e7a748e3dc390e8a5244eb9dd9c5c53d95e4cf0aa',
   },
+  faucet: {
+    package_id: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc',
+    published_at: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc',
+  },
   cetus_config: {
-    config_display: '0xf5ff7d5ba73b581bca6b4b9fa0049cd320360abd154b809f8700a8fd3cfaf7ca',
-    config_router: '0xf5ff7d5ba73b581bca6b4b9fa0049cd320360abd154b809f8700a8fd3cfaf7ca',
+    package_id: '0xf5ff7d5ba73b581bca6b4b9fa0049cd320360abd154b809f8700a8fd3cfaf7ca',
+    published_at: '0xf5ff7d5ba73b581bca6b4b9fa0049cd320360abd154b809f8700a8fd3cfaf7ca',
     config: SDKConfig.cetusConfig,
   },
-  clmm: {
-    clmm_display: '0x0868b71c0cba55bf0faf6c40df8c179c67a4d0ba0e79965b68b3d72d7dfbf666',
-    clmm_router: '0xefc29cc84ae810fa228af9bfa6915ed42d409e9b39ca6d2c6a11843a622fa6c3',
+
+  clmm_pool: {
+    package_id: '0x0868b71c0cba55bf0faf6c40df8c179c67a4d0ba0e79965b68b3d72d7dfbf666',
+    published_at: '0x0b3894660b18ecf88d97576d317067376fd544e9a0833e8cf21689e5fd5cbc36',
     config: SDKConfig.clmmConfig,
   },
+  integrate: {
+    package_id: '0xff5b5aea359bb153f84f0e091c43b270591f56ad3656c563eba0a88c948a3a58',
+    published_at: '0xff5b5aea359bb153f84f0e091c43b270591f56ad3656c563eba0a88c948a3a58',
+  },
   deepbook: {
-    deepbook_display: '0x000000000000000000000000000000000000000000000000000000000000dee9',
-    deepbook_endpoint_v2: '0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6',
+    package_id: '0x000000000000000000000000000000000000000000000000000000000000dee9',
+    published_at: '0x000000000000000000000000000000000000000000000000000000000000dee9',
+  },
+  deepbook_endpoint_v2: {
+    package_id: '0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6',
+    published_at: '0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6',
   },
   aggregatorUrl: 'https://api-sui.devcetus.com/router',
 }

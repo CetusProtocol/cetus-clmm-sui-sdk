@@ -10,6 +10,13 @@ export enum ClmmPositionStatus {
   'Exists' = 'Exists',
   'NotExists' = 'NotExists',
 }
+
+export type Package<T = undefined> = {
+  package_id: string
+  published_at: string
+  config?: T
+}
+
 export type Position = {
   pos_object_id: SuiObjectIdType
   owner: SuiObjectIdType
@@ -262,4 +269,11 @@ export type CollectRewarderParams = {
 export type RewarderAmountOwed = {
   amount_owed: BN
   coin_address: string
+}
+
+export function getPackagerConfigs<T>(packageObj: Package<T>) {
+  if (packageObj.config === undefined) {
+    throw Error(`package: ${packageObj.package_id}  not config in sdk SdkOptions`)
+  }
+  return packageObj.config
 }

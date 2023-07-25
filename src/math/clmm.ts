@@ -504,11 +504,17 @@ export class ClmmPoolUtil {
       liquidity = estimateLiquidityForCoinB(curSqrtPrice, lowerSqrtPrice, coinAmount)
     }
     const coinAmounts = ClmmPoolUtil.getCoinAmountFromLiquidity(liquidity, curSqrtPrice, lowerSqrtPrice, upperSqrtPrice, roundUp)
-    const tokenMaxA = coinAmounts.coinA.mul(new BN(1 + slippage))
-    const tokenMaxB = coinAmounts.coinB.mul(new BN(1 + slippage))
+    const tokenMaxA = d(coinAmounts.coinA.toString())
+      .mul(1 + slippage)
+      .toNumber()
+
+    const tokenMaxB = d(coinAmounts.coinB.toString())
+      .mul(1 + slippage)
+      .toNumber()
+
     return {
-      tokenMaxA,
-      tokenMaxB,
+      tokenMaxA: roundUp ? new BN(Math.ceil(tokenMaxA)) : new BN(Math.floor(tokenMaxA)),
+      tokenMaxB: roundUp ? new BN(Math.ceil(tokenMaxB)) : new BN(Math.floor(tokenMaxB)),
       liquidityAmount: liquidity,
     }
   }

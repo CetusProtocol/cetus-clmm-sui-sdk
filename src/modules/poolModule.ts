@@ -18,6 +18,7 @@ import {
   PoolImmutables,
   Position,
   PositionReward,
+  getPackagerConfigs,
 } from '../types'
 import { TransactionUtil } from '../utils/transaction-util'
 import { tickScore } from '../math'
@@ -92,8 +93,8 @@ export class PoolModule implements IModule {
    * @returns array of PoolImmutable objects.
    */
   async getPoolImmutables(assignPools: string[] = [], offset = 0, limit = 100, forceRefresh = false): Promise<PoolImmutables[]> {
-    const clmmIntegrate = this._sdk.sdkOptions.clmm.clmm_display
-    const cacheKey = `${clmmIntegrate}_getInitPoolEvent`
+    const { package_id } = this._sdk.sdkOptions.clmm_pool
+    const cacheKey = `${package_id}_getInitPoolEvent`
     const cacheData = this.getCache<PoolImmutables[]>(cacheKey, forceRefresh)
 
     const allPools: PoolImmutables[] = []
@@ -105,7 +106,7 @@ export class PoolModule implements IModule {
 
     if (allPools.length === 0) {
       try {
-        const objects = await queryEvents(this._sdk, { MoveEventType: `${clmmIntegrate}::factory::CreatePoolEvent` })
+        const objects = await queryEvents(this._sdk, { MoveEventType: `${package_id}::factory::CreatePoolEvent` })
 
         objects.data.forEach((object: any) => {
           const fields = object.parsedJson
@@ -174,8 +175,7 @@ export class PoolModule implements IModule {
    * @returns array of PoolImmutable objects.
    */
   async getPoolImmutablesWithPage(paginationArgs: PaginationArgs = 'all', forceRefresh = false): Promise<DataPage<PoolImmutables>> {
-    const clmmIntegrate = this._sdk.sdkOptions.clmm.clmm_display
-
+    const { package_id } = this._sdk.sdkOptions.clmm_pool
     const allPools: PoolImmutables[] = []
     const dataPage: DataPage<PoolImmutables> = {
       data: [],
@@ -183,7 +183,7 @@ export class PoolModule implements IModule {
     }
 
     const queryAll = paginationArgs === 'all'
-    const cacheAllKey = `${clmmIntegrate}_getPoolImmutables`
+    const cacheAllKey = `${package_id}_getPoolImmutables`
     if (queryAll) {
       const cacheDate = this.getCache<PoolImmutables[]>(cacheAllKey, forceRefresh)
       if (cacheDate) {
@@ -192,7 +192,7 @@ export class PoolModule implements IModule {
     }
     if (allPools.length === 0) {
       try {
-        const moveEventType = `${clmmIntegrate}::factory::CreatePoolEvent`
+        const moveEventType = `${package_id}::factory::CreatePoolEvent`
         const objects = await queryEvents(this._sdk, { MoveEventType: moveEventType }, paginationArgs)
         dataPage.hasNextPage = objects.hasNextPage
         dataPage.nextCursor = objects.nextCursor
@@ -214,7 +214,7 @@ export class PoolModule implements IModule {
     }
     dataPage.data = allPools
     if (queryAll) {
-      this.updateCache(`${clmmIntegrate}_getPoolImmutables`, allPools, cacheTime24h)
+      this.updateCache(`${package_id}_getPoolImmutables`, allPools, cacheTime24h)
     }
     return dataPage
   }
@@ -318,14 +318,14 @@ export class PoolModule implements IModule {
    * @returns the ClmmConfig object.
    */
   async getClmmConfigs(forceRefresh = false): Promise<ClmmConfig> {
-    const packageObjectId = this._sdk.sdkOptions.clmm.clmm_display
-    const cacheKey = `${packageObjectId}_getInitEvent`
+    const { package_id } = this._sdk.sdkOptions.clmm_pool
+    const cacheKey = `${package_id}_getInitEvent`
     const cacheData = this.getCache<ClmmConfig>(cacheKey, forceRefresh)
     if (cacheData !== undefined) {
       return cacheData
     }
     const packageObject = await this._sdk.fullClient.getObject({
-      id: packageObjectId,
+      id: package_id,
       options: { showPreviousTransaction: true },
     })
 
@@ -346,17 +346,17 @@ export class PoolModule implements IModule {
 
         if (item.type) {
           switch (extractStructTagFromType(item.type).full_address) {
-            case `${packageObjectId}::config::InitConfigEvent`:
+            case `${package_id}::config::InitConfigEvent`:
               clmmConfig.global_config_id = fields.global_config_id
               clmmConfig.admin_cap_id = fields.admin_cap_id
               break
-            case `${packageObjectId}::factory::InitFactoryEvent`:
+            case `${package_id}::factory::InitFactoryEvent`:
               clmmConfig.pools_id = fields.pools_id
               break
-            case `${packageObjectId}::rewarder::RewarderInitEvent`:
+            case `${package_id}::rewarder::RewarderInitEvent`:
               clmmConfig.global_vault_id = fields.global_vault_id
               break
-            case `${packageObjectId}::partner::InitPartnerEvent`:
+            case `${package_id}::partner::InitPartnerEvent`:
               clmmConfig.partners_id = fields.partners_id
               break
             default:
@@ -412,11 +412,8 @@ export class PoolModule implements IModule {
 
   private async creatPool(paramss: CreatePoolParams[]) {
     const tx = new TransactionBlock()
-    const { clmm } = this.sdk.sdkOptions
-    const eventConfig = clmm.config
-    if (eventConfig === undefined) {
-      throw Error('eventConfig is null')
-    }
+    const { integrate, clmm_pool } = this.sdk.sdkOptions
+    const eventConfig = getPackagerConfigs(clmm_pool)
     const globalPauseStatusObjectId = eventConfig.global_config_id
     const poolsId = eventConfig.pools_id
 
@@ -431,7 +428,7 @@ export class PoolModule implements IModule {
       ]
 
       tx.moveCall({
-        target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::create_pool`,
+        target: `${integrate.published_at}::${ClmmIntegratePoolModule}::create_pool`,
         typeArguments: [params.coinTypeA, params.coinTypeB],
         arguments: args,
       })
@@ -446,11 +443,8 @@ export class PoolModule implements IModule {
     }
 
     const tx = new TransactionBlock()
-    const { clmm } = this.sdk.sdkOptions
-    const eventConfig = clmm.config
-    if (eventConfig === undefined) {
-      throw Error('eventConfig is null')
-    }
+    const { integrate, clmm_pool } = this.sdk.sdkOptions
+    const eventConfig = getPackagerConfigs(clmm_pool)
     const globalPauseStatusObjectId = eventConfig.global_config_id
     const poolsId = eventConfig.pools_id
     const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
@@ -514,7 +508,7 @@ export class PoolModule implements IModule {
     args.push(tx.pure(CLOCK_ADDRESS))
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::${addLiquidityName}`,
+      target: `${integrate.published_at}::${ClmmIntegratePoolModule}::${addLiquidityName}`,
       typeArguments: [params.coinTypeA, params.coinTypeB],
       arguments: args,
     })
@@ -551,7 +545,7 @@ export class PoolModule implements IModule {
   }
 
   private async getTicks(params: GetTickParams): Promise<TickData[]> {
-    const { clmm, simulationAccount } = this.sdk.sdkOptions
+    const { integrate, simulationAccount } = this.sdk.sdkOptions
     const ticks: TickData[] = []
     const typeArguments = [params.coinTypeA, params.coinTypeB]
 
@@ -559,7 +553,7 @@ export class PoolModule implements IModule {
     const args = [tx.pure(params.pool_id), tx.pure(params.start), tx.pure(params.limit.toString())]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmFetcherModule}::fetch_ticks`,
+      target: `${integrate.published_at}::${ClmmFetcherModule}::fetch_ticks`,
       arguments: args,
       typeArguments,
     })
@@ -585,7 +579,7 @@ export class PoolModule implements IModule {
    * @returns {Promise<PositionReward[]>} A promise that resolves to an array of position rewards.
    */
   async fetchPositionRewardList(params: FetchParams): Promise<PositionReward[]> {
-    const { clmm, simulationAccount } = this.sdk.sdkOptions
+    const { integrate, simulationAccount } = this.sdk.sdkOptions
     const allPosition: PositionReward[] = []
     let start: SuiObjectIdType[] = []
     const limit = 512
@@ -597,7 +591,7 @@ export class PoolModule implements IModule {
       const args = [tx.pure(params.pool_id), tx.pure(start), tx.pure(limit.toString())]
 
       tx.moveCall({
-        target: `${clmm.clmm_router}::${ClmmFetcherModule}::fetch_positions`,
+        target: `${integrate.published_at}::${ClmmFetcherModule}::fetch_positions`,
         arguments: args,
         typeArguments,
       })

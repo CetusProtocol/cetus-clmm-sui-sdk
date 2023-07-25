@@ -24,37 +24,22 @@ describe('sdk config', () => {
 })
 
 describe('warp sdk config', () => {
-  const config = {
-    clmmConfig: {
-      pools_id: '',
-      global_config_id: '',
-      global_vault_id: '',
-      admin_cap_id: '',
-    },
-    cetusConfig: {
-      coin_list_id: '',
-      launchpad_pools_id: '',
-      clmm_pools_id: '',
-      admin_cap_id: '',
-      global_config_id: '',
-    },
-  }
-
+  const config = sdk.sdkOptions
   test('sdk Config', async () => {
     const sdkOptions = sdk.sdkOptions
     try {
-      if (sdkOptions.clmm.clmm_display.length > 0) {
+      if (sdkOptions.clmm_pool.package_id.length > 0) {
         const initEvent = await sdk.Pool.getClmmConfigs()
-        config.clmmConfig = initEvent
+        config.clmm_pool.config = initEvent
       }
     } catch (error) {
       console.log('clmmConfig', error)
     }
 
     try {
-      if (sdkOptions.cetus_config.config_display.length > 0) {
+      if (sdkOptions.cetus_config.package_id.length > 0) {
         const cetusConfig = await sdk.CetusConfig.getCetusConfig()
-        config.cetusConfig = cetusConfig
+        config.cetus_config.config = cetusConfig
       }
     } catch (error) {
       console.log('tokenConfig', error)

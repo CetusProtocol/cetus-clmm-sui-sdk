@@ -506,7 +506,7 @@ export class RouterModule implements IModule {
       return null
     }
 
-    const { clmm, simulationAccount } = this.sdk.sdkOptions
+    const { integrate, simulationAccount } = this.sdk.sdkOptions
 
     const tx = new TransactionBlock()
     for (const param of params) {
@@ -533,7 +533,7 @@ export class RouterModule implements IModule {
         }
 
         tx.moveCall({
-          target: `${clmm.clmm_router}::${ClmmIntegrateRouterModule}::calculate_router_swap_result`,
+          target: `${integrate.published_at}::${ClmmIntegrateRouterModule}::calculate_router_swap_result`,
           typeArguments,
           arguments: args,
         })
@@ -541,7 +541,7 @@ export class RouterModule implements IModule {
         const args = [tx.pure(param.poolAB), tx.pure(param.a2b), tx.pure(param.byAmountIn), tx.pure(param.amount.toString())]
         const typeArguments = param.a2b ? [param.coinTypeA, param.coinTypeB] : [param.coinTypeB, param.coinTypeA]
         tx.moveCall({
-          target: `${clmm.clmm_router}::${ClmmExpectSwapModule}::get_expect_swap_result`,
+          target: `${integrate.published_at}::${ClmmExpectSwapModule}::get_expect_swap_result`,
           arguments: args,
           typeArguments,
         })

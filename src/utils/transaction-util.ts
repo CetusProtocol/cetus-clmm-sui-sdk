@@ -9,7 +9,6 @@ import {
 import BN from 'bn.js'
 import { CoinAssist } from '../math/CoinAssist'
 import { OnePath, SwapWithRouterParams } from '../modules/routerModule'
-
 import { TickData } from '../types/clmmpool'
 import { ClmmIntegratePoolModule, ClmmIntegrateRouterModule, ClmmIntegrateUtilsModule, CLOCK_ADDRESS } from '../types/sui'
 import SDK, {
@@ -19,8 +18,8 @@ import SDK, {
   ClmmPoolUtil,
   CoinAsset,
   CoinPairType,
-  d,
   DeepbookUtils,
+  getPackagerConfigs,
   Percentage,
   Pool,
   SdkOptions,
@@ -270,7 +269,7 @@ export class TransactionUtil {
   ) {
     const typeArguments = [params.coinTypeA, params.coinTypeB]
     let functionName = 'add_liquidity_fix_coin_with_all'
-    const { clmm } = sdk.sdkOptions
+    const { clmm_pool, integrate } = sdk.sdkOptions
     const primaryCoinInputs: {
       coinInput: TransactionArgument
       coinAmount: string
@@ -314,11 +313,11 @@ export class TransactionUtil {
         ? 'add_liquidity_fix_coin_only_a'
         : 'add_liquidity_fix_coin_only_b'
     }
-
+    const clmmConfig = getPackagerConfigs(clmm_pool)
     const args = params.is_open
       ? isWithAll
         ? [
-            tx.object(clmm.config.global_config_id),
+            tx.object(clmmConfig.global_config_id),
             tx.object(params.pool_id),
             tx.pure(asUintN(BigInt(params.tick_lower)).toString()),
             tx.pure(asUintN(BigInt(params.tick_upper)).toString()),
@@ -328,7 +327,7 @@ export class TransactionUtil {
             tx.object(CLOCK_ADDRESS),
           ]
         : [
-            tx.object(clmm.config.global_config_id),
+            tx.object(clmmConfig.global_config_id),
             tx.object(params.pool_id),
             tx.pure(asUintN(BigInt(params.tick_lower)).toString()),
             tx.pure(asUintN(BigInt(params.tick_upper)).toString()),
@@ -338,7 +337,7 @@ export class TransactionUtil {
           ]
       : isWithAll
       ? [
-          tx.object(clmm.config.global_config_id),
+          tx.object(clmmConfig.global_config_id),
           tx.object(params.pool_id),
           tx.object(params.pos_id),
           ...primaryCoinInputs.map((item) => item.coinInput),
@@ -347,7 +346,7 @@ export class TransactionUtil {
           tx.object(CLOCK_ADDRESS),
         ]
       : [
-          tx.object(clmm.config.global_config_id),
+          tx.object(clmmConfig.global_config_id),
           tx.object(params.pool_id),
           tx.object(params.pos_id),
           ...primaryCoinInputs.map((item) => item.coinInput),
@@ -356,7 +355,7 @@ export class TransactionUtil {
         ]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::${functionName}`,
+      target: `${integrate.published_at}::${ClmmIntegratePoolModule}::${functionName}`,
       typeArguments,
       arguments: args,
     })
@@ -439,11 +438,11 @@ export class TransactionUtil {
     sdkOptions: SdkOptions,
     primaryCoinInput: TransactionArgument
   ): TransactionBlock {
-    const { clmm } = sdkOptions
+    const { clmm_pool, integrate } = sdkOptions
 
     const sqrtPriceLimit = SwapUtils.getDefaultSqrtPriceLimit(params.a2b)
     const typeArguments = [params.coinTypeA, params.coinTypeB]
-    const global_config_id = clmm.config?.global_config_id
+    const { global_config_id } = getPackagerConfigs(clmm_pool)
 
     if (global_config_id === undefined) {
       throw Error('clmm.config.global_config_id is undefined')
@@ -483,7 +482,7 @@ export class TransactionUtil {
         ]
 
     tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegratePoolModule}::${functionName}`,
+      target: `${integrate.published_at}::${ClmmIntegratePoolModule}::${functionName}`,
       typeArguments,
       arguments: args,
     })
@@ -708,7 +707,7 @@ export class TransactionUtil {
               middleCoin = clmmTxBuild.from as TransactionArgument
               toCoin = clmmTxBuild.to as TransactionArgument
               tx.moveCall({
-                target: `${sdk.sdkOptions.clmm.clmm_router}::${ClmmIntegrateUtilsModule}::send_coin`,
+                target: `${sdk.sdkOptions.integrate.published_at}::${ClmmIntegrateUtilsModule}::send_coin`,
                 typeArguments: [basePath.fromCoin],
                 arguments: [middleCoin, tx.pure(sdk.senderAddress)],
               })
@@ -724,7 +723,7 @@ export class TransactionUtil {
 
       if (param.byAmountIn) {
         tx.moveCall({
-          target: `${sdk.sdkOptions.clmm.clmm_router}::${ClmmIntegrateRouterModule}::check_coin_threshold`,
+          target: `${sdk.sdkOptions.integrate.published_at}::${ClmmIntegrateRouterModule}::check_coin_threshold`,
           typeArguments: [param.toCoin],
           arguments: [toCoin, tx.pure(amountLimit)],
         })
@@ -800,7 +799,7 @@ export class TransactionUtil {
     const typeArguments = basePath.direction ? [basePath.fromCoin, basePath.toCoin] : [basePath.toCoin, basePath.fromCoin]
 
     const coinAB: TransactionArgument[] = tx.moveCall({
-      target: `${sdk.sdkOptions.deepbook.deepbook_endpoint_v2}::endpoints_v2::swap`,
+      target: `${sdk.sdkOptions.deepbook_endpoint_v2.published_at}::endpoints_v2::swap`,
       typeArguments,
       arguments: args,
     })
@@ -824,9 +823,8 @@ export class TransactionUtil {
     to: TransactionArgument,
     middleStep: boolean
   ) {
-    const { clmm } = sdk.sdkOptions
-    const globalConfigID = clmm.config?.global_config_id
-
+    const { clmm_pool, integrate } = sdk.sdkOptions
+    const globalConfigID = getPackagerConfigs(clmm_pool).global_config_id
     let coinA = basePath.direction ? from : to
     let coinB = basePath.direction ? to : from
 
@@ -849,7 +847,7 @@ export class TransactionUtil {
     const typeArguments = basePath.direction ? [basePath.fromCoin, basePath.toCoin] : [basePath.toCoin, basePath.fromCoin]
 
     const coinAB: TransactionArgument[] = tx.moveCall({
-      target: `${clmm.clmm_router}::${ClmmIntegrateRouterModule}::${functionName}`,
+      target: `${integrate.published_at}::${ClmmIntegrateRouterModule}::${functionName}`,
       typeArguments,
       arguments: args,
     })
@@ -874,8 +872,8 @@ export class TransactionUtil {
     allCoinAsset: CoinAsset[],
     tx: TransactionBlock
   ) {
-    const { clmm } = sdk.sdkOptions
-    const globalConfigID = clmm.config?.global_config_id
+    const { clmm_pool, integrate } = sdk.sdkOptions
+    const globalConfigID = getPackagerConfigs(clmm_pool).global_config_id
 
     const validPaths = params.paths.filter((path) => path && path.poolAddress)
 
@@ -931,7 +929,7 @@ export class TransactionUtil {
         const typeArguments = [swapParams.poolCoinA, swapParams.poolCoinB]
 
         const coinABs: TransactionArgument[] = tx.moveCall({
-          target: `${sdk.sdkOptions.clmm.clmm_router}::${ClmmIntegrateRouterModule}::swap`,
+          target: `${sdk.sdkOptions.integrate.published_at}::${ClmmIntegrateRouterModule}::swap`,
           typeArguments,
           arguments: args,
         })
@@ -970,7 +968,7 @@ export class TransactionUtil {
         ]
         const typeArguments = [path.coinType[0], path.coinType[1], path.coinType[2]]
         const fromToCoins = tx.moveCall({
-          target: `${clmm.clmm_router}::${ClmmIntegrateRouterModule}::${functionName}`,
+          target: `${integrate.published_at}::${ClmmIntegrateRouterModule}::${functionName}`,
           typeArguments,
           arguments: args,
         })
@@ -981,7 +979,7 @@ export class TransactionUtil {
 
     if (byAmountIn) {
       tx.moveCall({
-        target: `${clmm.clmm_router}::${ClmmIntegrateRouterModule}::check_coin_threshold`,
+        target: `${integrate.published_at}::${ClmmIntegrateRouterModule}::check_coin_threshold`,
         typeArguments: [toCoinType],
         arguments: [toCoin, tx.pure(totalAmountLimit)],
       })
@@ -992,8 +990,6 @@ export class TransactionUtil {
 
     return tx
   }
-
-  // public static buildRouterSwapTransaction
 
   static buildCoinTypePair(coinTypes: string[], partitionQuantities: number[]): string[][] {
     const coinTypePair: string[][] = []

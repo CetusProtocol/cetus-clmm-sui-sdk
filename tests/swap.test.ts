@@ -131,7 +131,7 @@ describe('Swap Module', () => {
   test('swap', async () => {
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
 
-    const a2b = false
+    const a2b = true
     const byAmountIn = true
     const amount = new BN('1664')
     const slippage = Percentage.fromDecimal(d(0.1))

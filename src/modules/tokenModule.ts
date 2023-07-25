@@ -1,6 +1,6 @@
 import { Base64 } from 'js-base64'
 import { getObjectPreviousTransactionDigest, normalizeSuiObjectId, TransactionBlock } from '@mysten/sui.js'
-import { PoolInfo, TokenConfigEvent, TokenInfo } from '../types'
+import { getPackagerConfigs, PoolInfo, TokenConfigEvent, TokenInfo } from '../types'
 import { SuiResource, SuiAddressType } from '../types/sui'
 import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils/cachedContent'
 import { extractStructTagFromType, normalizeCoinType } from '../utils/contracts'
@@ -164,16 +164,16 @@ export class TokenModule implements IModule {
     if (token === undefined) {
       throw Error('please config token ofsdkOptions')
     }
-
+    const tokenConfig = getPackagerConfigs(token)
     while (true) {
       const tx = new TransactionBlock()
       tx.moveCall({
-        target: `${token.token_display}::coin_list::${
+        target: `${token.published_at}::coin_list::${
           isOwnerRequest ? 'fetch_full_list_with_limit' : 'fetch_all_registered_coin_info_with_limit'
         }`,
         arguments: isOwnerRequest
-          ? [tx.pure(token.config.coin_registry_id), tx.pure(listOwnerAddr), tx.pure(index), tx.pure(limit)]
-          : [tx.pure(token.config.coin_registry_id), tx.pure(index), tx.pure(limit)],
+          ? [tx.pure(tokenConfig.coin_registry_id), tx.pure(listOwnerAddr), tx.pure(index), tx.pure(limit)]
+          : [tx.pure(tokenConfig.coin_registry_id), tx.pure(index), tx.pure(limit)],
       })
 
       const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
@@ -185,7 +185,7 @@ export class TokenModule implements IModule {
 
       simulateRes.events?.forEach((item: any) => {
         const formatType = extractStructTagFromType(item.type)
-        if (formatType.full_address === `${token.token_display}::coin_list::FetchCoinListEvent`) {
+        if (formatType.full_address === `${token.published_at}::coin_list::FetchCoinListEvent`) {
           item.parsedJson.full_list.value_list.forEach((item: any) => {
             tokenList.push(this.transformData(item, false))
           })
@@ -218,16 +218,16 @@ export class TokenModule implements IModule {
     if (token === undefined) {
       throw Error('please config token ofsdkOptions')
     }
-
+    const tokenConfig = getPackagerConfigs(token)
     while (true) {
       const tx = new TransactionBlock()
       tx.moveCall({
-        target: `${token.token_display}::lp_list::${
+        target: `${token.published_at}::lp_list::${
           isOwnerRequest ? 'fetch_full_list_with_limit' : 'fetch_all_registered_coin_info_with_limit'
         }`,
         arguments: isOwnerRequest
-          ? [tx.pure(token.config.pool_registry_id), tx.pure(listOwnerAddr), tx.pure(index), tx.pure(limit)]
-          : [tx.pure(token.config.pool_registry_id), tx.pure(index), tx.pure(limit)],
+          ? [tx.pure(tokenConfig.pool_registry_id), tx.pure(listOwnerAddr), tx.pure(index), tx.pure(limit)]
+          : [tx.pure(tokenConfig.pool_registry_id), tx.pure(index), tx.pure(limit)],
       })
 
       const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
@@ -238,7 +238,7 @@ export class TokenModule implements IModule {
       const poolList: PoolInfo[] = []
       simulateRes.events?.forEach((item: any) => {
         const formatType = extractStructTagFromType(item.type)
-        if (formatType.full_address === `${token.token_display}::lp_list::FetchPoolListEvent`) {
+        if (formatType.full_address === `${token.published_at}::lp_list::FetchPoolListEvent`) {
           item.parsedJson.full_list.value_list.forEach((item: any) => {
             poolList.push(this.transformData(item, true))
           })
@@ -286,7 +286,7 @@ export class TokenModule implements IModule {
    * @returns The token config event.
    */
   async getTokenConfigEvent(forceRefresh = false): Promise<TokenConfigEvent> {
-    const packageObjectId = this._sdk.sdkOptions.token!.token_display
+    const packageObjectId = this._sdk.sdkOptions.token!.package_id
     const cacheKey = `${packageObjectId}_getTokenConfigEvent`
 
     const cacheData = this.getCache<TokenConfigEvent>(cacheKey, forceRefresh)

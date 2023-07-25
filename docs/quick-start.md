@@ -29,77 +29,95 @@ npm  install @cetusprotocol/cetus-sui-clmm-sdk
 - *Notes: Please exercise caution when using a mainnet network account with assets as your `simulationAccount`.*
 
 ```bash
-const SDKConfig = {
-  testnet:  {
-     clmmConfig: {
-      pools_id: '0xc090b101978bd6370def2666b7a31d7d07704f84e833e108a969eda86150e8cf',
-      global_config_id: '0x6f4149091a5aea0e818e7243a13adcfb403842d670b9a2089de058512620687a',
-      global_vault_id: '0xf3114a74d54cbe56b3e68f9306661c043ede8c6615f0351b0c3a93ce895e1699'
-    },
-    tokenConfig: {
-     coin_registry_id: '0xb52e4b2bef6fe50b91680153c3cf3e685de6390f891bea1c4b6d524629f1f1a9',
-     pool_registry_id: '0x68a66a7d44840481e2fa9dce43293a31dced955acc086ce019853cb6e6ab774f',
-     coin_list_owner: '0x1370c41dce1d5fb02b204288c67f0369d4b99f70df0a7bddfdcad7a2a49e3ba2',
-     pool_list_owner: '0x48bf04dc68a2b9ffe9a901a4903b2ce81157dec1d83b53d0858da3f482ff2539'
-    },
-  },
-  mainnet: {
-    clmmConfig: {
-      pools_id: '0xf699e7f2276f5c9a75944b37a0c5b5d9ddfd2471bf6242483b03ab2887d198d0',
-      global_config_id: '0xdaa46292632c3c4d8f31f23ea0f9b36a28ff3677e9684980e4438403a67a3d8f',
-      global_vault_id: '0xce7bceef26d3ad1f6d9b6f13a953f053e6ed3ca77907516481ce99ae8e588f2b'
-    },
-    tokenConfig: {
-      coin_registry_id: '0xe0b8cb7e56d465965cac5c5fe26cba558de35d88b9ec712c40f131f72c600151',
-      pool_registry_id: '0xab40481f926e686455edf819b4c6485fbbf147a42cf3b95f72ed88c94577e67a',
-      coin_list_owner: '0x1f6510ee7d8e2b39261bad012f0be0adbecfd75199450b7cbf28efab42dad083',
-      pool_list_owner: '0x6de133b609ea815e1f6a4d50785b798b134f567ec1f4ee113ae73f6900b4012d'
-    },
-  }
-}
-
-export const netConfig = {
-  testnet: {
-    fullRpcUrl: 'https://fullnode.testnet.sui.io',
-    faucetURL: '',
-    faucet: {
-     faucet_display: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc',
-     faucet_router: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc',
-    },
-    simulationAccount: {
-      address: '',
-    },
-    token: {
-      token_display: '',
-      config: SDKConfig.testnet.tokenConfig,
-    },
-    clmm: {
-      clmm_display: '0x0868b71c0cba55bf0faf6c40df8c179c67a4d0ba0e79965b68b3d72d7dfbf666',
-      clmm_router: '0x3a86c278225173d4795f44ecf8cfe29326d701be42b57454b05be76ad97227a7',
-      config: SDKConfig.testnet.clmmConfig,
+export const testnet =  {
+      fullRpcUrl: 'https://fullnode.testnet.sui.io',
+      simulationAccount: {
+        address: '0xcd0247d0b67e53dde69b285e7a748e3dc390e8a5244eb9dd9c5c53d95e4cf0aa'
+      },
+      cetus_config: {
+        package_id: '0xf5ff7d5ba73b581bca6b4b9fa0049cd320360abd154b809f8700a8fd3cfaf7ca',
+        published_at: '0xf5ff7d5ba73b581bca6b4b9fa0049cd320360abd154b809f8700a8fd3cfaf7ca',
+        config: {
+          coin_list_id: '0x257eb2ba592a5480bba0a97d05338fab17cc3283f8df6998a0e12e4ab9b84478',
+          launchpad_pools_id: '0xdc3a7bd66a6dcff73c77c866e87d73826e446e9171f34e1c1b656377314f94da',
+          clmm_pools_id: '0x26c85500f5dd2983bf35123918a144de24e18936d0b234ef2b49fbb2d3d6307d',
+          admin_cap_id: '0x1a496f6c67668eb2c27c99e07e1d61754715c1acf86dac45020c886ac601edb8',
+          global_config_id: '0xe1f3db327e75f7ec30585fa52241edf66f7e359ef550b533f89aa1528dd1be52',
+          coin_list_handle: '0x3204350fc603609c91675e07b8f9ac0999b9607d83845086321fca7f469de235',
+          launchpad_pools_handle: '0xae67ff87c34aceea4d28107f9c6c62e297a111e9f8e70b9abbc2f4c9f5ec20fd',
+          clmm_pools_handle: '0xd28736923703342b4752f5ed8c2f2a5c0cb2336c30e1fed42b387234ce8408ec'
+        }
+      },
+      clmm_pool: {
+        package_id: '0x0868b71c0cba55bf0faf6c40df8c179c67a4d0ba0e79965b68b3d72d7dfbf666',
+        published_at: '0x0b3894660b18ecf88d97576d317067376fd544e9a0833e8cf21689e5fd5cbc36',
+        config: {
+          pools_id: '0xc090b101978bd6370def2666b7a31d7d07704f84e833e108a969eda86150e8cf',
+          global_config_id: '0x6f4149091a5aea0e818e7243a13adcfb403842d670b9a2089de058512620687a',
+          global_vault_id: '0xf3114a74d54cbe56b3e68f9306661c043ede8c6615f0351b0c3a93ce895e1699',
+          admin_cap_id: '0xa456f86a53fc31e1243f065738ff1fc93f5a62cc080ff894a0fb3747556a799b',
+          partners_id: '0xb1cefb6de411213a1cfe94d24213af2518eff3d51267fb95e35d11aa77fc9b5f'
+        }
+      },
+      integrate: {
+        package_id: '0xff5b5aea359bb153f84f0e091c43b270591f56ad3656c563eba0a88c948a3a58',
+        published_at: '0xff5b5aea359bb153f84f0e091c43b270591f56ad3656c563eba0a88c948a3a58'
+      },
+      deepbook: {
+        package_id: '0x000000000000000000000000000000000000000000000000000000000000dee9',
+        published_at: '0x000000000000000000000000000000000000000000000000000000000000dee9'
+      },
+      deepbook_endpoint_v2: {
+        package_id: '0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6',
+        published_at: '0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6'
+      },
+      aggregatorUrl: 'https://api-sui.devcetus.com/router'
     }
-  },
-  mainnet: {
-    fullRpcUrl: 'https://fullnode.mainnet.sui.io',
-    faucetURL: '',
-    faucet: {
-      faucet_display: '0x4d892ceccd1497b9be7701e09d51c580bc83f22c9c97050821b373a77d0d9a9e',
-      faucet_router: '0xff3004dc90fee6f7027040348563feb866a61c8bb53049cc444c1746db8b218d',
-    },
-    simulationAccount: {
-      address: '',
-    },
-    token: {
-      token_display: '0x481fb627bf18bc93c02c41ada3cc8b574744ef23c9d5e3136637ae3076e71562',
-      config: SDKConfig.mainnet.tokenConfig,
-    },
-    clmm: {
-      clmm_display: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb',
-      clmm_router: '0x2eeaab737b37137b94bfa8f841f92e36a153641119da3456dec1926b9960d9be',
-      config: SDKConfig.mainnet.clmmConfig,
-    },
-  }
-}
+
+export const mainnet = {
+      fullRpcUrl: 'https://sui-mainnet-endpoint.blockvision.org/',
+      simulationAccount: {
+        address: ''
+      },
+      cetus_config: {
+        package_id: '0x95b8d278b876cae22206131fb9724f701c9444515813042f54f0a426c9a3bc2f',
+        published_at: '0x95b8d278b876cae22206131fb9724f701c9444515813042f54f0a426c9a3bc2f',
+        config: {
+          coin_list_id: '0x8cbc11d9e10140db3d230f50b4d30e9b721201c0083615441707ffec1ef77b23',
+          launchpad_pools_id: '0x1098fac992eab3a0ab7acf15bb654fc1cf29b5a6142c4ef1058e6c408dd15115',
+          clmm_pools_id: '0x15b6a27dd9ae03eb455aba03b39e29aad74abd3757b8e18c0755651b2ae5b71e',
+          admin_cap_id: '0x39d78781750e193ce35c45ff32c6c0c3f2941fa3ddaf8595c90c555589ddb113',
+          global_config_id: '0x0408fa4e4a4c03cc0de8f23d0c2bbfe8913d178713c9a271ed4080973fe42d8f',
+          coin_list_handle: '0x49136005e90e28c4695419ed4194cc240603f1ea8eb84e62275eaff088a71063',
+          launchpad_pools_handle: '0x5e194a8efcf653830daf85a85b52e3ae8f65dc39481d54b2382acda25068375c',
+          clmm_pools_handle: '0x37f60eb2d9d227949b95da8fea810db3c32d1e1fa8ed87434fc51664f87d83cb'
+        }
+      },
+      clmm_pool: {
+        package_id: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb',
+        published_at: '0xfa36bcb799278bddaf295991b2d3ce039013b1dd60dfd7183dee135fdadbc4be',
+        config: {
+          pools_id: '0xf699e7f2276f5c9a75944b37a0c5b5d9ddfd2471bf6242483b03ab2887d198d0',
+          global_config_id: '0xdaa46292632c3c4d8f31f23ea0f9b36a28ff3677e9684980e4438403a67a3d8f',
+          global_vault_id: '0xce7bceef26d3ad1f6d9b6f13a953f053e6ed3ca77907516481ce99ae8e588f2b',
+          admin_cap_id: '0x89c1a321291d15ddae5a086c9abc533dff697fde3d89e0ca836c41af73e36a75',
+          partners_id: '0xac30897fa61ab442f6bff518c5923faa1123c94b36bd4558910e9c783adfa204'
+        }
+      },
+      integrate: {
+        package_id: '0x2eeaab737b37137b94bfa8f841f92e36a153641119da3456dec1926b9960d9be',
+        published_at: '0xa9b0ffe2f8e713a66ad1aa361cf1984526a5048c6de786b4dd292f3eed204b92'
+      },
+      deepbook: {
+        package_id: '0x000000000000000000000000000000000000000000000000000000000000dee9',
+        published_at: '0x000000000000000000000000000000000000000000000000000000000000dee9'
+      },
+      deepbook_endpoint_v2: {
+        package_id: '0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7',
+        published_at: '0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7'
+      },
+      aggregatorUrl: 'https://api-sui.cetus.zone/router1'
+    }
 ```
 
 #### 2. Init CetusClmmSDK
