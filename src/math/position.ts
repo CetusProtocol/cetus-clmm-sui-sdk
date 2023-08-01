@@ -1,5 +1,4 @@
 import BN from 'bn.js'
-
 import { SwapDirection } from '../types/liquidity'
 import { CoinAmounts } from './clmm'
 import { Percentage } from './percentage'

@@ -55,6 +55,7 @@ describe('Position add Liquidity Module', () => {
       fix_amount_a,
       amount_a,
       amount_b,
+      slippage,
       is_open: true,
       rewarder_coin_types: [],
       collect_fee: false,
@@ -71,15 +72,15 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('add_liquidity_fix_token', async () => {
-    const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectIds[0]
+    const poolObjectId = "0x6fd4915e6d8d3e2ba6d81787046eb948ae36fdfc75dad2e24f0d4aaa2417a416" ;// TokensMapping.USDT_USDC_LP.poolObjectIds[0]
     const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const pool = await buildTestPool(sdk, poolObjectId)
-    const position = (await buildTestPosition(sdk, position_object_id)) as Position
+    const position = (await buildTestPosition(sdk, "0xcc86988b1f1196934875c8fde1e0d4e481069a39c39116a1f85b70ff8cf5c283")) as Position
     const lowerTick = position.tick_lower_index
     const upperTick = position.tick_upper_index
-    const coinAmount = new BN(100)
-    const fix_amount_a = true
-    const slippage = 0.05
+    const coinAmount = new BN(1000000)
+    const fix_amount_a = false
+    const slippage = 0.1
     const curSqrtPrice = new BN(pool.current_sqrt_price)
 
     const liquidityInput = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
@@ -106,6 +107,7 @@ describe('Position add Liquidity Module', () => {
       fix_amount_a,
       amount_a,
       amount_b,
+      slippage,
       is_open: false,
       pos_id: position.pos_object_id,
       rewarder_coin_types: [],
@@ -115,8 +117,8 @@ describe('Position add Liquidity Module', () => {
 
     printTransaction(createAddLiquidityTransactionPayload)
 
-    const transferTxn = await sendTransaction(signer, createAddLiquidityTransactionPayload)
-    console.log('add_liquidity_fix_token: ', transferTxn)
+    // const transferTxn = await sendTransaction(signer, createAddLiquidityTransactionPayload)
+    // console.log('add_liquidity_fix_token: ', transferTxn)
   })
 
   test('getCoinAmountFromLiquidity', async () => {

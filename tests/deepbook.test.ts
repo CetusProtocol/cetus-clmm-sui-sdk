@@ -18,7 +18,7 @@ describe('Router Module', () => {
   test('test get deepbook pool asks and bids', async () => {
     const coin_a = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
     const coin_b = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
-    const pool_address = '0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b'
+    const pool_address = '0x067e75d248140e3f891d24f5ce12e7cbee1140db07c399fcd6e221bfe597b706'
 
     // ? - usdc
     // const coin_a = '0xc060006111016b8a020ad5b33834984a437aaa7d3c74c18e09a95d48aceab08c::coin::COIN'
@@ -74,7 +74,7 @@ describe('Router Module', () => {
       '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
     ]
     tx.moveCall({
-      target: `${deepbook.deepbook_endpoint_v2}::endpoints_v2::deposit_base`,
+      target: `${deepbook.published_at}::endpoints_v2::deposit_base`,
       typeArguments,
       arguments: args,
     })
@@ -111,7 +111,7 @@ describe('Router Module', () => {
       '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
     ]
     tx.moveCall({
-      target: `${deepbook.deepbook_endpoint_v2}::endpoints_v2::deposit_quote`,
+      target: `${deepbook.published_at}::endpoints_v2::deposit_quote`,
       typeArguments,
       arguments: args,
     })
@@ -141,7 +141,7 @@ describe('Router Module', () => {
       '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
     ]
     tx.moveCall({
-      target: `${deepbook.deepbook_endpoint_v2}::endpoints_v2::place_limit_order`,
+      target: `${deepbook.published_at}::endpoints_v2::place_limit_order`,
       typeArguments,
       arguments: args,
     })

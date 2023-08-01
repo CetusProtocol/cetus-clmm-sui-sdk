@@ -449,18 +449,23 @@ export class PoolModule implements IModule {
     const poolsId = eventConfig.pools_id
     const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
 
-    const primaryCoinAInputsR: any = TransactionUtil.buildCoinInputForAmount(
+    const primaryCoinAInputsR: any = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
       tx,
-      allCoinAsset,
-      BigInt(params.amount_a),
-      params.coinTypeA
-    )?.transactionArgument
-    const primaryCoinBInputsR: any = TransactionUtil.buildCoinInputForAmount(
+      !params.fix_amount_a,
+      params.amount_a,
+      params.slippage,
+      params.coinTypeA,
+      allCoinAsset
+    )
+
+    const primaryCoinBInputsR: any = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
       tx,
-      allCoinAsset,
-      BigInt(params.amount_b),
-      params.coinTypeB
-    )?.transactionArgument
+      params.fix_amount_a,
+      params.amount_b,
+      params.slippage,
+      params.coinTypeB,
+      allCoinAsset
+    )
 
     const primaryCoinAInputs = primaryCoinAInputsR as TransactionArgument
     const primaryCoinBInputs = primaryCoinBInputsR as TransactionArgument

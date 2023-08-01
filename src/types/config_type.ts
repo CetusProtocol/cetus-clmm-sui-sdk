@@ -1,4 +1,3 @@
-import { Package } from './clmm_type'
 import { SuiObjectIdType } from './sui'
 
 export type CetusConfigs = {

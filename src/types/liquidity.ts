@@ -1,12 +1,8 @@
 import BN from 'bn.js'
 
-export type DecreaseLiquidityInput = {
-  tokenMinA: BN
-  tokenMinB: BN
-  liquidityAmount: BN
-}
-
-export type IncreaseLiquidityInput = {
+export type LiquidityInput = {
+  coinAmountA: BN
+  coinAmountB: BN
   tokenMaxA: BN
   tokenMaxB: BN
   liquidityAmount: BN

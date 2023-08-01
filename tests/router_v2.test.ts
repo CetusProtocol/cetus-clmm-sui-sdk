@@ -35,11 +35,13 @@ describe('Router Module', () => {
       SUI = '0x2::sui::SUI'
       url = 'https://api-sui.devcetus.com/v2/sui/pools_info'
     }
+  })
 
+  test('router v2 module', async () => {
     const coinMap = new Map()
     const poolMap = new Map()
 
-    const resp: any = await fetch(url, { method: 'GET' })
+    const resp: any = await fetch('https://api-sui.cetus.zone/v2/sui/pools_info', { method: 'GET' })
     const poolsInfo = await resp.json()
 
     if (poolsInfo.code === 200) {
@@ -86,7 +88,7 @@ describe('Router Module', () => {
 
   test('USDT -> USDC', async () => {
     const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-    const res = (await sdk.RouterV2.getBestRouter(USDC, SUI, 11111111000000, true, 0.5, '', undefined, true, false))
+    const res = (await sdk.RouterV2.getBestRouter(SUI, USDC, 11111111000000, true, 0.5, '', undefined, true, false))
       .result as AggregatorResult
     printAggregatorResult(res)
 

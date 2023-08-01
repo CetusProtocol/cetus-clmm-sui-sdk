@@ -141,6 +141,7 @@ export type CreatePoolAddLiquidityParams = {
   fix_amount_a: boolean
   tick_lower: number
   tick_upper: number
+  slippage: number
 } & CreatePoolParams
 
 export type FetchParams = {
@@ -155,6 +156,7 @@ type CommonParams = {
 export type AddLiquidityFixTokenParams = {
   amount_a: number | string
   amount_b: number | string
+  slippage: number
   fix_amount_a: boolean
   is_open: boolean // control whether or not to create a new position or add liquidity on existed position.
 } & AddLiquidityCommonParams

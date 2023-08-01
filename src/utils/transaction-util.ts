@@ -7,6 +7,7 @@ import {
   TransactionEffects,
 } from '@mysten/sui.js'
 import BN from 'bn.js'
+import Decimal from 'decimal.js'
 import { CoinAssist } from '../math/CoinAssist'
 import { OnePath, SwapWithRouterParams } from '../modules/routerModule'
 import { TickData } from '../types/clmmpool'
@@ -18,6 +19,7 @@ import SDK, {
   ClmmPoolUtil,
   CoinAsset,
   CoinPairType,
+  d,
   DeepbookUtils,
   getPackagerConfigs,
   Percentage,
@@ -38,6 +40,15 @@ export function findAdjustCoin(coinPair: CoinPairType): { isAdjustCoinA: boolean
 export type BuildCoinInputResult = {
   transactionArgument: TransactionArgument
   remainCoins: CoinAsset[]
+}
+
+type CoinInputInterval = {
+  amount_second: bigint
+  amount_first: bigint
+}
+
+function reverSelippageAmount(selippageAmount: number | string, slippage: number): string {
+  return Decimal.ceil(d(selippageAmount).div(1 + slippage)).toString()
 }
 
 export async function sendTransaction(
@@ -172,20 +183,24 @@ export class TransactionUtil {
       if (isAdjustCoinA) {
         params.amount_a = Number(fixAmount)
         primaryCoinAInputs = fixCoinInput
-        primaryCoinBInputs = TransactionUtil.buildCoinInputForAmount(
+        primaryCoinBInputs = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
           newTx,
-          allCoins,
-          BigInt(params.amount_b),
-          params.coinTypeB
-        )?.transactionArgument
+          params.fix_amount_a,
+          params.amount_b,
+          params.slippage,
+          params.coinTypeB,
+          allCoins
+        )
       } else {
         params.amount_b = Number(fixAmount)
-        primaryCoinAInputs = TransactionUtil.buildCoinInputForAmount(
+        primaryCoinAInputs = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
           newTx,
-          allCoins,
-          BigInt(params.amount_a),
-          params.coinTypeA
-        )?.transactionArgument
+          !params.fix_amount_a,
+          params.amount_a,
+          params.slippage,
+          params.coinTypeA,
+          allCoins
+        )
         primaryCoinBInputs = fixCoinInput
         params = TransactionUtil.fixAddLiquidityFixTokenParams(params, gasEstimateArg.slippage, gasEstimateArg.curSqrtPrice)
 
@@ -212,18 +227,22 @@ export class TransactionUtil {
     }
 
     let tx = new TransactionBlock()
-    const primaryCoinAInputs: any = TransactionUtil.buildCoinInputForAmount(
+    const primaryCoinAInputs: any = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
       tx,
-      allCoinAsset,
-      BigInt(params.amount_a),
-      params.coinTypeA
-    )?.transactionArgument
-    const primaryCoinBInputs: any = TransactionUtil.buildCoinInputForAmount(
+      !params.fix_amount_a,
+      params.amount_a,
+      params.slippage,
+      params.coinTypeA,
+      allCoinAsset
+    )
+    const primaryCoinBInputs: any = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
       tx,
-      allCoinAsset,
-      BigInt(params.amount_b),
-      params.coinTypeB
-    )?.transactionArgument
+      params.fix_amount_a,
+      params.amount_b,
+      params.slippage,
+      params.coinTypeB,
+      allCoinAsset
+    )
 
     tx = TransactionUtil.buildAddLiquidityFixTokenArgs(
       tx,
@@ -233,6 +252,24 @@ export class TransactionUtil {
       primaryCoinBInputs
     )
     return tx
+  }
+
+  public static buildAddLiquidityFixTokenCoinInput(
+    tx: TransactionBlock,
+    need_interval_amount: boolean,
+    amount: number | string,
+    slippage: number,
+    coinType: string,
+    allCoinAsset: CoinAsset[]
+  ) {
+    return need_interval_amount
+      ? TransactionUtil.buildCoinInputForAmountInterval(
+          tx,
+          allCoinAsset,
+          { amount_second: BigInt(reverSelippageAmount(amount, slippage)), amount_first: BigInt(amount) },
+          coinType
+        )?.transactionArgument
+      : TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, BigInt(amount), coinType)?.transactionArgument
   }
 
   /**
@@ -551,6 +588,17 @@ export class TransactionUtil {
       throw new Error(`The amount(${amountTotal}) is Insufficient balance for ${coinType} , expect ${amount} `)
     }
 
+    return TransactionUtil.builddCoinInput(tx, allCoins, coinAssets, amount, coinType, buildVector)
+  }
+
+  private static builddCoinInput(
+    tx: TransactionBlock,
+    allCoins: CoinAsset[],
+    coinAssets: CoinAsset[],
+    amount: bigint,
+    coinType: string,
+    buildVector = true
+  ) {
     if (CoinAssist.isSuiCoin(coinType)) {
       const amountCoin = tx.splitCoins(tx.gas, [tx.pure(amount.toString())])
       if (buildVector) {
@@ -586,6 +634,33 @@ export class TransactionUtil {
       transactionArgument: primaryCoinAInput,
       remainCoins: selectedCoinsResult.remainCoins,
     }
+  }
+
+  public static buildCoinInputForAmountInterval(
+    tx: TransactionBlock,
+    allCoins: CoinAsset[],
+    amounts: CoinInputInterval,
+    coinType: string,
+    buildVector = true
+  ): BuildCoinInputResult | undefined {
+    if (amounts.amount_first === BigInt(0)) {
+      return undefined
+    }
+
+    const coinAssets: CoinAsset[] = CoinAssist.getCoinAssets(coinType, allCoins)
+    const amountTotal = CoinAssist.calculateTotalBalance(coinAssets)
+
+    if (amountTotal >= amounts.amount_first) {
+      return TransactionUtil.builddCoinInput(tx, [...allCoins], [...coinAssets], amounts.amount_first, coinType, buildVector)
+    }
+
+    if (amountTotal >= amounts.amount_second) {
+      return TransactionUtil.builddCoinInput(tx, [...allCoins], [...coinAssets], amounts.amount_second, coinType, buildVector)
+    }
+    if (amountTotal < amounts.amount_second) {
+      throw new Error(`The amount(${amountTotal}) is Insufficient balance for ${coinType} , expect ${amounts.amount_second} `)
+    }
+    return undefined
   }
 
   public static async calculationTxGas(sdk: JsonRpcProvider | RawSigner, tx: TransactionBlock): Promise<number> {

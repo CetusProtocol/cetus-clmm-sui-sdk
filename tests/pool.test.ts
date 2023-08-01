@@ -130,6 +130,7 @@ describe('Pool Module', () => {
       coinTypeB: TokensMapping.SUI.address,
       amount_a: amount_a,
       amount_b: amount_b,
+      slippage,
       fix_amount_a: fix_amount_a,
       tick_lower: lowerTick,
       tick_upper: upperTick,

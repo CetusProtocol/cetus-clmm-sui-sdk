@@ -112,9 +112,30 @@ export class RouterModuleV2 implements IModule {
     return result
   }
 
+  private async fetchWithTimeout(url: string, options: RequestInit, timeout: number): Promise<Response | null> {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+      return response
+    } catch (err) {
+      return null
+    }
+  }
+
   private async fetchAndParseData(apiUrl: string): Promise<AggregatorResult | null> {
     try {
-      const response = await fetch(apiUrl)
+      const timeoutDuration = 3000
+      const response: any = await this.fetchWithTimeout(apiUrl, {}, timeoutDuration)
+      console.log(response)
+      if (response == null) {
+        return null
+      }
       if (response.status === 200) {
         return this.parseJsonResult(await response.json())
       }
