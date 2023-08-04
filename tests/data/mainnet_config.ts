@@ -23,7 +23,7 @@ export const clmm_mainnet: SdkOptions = {
   //fullRpcUrl: 'https://sui-mainnet-rpc.allthatnode.com',
   fullRpcUrl: 'https://sui-mainnet-endpoint.blockvision.org/',
   simulationAccount: {
-    address: '0x326ce9894f08dcaa337fa232641cc34db957aec9ff6614c1186bc9a7508df0bb',
+    address: '',
   },
   cetus_config: {
     package_id: '0x95b8d278b876cae22206131fb9724f701c9444515813042f54f0a426c9a3bc2f',
@@ -32,12 +32,12 @@ export const clmm_mainnet: SdkOptions = {
   },
   clmm_pool: {
     package_id: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb',
-    published_at: '0xfa36bcb799278bddaf295991b2d3ce039013b1dd60dfd7183dee135fdadbc4be',
+    published_at: '0xc33c3e937e5aa2009cc0c3fdb3f345a0c3193d4ee663ffc601fe8b894fbc4ba6',
     config: SDKConfig.clmmConfig,
   },
   integrate: {
     package_id: '0x996c4d9480708fb8b92aa7acf819fb0497b5ec8e65ba06601cae2fb6db3312c3',
-    published_at: '0x996c4d9480708fb8b92aa7acf819fb0497b5ec8e65ba06601cae2fb6db3312c3',
+    published_at: '0x9b110fcea19c331b087af5c5fee26206b84c0dfc0c77808322feaa321f7ae5c3',
   },
   deepbook: {
     package_id: '0x000000000000000000000000000000000000000000000000000000000000dee9',

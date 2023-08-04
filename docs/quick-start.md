@@ -32,7 +32,7 @@ npm  install @cetusprotocol/cetus-sui-clmm-sdk
 export const testnet =  {
       fullRpcUrl: 'https://fullnode.testnet.sui.io',
       simulationAccount: {
-        address: '0xcd0247d0b67e53dde69b285e7a748e3dc390e8a5244eb9dd9c5c53d95e4cf0aa'
+        address: ''
       },
       cetus_config: {
         package_id: '0xf5ff7d5ba73b581bca6b4b9fa0049cd320360abd154b809f8700a8fd3cfaf7ca',
@@ -50,7 +50,7 @@ export const testnet =  {
       },
       clmm_pool: {
         package_id: '0x0868b71c0cba55bf0faf6c40df8c179c67a4d0ba0e79965b68b3d72d7dfbf666',
-        published_at: '0x0b3894660b18ecf88d97576d317067376fd544e9a0833e8cf21689e5fd5cbc36',
+        published_at: '0x1c29d658882c40eeb39a8bb8fe58f71a216a918acb3e3eb3b47d24efd07257f2',
         config: {
           pools_id: '0xc090b101978bd6370def2666b7a31d7d07704f84e833e108a969eda86150e8cf',
           global_config_id: '0x6f4149091a5aea0e818e7243a13adcfb403842d670b9a2089de058512620687a',
@@ -60,8 +60,8 @@ export const testnet =  {
         }
       },
       integrate: {
-        package_id: '0xff5b5aea359bb153f84f0e091c43b270591f56ad3656c563eba0a88c948a3a58',
-        published_at: '0xff5b5aea359bb153f84f0e091c43b270591f56ad3656c563eba0a88c948a3a58'
+        package_id: '0x8627c5cdcd8b63bc3daa09a6ab7ed81a829a90cafce6003ae13372d611fbb1a9',
+        published_at: '0x220f80b3f3e39da9d67db7d0400cd2981a28c37bb2e383ed9eecabdca2a54417'
       },
       deepbook: {
         package_id: '0x000000000000000000000000000000000000000000000000000000000000dee9',
@@ -95,7 +95,7 @@ export const mainnet = {
       },
       clmm_pool: {
         package_id: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb',
-        published_at: '0xfa36bcb799278bddaf295991b2d3ce039013b1dd60dfd7183dee135fdadbc4be',
+        published_at: '0xc33c3e937e5aa2009cc0c3fdb3f345a0c3193d4ee663ffc601fe8b894fbc4ba6',
         config: {
           pools_id: '0xf699e7f2276f5c9a75944b37a0c5b5d9ddfd2471bf6242483b03ab2887d198d0',
           global_config_id: '0xdaa46292632c3c4d8f31f23ea0f9b36a28ff3677e9684980e4438403a67a3d8f',
@@ -105,8 +105,8 @@ export const mainnet = {
         }
       },
       integrate: {
-        package_id: '0x2eeaab737b37137b94bfa8f841f92e36a153641119da3456dec1926b9960d9be',
-        published_at: '0xa9b0ffe2f8e713a66ad1aa361cf1984526a5048c6de786b4dd292f3eed204b92'
+        package_id: '0x996c4d9480708fb8b92aa7acf819fb0497b5ec8e65ba06601cae2fb6db3312c3',
+        published_at: '0x9b110fcea19c331b087af5c5fee26206b84c0dfc0c77808322feaa321f7ae5c3'
       },
       deepbook: {
         package_id: '0x000000000000000000000000000000000000000000000000000000000000dee9',
