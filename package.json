@@ -1,6 +1,6 @@
 {
   "name": "@cetusprotocol/cetus-sui-clmm-sdk",
-  "version": "3.6.1",
+  "version": "3.6.4",
   "description": "SDK for cetus swap and liquidity",
   "typings": "dist/index.d.ts",
   "main": "dist/index.js",

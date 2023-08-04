@@ -15,16 +15,15 @@
 - The open position for clmm pool. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/open-position.md)
 - The close position for clmm pool. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/close-position.md)
 - The swap for clmm pool. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/swap.md)
+- The router swap for clmm pool. [More]((https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/router.md))
+- The routerV2 swap for clmm pool. [More]((https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/routerV2.md))
 - Swap in best Router. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/router.md)
 - The collect fee for clmm position . [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/collect-fee.md)
 - The collect rewarder for clmm position earn. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/collect-rewarder.md)
 - Relevant mathematical methods for cetus clmm. [More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/mathematical.md)
 - The partner. [More](./docs/partner.md)
 
-
 ## Quick Start
 
-- Current dependent SDK NPM version is [3.6.1](https://www.npmjs.com/package/@cetusprotocol/cetus-sui-clmm-sdk/v/3.6.1)
+- Current dependent SDK NPM version is [3.6.4](https://www.npmjs.com/package/@cetusprotocol/cetus-sui-clmm-sdk/v/3.6.4)
 - The Quick Start provides developers with a streamlined process for integrating and using the SDK.[More](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/docs/quick-start.md)
-
-
