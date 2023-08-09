@@ -15,6 +15,7 @@ All used type in `/src/modules/routerModule.ts`.
 
 If you want to use SDK to get pool list, you can see the first method in [router doc](/docs/router.md).
 
+Notice: In this example, if you want to use partner, orderSplit must equal `false`.
 2. Get all pools by centralization API.
 ```ts
 const coinMap = new Map()

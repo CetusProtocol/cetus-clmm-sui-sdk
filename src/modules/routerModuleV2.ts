@@ -1,5 +1,6 @@
 import BN from 'bn.js'
 import Decimal from 'decimal.js'
+import { v4 as uuidv4 } from 'uuid'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { PreSwapWithMultiPoolParams } from '../types'
@@ -112,13 +113,12 @@ export class RouterModuleV2 implements IModule {
     return result
   }
 
-  private async fetchWithTimeout(url: string, options: RequestInit, timeout: number): Promise<Response | null> {
+  private async fetchWithTimeout(url: string, _options: RequestInit, timeout: number): Promise<Response | null> {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeout)
 
     try {
       const response = await fetch(url, {
-        ...options,
         signal: controller.signal,
       })
       clearTimeout(timeoutId)
@@ -131,11 +131,9 @@ export class RouterModuleV2 implements IModule {
   private async fetchAndParseData(apiUrl: string): Promise<AggregatorResult | null> {
     try {
       const timeoutDuration = 3000
+
       const response: any = await this.fetchWithTimeout(apiUrl, {}, timeoutDuration)
-      console.log(response)
-      if (response == null) {
-        return null
-      }
+
       if (response.status === 200) {
         return this.parseJsonResult(await response.json())
       }
@@ -161,8 +159,9 @@ export class RouterModuleV2 implements IModule {
     byAmountIn: boolean,
     priceSplitPoint: number,
     partner: string,
+    senderAddress: string,
     swapWithMultiPoolParams?: PreSwapWithMultiPoolParams,
-    orderSplit = true,
+    orderSplit = false,
     externalRouter = false
   ) {
     let result = null
@@ -173,7 +172,7 @@ export class RouterModuleV2 implements IModule {
       amount
     )}&by_amount_in=${encodeURIComponent(byAmountIn)}&order_split=${encodeURIComponent(orderSplit)}&external_router=${encodeURIComponent(
       externalRouter
-    )}
+    )}&sender_address=${encodeURIComponent(senderAddress)}&request_id=${encodeURIComponent(uuidv4())}
     `
     result = await this.fetchAndParseData(apiUrl)
 

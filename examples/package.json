@@ -1,0 +1,19 @@
+{
+  "name": "cetus-clmm-sui-sdk-example",
+  "version": "1.0.0",
+  "description": "This is an example sets for how to integrate cetus-clmm-sui-sdk.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
+  },
+  "author": "cetus",
+  "license": "ISC",
+  "dependencies": {
+    "@cetusprotocol/cetus-sui-clmm-sdk": "^3.6.0",
+    "@mysten/sui.js": "^0.37.1"
+  },
+  "devDependencies": {
+    "typescript": "4.3"
+  }
+}

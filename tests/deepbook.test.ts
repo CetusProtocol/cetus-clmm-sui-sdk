@@ -1,13 +1,14 @@
 import BN from 'bn.js'
 import { buildSdk, buildTestAccountNew, buildTestAccount, buildTestPool, TokensMapping } from './data/init_test_data'
 import { CoinProvider, OnePath, PreRouterSwapParams, SwapWithRouterParams } from '../src/modules/routerModule'
-import SDK, { CoinAsset, CoinAssist, DeepbookUtils, Pool, printTransaction, sendTransaction, SwapUtils, TransactionUtil } from '../src'
-import { Ed25519Keypair, FaucetCoinInfo, RawSigner, TransactionArgument, TransactionBlock } from '@mysten/sui.js'
+import SDK, { CoinAsset, CoinAssist, DeepbookUtils, Pool, printTransaction,, SwapUtils, TransactionUtil } from '../src'
 import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS } from '../src/types/sui'
+import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
+import { RawSigner } from '@mysten/sui.js/dist/cjs/signers/raw-signer'
 
 describe('Router Module', () => {
   const sdk = buildSdk()
-  const sendKeypair = buildTestAccountNew()
+  const sendKeypair = buildTestAccount()
   sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()
 
   test('test get deepbook pools', async () => {
@@ -16,9 +17,9 @@ describe('Router Module', () => {
   })
 
   test('test get deepbook pool asks and bids', async () => {
-    const coin_a = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
-    const coin_b = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
-    const pool_address = '0x067e75d248140e3f891d24f5ce12e7cbee1140db07c399fcd6e221bfe597b706'
+    // const coin_a = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
+    // const coin_b = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
+    // const pool_address = '0x067e75d248140e3f891d24f5ce12e7cbee1140db07c399fcd6e221bfe597b706'
 
     // ? - usdc
     // const coin_a = '0xc060006111016b8a020ad5b33834984a437aaa7d3c74c18e09a95d48aceab08c::coin::COIN'
@@ -26,9 +27,9 @@ describe('Router Module', () => {
     // const pool_address = '0x5deafda22b6b86127ea4299503362638bea0ca33bb212ea3a67b029356b8b955'
 
     // sui - usdc
-    // const coin_a = '0x2::sui::SUI'
-    // const coin_b = '0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN'
-    // const pool_address = '0x7f526b1263c4b91b43c9e646419b5696f424de28dda3c1e6658cc0a54558baa7'
+    const coin_a = '0x2::sui::SUI'
+    const coin_b = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS'
+    const pool_address = '0x1e501bbcc0b1bc6edcb85c6a208b5098d9fc2b0ced0eb9b4dba8548b4fc82315'
 
     // sui - usdc
     // const coin_a = '0x2::sui::SUI'
@@ -79,8 +80,7 @@ describe('Router Module', () => {
       arguments: args,
     })
 
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
-    const transferTxn = await sendTransaction(signer, tx)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, tx)
     console.log('deposit_base: ', transferTxn)
   })
 
@@ -116,8 +116,7 @@ describe('Router Module', () => {
       arguments: args,
     })
 
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
-    const transferTxn = await sendTransaction(signer, tx)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, tx)
     console.log('deposit_quote: ', transferTxn)
   })
 
@@ -148,8 +147,7 @@ describe('Router Module', () => {
 
     console.log(tx)
 
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
-    const transferTxn = await sendTransaction(signer, tx)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, tx)
     console.log('place_limit_order: ', transferTxn)
     // await sleep(2000)
   })
@@ -161,8 +159,7 @@ describe('Router Module', () => {
     tx = createAccountCapResult[1] as TransactionBlock
     tx.transferObjects([cap], tx.pure(sdk.senderAddress))
 
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
-    const transferTxn = await sendTransaction(signer, tx)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, tx)
     console.log('create account cap: ', transferTxn)
   })
 
@@ -173,8 +170,7 @@ describe('Router Module', () => {
 
     tx = DeepbookUtils.deleteAccountCap(accountCap, sdk.sdkOptions, tx)
 
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
-    const transferTxn = await sendTransaction(signer, tx)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, tx)
     console.log('delete account cap: ', transferTxn)
   })
 
@@ -184,9 +180,9 @@ describe('Router Module', () => {
     const pool_address = '0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b'
 
     const a2b = false
-    const amount = 99980356
-    const res = await DeepbookUtils.simulateSwap(sdk, pool_address, USDT, USDC, a2b, amount)
-    console.log('simulate swap result', res)
+    const amount = 10000000
+    // const res = await DeepbookUtils.simulateSwap(sdk, pool_address, USDT, USDC, a2b, amount)
+    // console.log('simulate swap result', res)
 
     const pools = await DeepbookUtils.getPools(sdk)
     const pool = pools.filter((p) => p.poolID === pool_address)[0]

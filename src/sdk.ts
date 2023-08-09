@@ -1,4 +1,3 @@
-import { Connection, JsonRpcProvider, PaginatedCoins } from '@mysten/sui.js'
 import { PoolModule } from './modules/poolModule'
 import { PositionModule } from './modules/positionModule'
 import { RewarderModule } from './modules/rewarderModule'
@@ -9,6 +8,8 @@ import { RouterModuleV2 } from './modules/routerModuleV2'
 import { extractStructTagFromType, patchFixSuiObjectId } from './utils'
 import { CetusConfigs, ClmmConfig, CoinAsset, Package, TokenConfig } from './types'
 import { ConfigModule } from './modules'
+import { RpcModule } from './modules/rpcModule'
+import { PaginatedCoins } from '@mysten/sui.js/dist/cjs/client/types/generated'
 
 export type SdkOptions = {
   fullRpcUrl: string
@@ -33,7 +34,7 @@ export class CetusClmmSDK {
   /**
    * RPC provider on the SUI chain
    */
-  protected _fullClient: JsonRpcProvider
+  protected _rpcModule: RpcModule
 
   /**
    * Provide interact with clmm pools with a pool router interface.
@@ -81,12 +82,11 @@ export class CetusClmmSDK {
 
   constructor(options: SdkOptions) {
     this._sdkOptions = options
-    this._fullClient = new JsonRpcProvider(
-      new Connection({
-        fullnode: options.fullRpcUrl,
-        faucet: options.faucetURL,
+    this._rpcModule = new RpcModule(
+      {
+        url: options.fullRpcUrl
       })
-    )
+    
     this._swap = new SwapModule(this)
     this._pool = new PoolModule(this)
     this._position = new PositionModule(this)
@@ -112,7 +112,7 @@ export class CetusClmmSDK {
   }
 
   get fullClient() {
-    return this._fullClient
+    return this._rpcModule
   }
 
   get sdkOptions() {
@@ -159,7 +159,7 @@ export class CetusClmmSDK {
    */
   async getOwnerCoinAssets(suiAddress: string, coinType?: string | null): Promise<CoinAsset[]> {
     const allCoinAsset: CoinAsset[] = []
-    let nextCursor: string | null = null
+    let nextCursor: string | null | undefined = null
 
     while (true) {
       const allCoinObject: PaginatedCoins = await (coinType

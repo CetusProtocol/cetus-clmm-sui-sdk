@@ -1,6 +1,15 @@
+import BN from 'bn.js'
+import { fromB64, fromHEX } from '@mysten/bcs'
+import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
+import { Secp256k1Keypair } from '@mysten/sui.js/keypairs/secp256k1'
+import { SuiObjectResponse } from '@mysten/sui.js/client'
+import { ClmmPositionStatus, Pool, Position, PositionReward, Rewarder } from '../types'
+import { MathUtil } from '../math'
+import { NFT } from '../types/sui'
+import { extractStructTagFromType } from './contracts'
+import { TickData } from '../types/clmmpool'
+import { d, decimalsMultiplier } from './numbers'
 import {
-  DynamicFieldPage,
-  Ed25519Keypair,
   getMoveObjectType,
   getObjectDeletedResponse,
   getObjectDisplay,
@@ -8,26 +17,7 @@ import {
   getObjectId,
   getObjectNotExistsResponse,
   getObjectOwner,
-  ObjectContentFields,
-  ObjectType,
-  PaginatedEvents,
-  PaginatedObjectsResponse,
-  Secp256k1Keypair,
-  SuiAddress,
-  SuiEventFilter,
-  SuiObjectDataOptions,
-  SuiObjectResponse,
-  SuiObjectResponseQuery,
-} from '@mysten/sui.js'
-import BN from 'bn.js'
-import { fromB64, fromHEX } from '@mysten/bcs'
-import { ClmmPositionStatus, Pool, Position, PositionReward, Rewarder } from '../types'
-import { MathUtil } from '../math'
-import { DataPage, NFT, PaginationArgs, SuiObjectIdType } from '../types/sui'
-import { extractStructTagFromType } from './contracts'
-import { TickData } from '../types/clmmpool'
-import { d, decimalsMultiplier } from './numbers'
-import SDK from '../main'
+} from './objects'
 
 /**
  * Converts an amount to a decimal value, based on the number of decimals specified.
@@ -116,9 +106,9 @@ function buildPoolName(coin_type_a: string, coin_type_b: string, tick_spacing: s
  * @returns {Pool} - The built Pool object.
  */
 export function buildPool(objects: SuiObjectResponse): Pool {
-  const type = getMoveObjectType(objects) as ObjectType
+  const type = getMoveObjectType(objects) as string
   const formatType = extractStructTagFromType(type)
-  const fields = getObjectFields(objects) as ObjectContentFields
+  const fields = getObjectFields(objects)
 
   const rewarders: Rewarder[] = []
   fields.rewarder_manager.fields.rewarders.forEach((item: any) => {
@@ -229,17 +219,16 @@ export function buildPosition(objects: SuiObjectResponse): Position {
     fee_owed_b: '0',
     position_status: ClmmPositionStatus.Exists,
   }
-
-  let fields = getObjectFields(objects) as ObjectContentFields
+  let fields = getObjectFields(objects)
   if (fields) {
-    const type = getMoveObjectType(objects) as ObjectType
+    const type = getMoveObjectType(objects) as string
     const ownerWarp = getObjectOwner(objects) as {
       AddressOwner: string
     }
 
     if ('nft' in fields) {
       fields = fields.nft.fields
-      nft.description = fields.description
+      nft.description = fields.description as string
       nft.name = fields.name
       nft.link = fields.url
     } else {
@@ -337,7 +326,7 @@ export function buildPositionReward(fields: any): PositionReward {
  * @returns {TickData} - The built TickData object.
  */
 export function buildTickData(objects: SuiObjectResponse): TickData {
-  const fields = getObjectFields(objects) as ObjectContentFields
+  const fields = getObjectFields(objects)
 
   const valueItem = fields.value.fields.value.fields
   const possition: TickData = {
@@ -371,101 +360,4 @@ export function buildTickDataByEvent(fields: any): TickData {
   }
 
   return tick
-}
-export async function queryEvents(sdk: SDK, query: SuiEventFilter, paginationArgs: PaginationArgs = 'all'): Promise<DataPage<any>> {
-  let result: any = []
-  let hasNextPage = true
-  const queryAll = paginationArgs === 'all'
-  let nextCursor = queryAll ? null : paginationArgs.cursor
-
-  do {
-    const res: PaginatedEvents = await sdk.fullClient.queryEvents({
-      query,
-      cursor: nextCursor,
-      limit: queryAll ? null : paginationArgs.limit,
-    })
-    if (res.data) {
-      result = [...result, ...res.data]
-      hasNextPage = res.hasNextPage
-      nextCursor = res.nextCursor
-    } else {
-      hasNextPage = false
-    }
-  } while (queryAll && hasNextPage)
-
-  return { data: result, nextCursor, hasNextPage }
-}
-
-export async function getOwnedObjects(
-  sdk: SDK,
-  owner: SuiAddress,
-  query: SuiObjectResponseQuery,
-  paginationArgs: PaginationArgs = 'all'
-): Promise<DataPage<any>> {
-  let result: any = []
-  let hasNextPage = true
-  const queryAll = paginationArgs === 'all'
-  let nextCursor = queryAll ? null : paginationArgs.cursor
-  do {
-    const res: PaginatedObjectsResponse = await sdk.fullClient.getOwnedObjects({
-      owner,
-      ...query,
-      cursor: nextCursor,
-      limit: queryAll ? null : paginationArgs.limit,
-    })
-    if (res.data) {
-      result = [...result, ...res.data]
-      hasNextPage = res.hasNextPage
-      nextCursor = res.nextCursor
-    } else {
-      hasNextPage = false
-    }
-  } while (queryAll && hasNextPage)
-
-  return { data: result, nextCursor, hasNextPage }
-}
-
-export async function getDynamicFields(
-  sdk: SDK,
-  parentId: SuiObjectIdType,
-  paginationArgs: PaginationArgs = 'all'
-): Promise<DataPage<any>> {
-  let result: any = []
-  let hasNextPage = true
-  const queryAll = paginationArgs === 'all'
-  let nextCursor = queryAll ? null : paginationArgs.cursor
-  do {
-    const res: DynamicFieldPage = await sdk.fullClient.getDynamicFields({
-      parentId,
-      cursor: nextCursor,
-      limit: queryAll ? null : paginationArgs.limit,
-    })
-    if (res.data) {
-      result = [...result, ...res.data]
-      hasNextPage = res.hasNextPage
-      nextCursor = res.nextCursor
-    } else {
-      hasNextPage = false
-    }
-  } while (queryAll && hasNextPage)
-
-  return { data: result, nextCursor, hasNextPage }
-}
-
-export async function multiGetObjects(sdk: SDK, ids: SuiObjectIdType[], options?: SuiObjectDataOptions, limit = 50): Promise<any[]> {
-  let objectDataResponses: any[] = []
-
-  try {
-    for (let i = 0; i < Math.ceil(ids.length / limit); i++) {
-      const res = await sdk.fullClient.multiGetObjects({
-        ids: ids.slice(i * limit, limit * (i + 1)),
-        options,
-      })
-      objectDataResponses = [...objectDataResponses, ...res]
-    }
-  } catch (error) {
-    console.log(error)
-  }
-
-  return objectDataResponses
 }

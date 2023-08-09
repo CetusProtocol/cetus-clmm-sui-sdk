@@ -6,7 +6,6 @@
 
 ```ts
 const sendKeypair = buildTestAccount()
-const signer = new RawSigner(sendKeypair, sdk.fullClient)
 //  Fetch pool data
 const pool = await sdk.Pool.getPool(poolAddress)
 //  build lowerTick and  upperTick
@@ -59,7 +58,7 @@ const addLiquidityPayload = sdk.Position.createAddLiquidityTransactionPayload(
       curSqrtPrice: curSqrtPrice
     })
 
- const transferTxn = await sendTransaction(signer,createAddLiquidityTransactionPayload)
+ const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair,createAddLiquidityTransactionPayload)
  console.log('open_and_add_liquidity_fix_token: ', transferTxn)
 ```
 
@@ -67,7 +66,6 @@ const addLiquidityPayload = sdk.Position.createAddLiquidityTransactionPayload(
 
 ```ts
 const sendKeypair = buildTestAccount()
-const signer = new RawSigner(sendKeypair, sdk.fullClient)
 //  Fetch pool data
 const pool = await sdk.Pool.getPool(poolAddress)
 //  Fetch position data
@@ -114,7 +112,7 @@ const addLiquidityPayload = sdk.Position.createAddLiquidityTransactionPayload(
       })
 const createAddLiquidityTransactionPayload = sdk.Position.createAddLiquidityTransactionPayload(addLiquidityPayloadParams)
 
-const transferTxn = await sendTransaction(signer,createAddLiquidityTransactionPayload)
+const transferTxn = await  sdk.fullClient.sendTransaction(sendKeypair,createAddLiquidityTransactionPayload)
 console.log('add_liquidity_fix_token: ', transferTxn)
 
 ```

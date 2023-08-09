@@ -1,5 +1,5 @@
 import BN from 'bn.js'
-import { TransactionBlock } from '@mysten/sui.js'
+import { TransactionBlock } from '@mysten/sui.js/transactions'
 import { extractStructTagFromType } from '../utils'
 import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS } from '../types/sui'
 import { getRewardInTickRange } from '../utils/tick'
@@ -8,6 +8,7 @@ import { TickData } from '../types/clmmpool'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { CollectRewarderParams, getPackagerConfigs, Pool, Position, PositionReward, Rewarder, RewarderAmountOwed } from '../types'
+import { CollectFeesQuote } from '../math'
 
 export type FetchPosRewardParams = {
   poolAddress: string
@@ -15,6 +16,13 @@ export type FetchPosRewardParams = {
   coinTypeA: string
   coinTypeB: string
   rewarderInfo: Rewarder[]
+}
+
+export type FetchPosFeeParams = {
+  poolAddress: string
+  positionId: string
+  coinTypeA: string
+  coinTypeB: string
 }
 
 export type PosRewarderResult = {
@@ -206,6 +214,107 @@ export class RewarderModule implements IModule {
     return AmountOwed
   }
 
+  async batchFetchPositionRewarders(positionIds: string[]) {
+    const posRewardParamsList: FetchPosRewardParams[] = []
+    for (const id of positionIds) {
+      const position = await this._sdk.Position.getPositionById(id, false)
+      const pool = await this._sdk.Pool.getPool(position.pool, false)
+      posRewardParamsList.push({
+        poolAddress: pool.poolAddress,
+        positionId: position.pos_object_id,
+        coinTypeA: pool.coinTypeA,
+        coinTypeB: pool.coinTypeB,
+        rewarderInfo: pool.rewarder_infos,
+      })
+    }
+
+    const positionMap: Record<string, RewarderAmountOwed[]> = {}
+
+    if (posRewardParamsList.length > 0) {
+      const result: PosRewarderResult[] = await this.fetchPosRewardersAmount(posRewardParamsList)
+      for (const posRewarderInfo of result) {
+        positionMap[posRewarderInfo.positionId] = posRewarderInfo.rewarderAmountOwed
+      }
+      return positionMap
+    }
+    return positionMap
+  }
+
+  async batchFetchPositionFees(positionIds: string[]) {
+    const posFeeParamsList: FetchPosFeeParams[] = []
+    for (const id of positionIds) {
+      const position = await this._sdk.Position.getPositionById(id, false)
+      const pool = await this._sdk.Pool.getPool(position.pool, false)
+      posFeeParamsList.push({
+        poolAddress: pool.poolAddress,
+        positionId: position.pos_object_id,
+        coinTypeA: pool.coinTypeA,
+        coinTypeB: pool.coinTypeB,
+      })
+    }
+
+    const positionMap: Record<string, CollectFeesQuote> = {}
+
+    if (posFeeParamsList.length > 0) {
+      const result: CollectFeesQuote[] = await this.fetchPosFeeAmount(posFeeParamsList)
+      for (const posRewarderInfo of result) {
+        positionMap[posRewarderInfo.position_id] = posRewarderInfo
+      }
+      return positionMap
+    }
+    return positionMap
+  }
+
+  /**
+   * Fetches the Position fee amount for a given list of addresses.
+   * @param params  An array of FetchPosFeeParams objects containing the target addresses and their corresponding amounts.
+   * @returns
+   */
+  async fetchPosFeeAmount(params: FetchPosFeeParams[]) {
+    const { clmm_pool, integrate, simulationAccount } = this.sdk.sdkOptions
+    const tx = new TransactionBlock()
+
+    for (const paramItem of params) {
+      const typeArguments = [paramItem.coinTypeA, paramItem.coinTypeB]
+      const args = [
+        tx.object(getPackagerConfigs(clmm_pool).global_config_id),
+        tx.object(paramItem.poolAddress),
+        tx.pure(paramItem.positionId),
+      ]
+      tx.moveCall({
+        target: `${integrate.published_at}::${ClmmFetcherModule}::fetch_position_fees`,
+        arguments: args,
+        typeArguments,
+      })
+    }
+
+    const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: simulationAccount.address,
+    })
+
+    const valueData: any = simulateRes.events?.filter((item: any) => {
+      return extractStructTagFromType(item.type).name === `FetchPositionFeesEvent`
+    })
+    if (valueData.length === 0) {
+      return []
+    }
+
+    const result: CollectFeesQuote[] = []
+
+    for (let i = 0; i < valueData.length; i += 1) {
+      const { parsedJson } = valueData[i]
+      const posRrewarderResult: CollectFeesQuote = {
+        feeOwedA: new BN(parsedJson.fee_owned_a),
+        feeOwedB: new BN(parsedJson.fee_owned_b),
+        position_id: parsedJson.position_id,
+      }
+      result.push(posRrewarderResult)
+    }
+
+    return result
+  }
+
   /**
    * Fetches the Position reward amount for a given list of addresses.
    * @param params  An array of FetchPosRewardParams objects containing the target addresses and their corresponding amounts.
@@ -239,7 +348,7 @@ export class RewarderModule implements IModule {
       return extractStructTagFromType(item.type).name === `FetchPositionRewardsEvent`
     })
     if (valueData.length === 0) {
-      return null
+      return []
     }
 
     if (valueData.length !== params.length) {
@@ -249,6 +358,8 @@ export class RewarderModule implements IModule {
     const result: PosRewarderResult[] = []
 
     for (let i = 0; i < valueData.length; i += 1) {
+      console.log('params ', params[i])
+
       const posRrewarderResult: PosRewarderResult = {
         poolAddress: params[i].poolAddress,
         positionId: params[i].positionId,

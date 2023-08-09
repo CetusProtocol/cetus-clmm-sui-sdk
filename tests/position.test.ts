@@ -1,14 +1,14 @@
 import { TickMath } from '../src/math/tick'
 import BN from 'bn.js'
-import { RawSigner, Ed25519Keypair } from '@mysten/sui.js'
 import { buildSdk, buildTestAccount, buildTestPool, buildTestPosition, position_object_id, TokensMapping } from './data/init_test_data'
 import { ClmmPoolUtil } from '../src/math/clmm'
 import { Percentage } from '../src/math/percentage'
 import { adjustForCoinSlippage } from '../src/math/position'
 import 'isomorphic-fetch'
-import { printTransaction, sendTransaction } from '../src/utils/transaction-util'
+import { printTransaction } from '../src/utils/transaction-util'
 import { AddLiquidityFixTokenParams, AddLiquidityParams, Position, RemoveLiquidityParams, d, toDecimalsAmount } from '../src'
 import Decimal from 'decimal.js'
+import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
 
 let sendKeypair: Ed25519Keypair
 
@@ -21,11 +21,16 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('open_and_add_liquidity_fix_token', async () => {
-    const poolObjectId = "0xcf994611fd4c48e277ce3ffd4d4364c914af2c3cbb05f7bf6facd371de688630" ;//  TokensMapping.USDT_USDC_LP.poolObjectIds[0]
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
+    const poolObjectId = '0xcf994611fd4c48e277ce3ffd4d4364c914af2c3cbb05f7bf6facd371de688630' //  TokensMapping.USDT_USDC_LP.poolObjectIds[0]
     const pool = await buildTestPool(sdk, poolObjectId)
-    const lowerTick = TickMath.getPrevInitializableTickIndex(new BN(pool.current_tick_index).toNumber(), new BN(pool.tickSpacing).toNumber())
-    const upperTick = TickMath.getNextInitializableTickIndex(new BN(pool.current_tick_index).toNumber(), new BN(pool.tickSpacing).toNumber())
+    const lowerTick = TickMath.getPrevInitializableTickIndex(
+      new BN(pool.current_tick_index).toNumber(),
+      new BN(pool.tickSpacing).toNumber()
+    )
+    const upperTick = TickMath.getNextInitializableTickIndex(
+      new BN(pool.current_tick_index).toNumber(),
+      new BN(pool.tickSpacing).toNumber()
+    )
     const coinAmount = new BN(100)
     const fix_amount_a = true
     const slippage = 0.01
@@ -67,19 +72,18 @@ describe('Position add Liquidity Module', () => {
     })
 
     printTransaction(createAddLiquidityTransactionPayload)
-    const transferTxn = await sendTransaction(signer, createAddLiquidityTransactionPayload)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, createAddLiquidityTransactionPayload)
     console.log('open_and_add_liquidity_fix_token: ', transferTxn)
   })
 
   test('add_liquidity_fix_token', async () => {
-    const poolObjectId = "0x6fd4915e6d8d3e2ba6d81787046eb948ae36fdfc75dad2e24f0d4aaa2417a416" ;// TokensMapping.USDT_USDC_LP.poolObjectIds[0]
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
+    const poolObjectId =  TokensMapping.USDT_USDC_LP.poolObjectIds[0]
     const pool = await buildTestPool(sdk, poolObjectId)
-    const position = (await buildTestPosition(sdk, "0xcc86988b1f1196934875c8fde1e0d4e481069a39c39116a1f85b70ff8cf5c283")) as Position
+    const position = (await buildTestPosition(sdk, position_object_id)) as Position
     const lowerTick = position.tick_lower_index
     const upperTick = position.tick_upper_index
     const coinAmount = new BN(1000000)
-    const fix_amount_a = false
+    const fix_amount_a = true
     const slippage = 0.1
     const curSqrtPrice = new BN(pool.current_sqrt_price)
 
@@ -117,8 +121,8 @@ describe('Position add Liquidity Module', () => {
 
     printTransaction(createAddLiquidityTransactionPayload)
 
-    // const transferTxn = await sendTransaction(signer, createAddLiquidityTransactionPayload)
-    // console.log('add_liquidity_fix_token: ', transferTxn)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, createAddLiquidityTransactionPayload)
+    console.log('add_liquidity_fix_token: ', transferTxn)
   })
 
   test('getCoinAmountFromLiquidity', async () => {
@@ -139,10 +143,11 @@ describe('Position add Liquidity Module', () => {
 
     console.log('coinA: ', coinAmounts.coinA.toString())
     console.log('coinB: ', coinAmounts.coinB.toString())
-  })
+
+
+})
 
   test('add liquidity for input totalAmount', async () => {
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const pool = await buildTestPool(sdk, TokensMapping.USDT_USDC_LP.poolObjectIds[0])
     const curSqrtPrice = new BN(pool.current_sqrt_price)
     // ===>tick_uppe
@@ -157,8 +162,6 @@ describe('Position add Liquidity Module', () => {
     const coinAmounts = ClmmPoolUtil.estCoinAmountsFromTotalAmount(
       tick_lower_index,
       tick_upper_index,
-      6,
-      6,
       curSqrtPrice,
       totalAmount,
       tokenPriceA,
@@ -198,12 +201,11 @@ describe('Position add Liquidity Module', () => {
 
     printTransaction(payload)
 
-    const transferTxn = await sendTransaction(signer, payload)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, payload)
     console.log('createAddLiquidityPayload: ', transferTxn)
   })
 
   test('1 remove liquidity for input totalAmount', async () => {
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const pool = await buildTestPool(sdk, TokensMapping.USDT_USDC_LP.poolObjectIds[0])
     const position = await buildTestPosition(sdk, position_object_id)
     const curSqrtPrice = new BN(pool.current_sqrt_price)
@@ -219,8 +221,6 @@ describe('Position add Liquidity Module', () => {
     const coinAmounts = ClmmPoolUtil.estCoinAmountsFromTotalAmount(
       tick_lower_index,
       tick_upper_index,
-      6,
-      6,
       curSqrtPrice,
       totalAmount,
       tokenPriceA,
@@ -258,12 +258,54 @@ describe('Position add Liquidity Module', () => {
 
     printTransaction(payload)
 
-    const transferTxn = await sendTransaction(signer, payload)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, payload)
     console.log('removeLiquidity: ', transferTxn)
   })
 
+
+  test('estCoinAmountsFromTotalAmount', async () => {
+    const curSqrtPrice = new BN("533835442526411312729")
+    // ===>tick_uppe
+    const tick_lower_index = 67300
+    const tick_upper_index = 67312
+
+    const decimalsA = 6
+    const decimalsB = 9
+
+    const totalAmount = '715'
+    const tokenPriceA = '0.999728'
+    const tokenPriceB = '396.3536950482113947695850345003989648528620680256157171584034162209'
+
+    const coinAmounts = ClmmPoolUtil.estCoinAmountsFromTotalAmount(
+      tick_lower_index,
+      tick_upper_index,
+      curSqrtPrice,
+      totalAmount,
+      tokenPriceA,
+      tokenPriceB
+    )
+    console.log('coinAmounts: ', coinAmounts)
+
+    const amountA = Decimal.floor(toDecimalsAmount(coinAmounts.amountA.toString(), decimalsA))
+    const amountB = Decimal.floor(toDecimalsAmount(coinAmounts.amountB.toString(), decimalsB))
+
+    console.log('tokenAmounts: ', {amountA,  amountB })
+
+    const liquidityInput = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
+      tick_lower_index,
+      tick_upper_index,
+      new BN(amountA.toString()),
+      true,
+      false,
+      0.01,
+      curSqrtPrice
+    )
+
+    console.log('liquidity: ', {tokenMaxA: liquidityInput.coinAmountA.toString(), tokenMaxB: liquidityInput.coinAmountB.toString() })
+
+
+  })
   test('2 remove liquidity for input one token', async () => {
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const pool = await buildTestPool(sdk, TokensMapping.USDT_USDC_LP.poolObjectIds[0])
     const position = await buildTestPosition(sdk, position_object_id)
     const lowerTick = position.tick_lower_index
@@ -305,12 +347,11 @@ describe('Position add Liquidity Module', () => {
 
     printTransaction(payload)
 
-    const transferTxn = await sendTransaction(signer, payload)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, payload)
     console.log('removeLiquidity: ', transferTxn)
   })
   test('3 removeLiquidity', async () => {
     const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectIds[0]
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const pool = await buildTestPool(sdk, poolObjectId)
     const position = (await buildTestPosition(sdk, position_object_id)) as Position
     console.log('position: ', position)
@@ -344,12 +385,11 @@ describe('Position add Liquidity Module', () => {
 
     printTransaction(removeLiquidityTransactionPayload)
 
-    const transferTxn = await sendTransaction(signer, removeLiquidityTransactionPayload)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, removeLiquidityTransactionPayload)
     console.log('removeLiquidity: ', transferTxn)
   })
 
   test('only open position', async () => {
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const pool = await buildTestPool(sdk, TokensMapping.USDT_USDC_LP.poolObjectIds[0])
     const lowerTick = TickMath.getPrevInitializableTickIndex(
       new BN(pool.current_tick_index).toNumber(),
@@ -368,12 +408,11 @@ describe('Position add Liquidity Module', () => {
       pool_id: pool.poolAddress,
     })
 
-    const transferTxn = await sendTransaction(signer, openPositionTransactionPayload)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, openPositionTransactionPayload)
     console.log('only open position: ', transferTxn)
   })
 
   test('close position', async () => {
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectIds[0]
     const pool = await buildTestPool(sdk, poolObjectId)
     const position = (await buildTestPosition(sdk, position_object_id)) as Position
@@ -410,12 +449,11 @@ describe('Position add Liquidity Module', () => {
 
     printTransaction(closePositionTransactionPayload)
 
-    const transferTxn = await sendTransaction(signer, closePositionTransactionPayload)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, closePositionTransactionPayload)
     console.log('close position: ', transferTxn)
   })
 
   test('collect_fee', async () => {
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
     const pool = await buildTestPool(sdk, TokensMapping.USDT_USDC_LP.poolObjectIds[0])
     const collectFeeTransactionPayload = sdk.Position.collectFeeTransactionPayload({
       coinTypeA: pool.coinTypeA,
@@ -424,7 +462,7 @@ describe('Position add Liquidity Module', () => {
       pos_id: position_object_id,
     })
 
-    const transferTxn = await sendTransaction(signer, collectFeeTransactionPayload, true)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, collectFeeTransactionPayload)
     console.log('collect_fee: ', transferTxn)
   })
 

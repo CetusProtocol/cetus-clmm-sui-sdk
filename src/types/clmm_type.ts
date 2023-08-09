@@ -1,4 +1,3 @@
-import { ObjectContentFields } from '@mysten/sui.js'
 import BN from 'bn.js'
 import { NFT, SuiAddressType, SuiObjectIdType } from './sui'
 import { TickData } from './clmmpool'
@@ -14,6 +13,7 @@ export enum ClmmPositionStatus {
 export type Package<T = undefined> = {
   package_id: string
   published_at: string
+  version?: number
   config?: T
 }
 
@@ -127,7 +127,7 @@ export type FaucetCoin = {
   transactionModule: string
   suplyID: SuiObjectIdType
   decimals: number
-} & ObjectContentFields
+}
 
 export type CreatePoolParams = {
   tick_spacing: number

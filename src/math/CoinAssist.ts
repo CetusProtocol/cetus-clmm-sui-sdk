@@ -1,4 +1,5 @@
-import { ObjectId, SuiMoveObject, SuiTransactionBlockResponse } from '@mysten/sui.js'
+import { SuiTransactionBlockResponse } from '@mysten/sui.js/dist/cjs/types/transactions'
+import { SuiMoveObject } from '@mysten/sui.js/dist/cjs/client'
 import { CoinAsset, FaucetCoin } from '../types'
 import { extractStructTagFromType, normalizeCoinType } from '../utils/contracts'
 import { SuiAddressType } from '../types/sui'
@@ -57,7 +58,7 @@ export class CoinAssist {
    * @returns The balance of the SuiMoveObject.
    */
   public static getBalance(obj: SuiMoveObject): bigint {
-    return BigInt(obj.fields.balance)
+    return BigInt((obj.fields as any).balance)
   }
 
   /**
@@ -83,8 +84,8 @@ export class CoinAssist {
    * @param obj The SuiMoveObject to get the ID from.
    * @returns The ID of the SuiMoveObject.
    */
-  public static getID(obj: SuiMoveObject): ObjectId {
-    return obj.fields.id.id
+  public static getID(obj: SuiMoveObject): string {
+    return (obj.fields as any).id.id
   }
 
   /**
@@ -159,8 +160,8 @@ export class CoinAssist {
   static selectCoinObjectIdGreaterThanOrEqual(
     coins: CoinAsset[],
     amount: bigint,
-    exclude: ObjectId[] = []
-  ): { objectArray: ObjectId[]; remainCoins: CoinAsset[] } {
+    exclude: string[] = []
+  ): { objectArray: string[]; remainCoins: CoinAsset[] } {
     const objectArray = CoinAssist.selectCoinAssetGreaterThanOrEqual(coins, amount, exclude).selectedCoins.map((item) => item.coinObjectId)
     const remainCoins = CoinAssist.selectCoinAssetGreaterThanOrEqual(coins, amount, exclude).remainingCoins
     return { objectArray, remainCoins }
@@ -177,7 +178,7 @@ export class CoinAssist {
   static selectCoinAssetGreaterThanOrEqual(
     coins: CoinAsset[],
     amount: bigint,
-    exclude: ObjectId[] = []
+    exclude: string[] = []
   ): { selectedCoins: CoinAsset[]; remainingCoins: CoinAsset[] } {
     const sortedCoins = CoinAssist.sortByBalance(coins.filter((c) => !exclude.includes(c.coinObjectId)))
 

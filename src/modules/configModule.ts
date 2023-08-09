@@ -1,21 +1,13 @@
 import { Base64 } from 'js-base64'
-import {
-  getObjectFields,
-  getObjectId,
-  getObjectPreviousTransactionDigest,
-  getObjectType,
-  normalizeSuiObjectId,
-  ObjectContentFields,
-  ObjectType,
-  SuiObjectResponse,
-} from '@mysten/sui.js'
+import { SuiObjectResponse } from '@mysten/sui.js/dist/cjs/client/types/generated'
+import { normalizeSuiObjectId } from '@mysten/sui.js/utils'
 import { CetusConfigs, ClmmPoolConfig, CoinConfig, getPackagerConfigs, LaunchpadPoolConfig } from '../types'
 import { SuiResource, SuiAddressType } from '../types/sui'
 import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils/cachedContent'
 import { extractStructTagFromType, fixCoinType, normalizeCoinType } from '../utils/contracts'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
-import { getDynamicFields, multiGetObjects, queryEvents } from '../utils'
+import { getObjectFields, getObjectId, getObjectPreviousTransactionDigest, getObjectType } from '../utils/objects'
 
 /**
  * Helper class to help interact with clmm pool and coin and launchpad pool config
@@ -101,11 +93,11 @@ export class ConfigModule implements IModule {
     if (cacheData) {
       return cacheData
     }
-    const res = await getDynamicFields(this._sdk, coin_list_handle)
-    const warpIds = res.data.map((item) => {
+    const res = await this._sdk.fullClient.getDynamicFieldsByPage(coin_list_handle)
+    const warpIds = res.data.map((item: any) => {
       return item.objectId
     })
-    const objects = await multiGetObjects(this._sdk, warpIds, { showContent: true })
+    const objects = await this._sdk.fullClient.batchGetObjects(warpIds, { showContent: true })
     const coinList: CoinConfig[] = []
     objects.forEach((object) => {
       const coin = this.buildCoinConfig(object, transformExtensions)
@@ -138,7 +130,7 @@ export class ConfigModule implements IModule {
   }
 
   private buildCoinConfig(object: SuiObjectResponse, transformExtensions = true) {
-    let fields = getObjectFields(object) as ObjectContentFields
+    let fields = getObjectFields(object)
     fields = fields.value.fields
     const coin: any = { ...fields }
 
@@ -166,11 +158,11 @@ export class ConfigModule implements IModule {
     if (cacheData) {
       return cacheData
     }
-    const res = await getDynamicFields(this._sdk, clmm_pools_handle)
-    const warpIds = res.data.map((item) => {
+    const res = await this._sdk.fullClient.getDynamicFieldsByPage(clmm_pools_handle)
+    const warpIds = res.data.map((item: any) => {
       return item.objectId
     })
-    const objects = await multiGetObjects(this._sdk, warpIds, { showContent: true })
+    const objects = await this._sdk.fullClient.batchGetObjects(warpIds, { showContent: true })
     const poolList: ClmmPoolConfig[] = []
     objects.forEach((object) => {
       const pool = this.buildClmmPoolConfig(object, transformExtensions)
@@ -201,7 +193,7 @@ export class ConfigModule implements IModule {
   }
 
   private buildClmmPoolConfig(object: SuiObjectResponse, transformExtensions = true) {
-    let fields = getObjectFields(object) as ObjectContentFields
+    let fields = getObjectFields(object)
     fields = fields.value.fields
     const pool: any = { ...fields }
 
@@ -224,11 +216,11 @@ export class ConfigModule implements IModule {
     if (cacheData) {
       return cacheData
     }
-    const res = await getDynamicFields(this._sdk, launchpad_pools_handle)
-    const warpIds = res.data.map((item) => {
+    const res = await this._sdk.fullClient.getDynamicFieldsByPage(launchpad_pools_handle)
+    const warpIds = res.data.map((item: any) => {
       return item.objectId
     })
-    const objects = await multiGetObjects(this._sdk, warpIds, { showContent: true })
+    const objects = await this._sdk.fullClient.batchGetObjects(warpIds, { showContent: true })
     const poolList: LaunchpadPoolConfig[] = []
     objects.forEach((object) => {
       const pool = this.buildLaunchpadPoolConfig(object, transformExtensions)
@@ -259,7 +251,7 @@ export class ConfigModule implements IModule {
   }
 
   private buildLaunchpadPoolConfig(object: SuiObjectResponse, transformExtensions = true) {
-    let fields = getObjectFields(object) as ObjectContentFields
+    let fields = getObjectFields(object)
     fields = fields.value.fields
     const pool: any = { ...fields }
 
@@ -336,7 +328,7 @@ export class ConfigModule implements IModule {
     })
 
     const previousTx = getObjectPreviousTransactionDigest(packageObject) as string
-    const objects = await queryEvents(this._sdk, { Transaction: previousTx })
+    const objects = await this._sdk.fullClient.queryEventsByPage({ Transaction: previousTx })
     let tokenConfig: CetusConfigs = {
       coin_list_id: '',
       launchpad_pools_id: '',
@@ -383,8 +375,8 @@ export class ConfigModule implements IModule {
     const res = await this._sdk.fullClient.multiGetObjects({ ids: warpIds, options: { showContent: true } })
 
     res.forEach((item) => {
-      const fields = getObjectFields(item) as ObjectContentFields
-      const type = getObjectType(item) as ObjectType
+      const fields = getObjectFields(item)
+      const type = getObjectType(item) as string
       switch (extractStructTagFromType(type).name) {
         case 'ClmmPools':
           tokenConfig.clmm_pools_handle = fields.pools.fields.id.id

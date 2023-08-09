@@ -1,16 +1,20 @@
-import { RawSigner } from '@mysten/sui.js'
 import BN from 'bn.js'
 import { buildSdk, buildTestAccount, TokensMapping, position_object_id } from './data/init_test_data'
 import { TickMath } from '../src/math/tick'
 import { d } from '../src/utils/numbers'
 import { ClmmPoolUtil } from '../src/math/clmm'
 import 'isomorphic-fetch'
-import { printTransaction, sendTransaction } from '../src/utils/transaction-util'
+import { printTransaction } from '../src/utils/transaction-util'
 import { poolList } from './data/pool_data'
 import { CreatePoolParams } from '../src'
 
 describe('Pool Module', () => {
   const sdk = buildSdk()
+
+  test('getAllPools', async () => {
+    const pools = await sdk.Pool.getPoolsWithPage([])
+    console.log(pools.length)
+  })
 
   test('getPoolImmutables', async () => {
     const poolImmutables = await sdk.Pool.getPoolImmutables()
@@ -28,7 +32,7 @@ describe('Pool Module', () => {
   })
 
   test('get ower position list', async () => {
-    const res = await sdk.Position.getPositionList(buildTestAccount().getPublicKey().toSuiAddress(),["0x83c101a55563b037f4cd25e5b326b26ae6537dc8048004c1408079f7578dd160"])
+    const res = await sdk.Position.getPositionList(buildTestAccount().getPublicKey().toSuiAddress(),[TokensMapping.USDT_USDC_LP.poolObjectIds[0]])
     console.log('getPositionList####', res)
   })
 
@@ -45,13 +49,13 @@ describe('Pool Module', () => {
 
   test('getSipmlePosition', async () => {
     const res = await sdk.Position.getSipmlePosition(position_object_id)
-    console.log('getPositionList####', res)
+    console.log('getSipmlePosition####', res)
   })
 
   test('getPositionInfo', async () => {
     const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectIds[0])
     const res = await sdk.Position.getPosition(pool.position_manager.positions_handle, position_object_id)
-    console.log('getPositionList####', res)
+    console.log('getPositionInfo####', res)
   })
 
   test('fetchPositionRewardList', async () => {
@@ -66,7 +70,6 @@ describe('Pool Module', () => {
   })
 
   test('doCreatPools', async () => {
-    const signer = new RawSigner(buildTestAccount(), sdk.fullClient)
     sdk.senderAddress = buildTestAccount().getPublicKey().toSuiAddress()
     const pools = poolList
     const paramss: CreatePoolParams[] = []
@@ -89,12 +92,11 @@ describe('Pool Module', () => {
     const creatPoolTransactionPayload = await sdk.Pool.creatPoolsTransactionPayload(paramss)
 
     printTransaction(creatPoolTransactionPayload)
-    const transferTxn = await sendTransaction(signer, creatPoolTransactionPayload)
+    const transferTxn = await sdk.fullClient.sendTransaction(buildTestAccount(), creatPoolTransactionPayload)
     console.log('doCreatPool: ', transferTxn)
   })
 
   test('create_and_add_liquidity_fix_token', async () => {
-    const signer = new RawSigner(buildTestAccount(), sdk.fullClient)
     sdk.senderAddress = buildTestAccount().getPublicKey().toSuiAddress()
     const initialize_sqrt_price = TickMath.priceToSqrtPriceX64(d(0.3), 6, 6).toString()
     const tick_spacing = 2
@@ -136,7 +138,7 @@ describe('Pool Module', () => {
       tick_upper: upperTick,
     })
 
-    const transferTxn = await sendTransaction(signer, creatPoolTransactionPayload)
+    const transferTxn = await sdk.fullClient.sendTransaction(buildTestAccount(), creatPoolTransactionPayload)
     console.log('doCreatPool: ', transferTxn)
   })
 })

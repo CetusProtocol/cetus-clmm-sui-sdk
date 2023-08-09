@@ -11,11 +11,11 @@ module.exports = {
   transform: {
     "^.+\\.(ts|tsx)$": "ts-jest"
   },
-  globals: {
-    "ts-jest": {
-      tsconfig: "./tests/tsconfig.json"
-    }
-  },
+  // globals: {
+  //   "ts-jest": {
+  //     tsconfig: "./tests/tsconfig.json"
+  //   }
+  // },
   // testRegex: 'router.test.ts',
   testTimeout: 90*1000
 }

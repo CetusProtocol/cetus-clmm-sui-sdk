@@ -5,7 +5,6 @@
 
 ```ts
 const sendKeypair = buildTestAccount()
-const signer = new RawSigner(sendKeypair, sdk.fullClient)
 // Fetch pool data
 const pool = await sdk.Pool.getPool(poolAddress)
 // Fetch position data
@@ -39,6 +38,6 @@ const closePositionTransactionPayload = sdk.Position.closePositionTransactionPay
       pos_id: position_object_id,
     })
 
-const transferTxn = await sendTransaction(signer,closePositionTransactionPayload)
+const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair,closePositionTransactionPayload)
 console.log('close position: ', transferTxn)
 ```

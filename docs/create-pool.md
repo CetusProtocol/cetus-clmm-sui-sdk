@@ -3,7 +3,6 @@
 ## Create clmm pool and add liquidity
 
 ```ts
-const signer = new RawSigner(buildTestAccount(), sdk.fullClient)
 // initialize sqrt_price
 const initialize_sqrt_price = TickMath.priceToSqrtPriceX64(d(1.2),6,6).toString()
 const tick_spacing = 2
@@ -76,6 +75,6 @@ const creatPoolPayload = sdk.Pool.creatPoolTransactionPayload({
 const creatPoolTransactionPayload = await sdk.Pool.creatPoolsTransactionPayload([creatPoolPayload])
 
 // send the transaction
-const transferTxn = await sendTransaction(signer, creatPoolTransactionPayload,true)
+const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, creatPoolTransactionPayload)
 console.log('doCreatPool: ', transferTxn)
 ```

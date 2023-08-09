@@ -1,6 +1,6 @@
 import BN from 'bn.js'
 import { Graph, GraphEdge, GraphVertex } from '@syntsugar/cc-graph'
-import { TransactionBlock } from '@mysten/sui.js'
+import { TransactionBlock } from '@mysten/sui.js/transactions'
 import { PreSwapWithMultiPoolParams } from '../types'
 import { extractStructTagFromType, printTransaction } from '../utils'
 import { ClmmExpectSwapModule, ClmmIntegrateRouterModule, SuiAddressType } from '../types/sui'

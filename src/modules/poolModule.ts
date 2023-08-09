@@ -1,13 +1,6 @@
-import {
-  DynamicFieldPage,
-  getObjectPreviousTransactionDigest,
-  normalizeSuiAddress,
-  SuiObjectResponse,
-  SuiTransactionBlockResponse,
-  TransactionArgument,
-  TransactionBlock,
-  TransactionDigest,
-} from '@mysten/sui.js'
+import { DynamicFieldPage, SuiObjectResponse, SuiTransactionBlockResponse } from '@mysten/sui.js/dist/cjs/client'
+import { normalizeSuiAddress } from '@mysten/sui.js/utils'
+import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
 import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils'
 import {
   CreatePoolAddLiquidityParams,
@@ -22,16 +15,7 @@ import {
 } from '../types'
 import { TransactionUtil } from '../utils/transaction-util'
 import { tickScore } from '../math'
-import {
-  asUintN,
-  buildPool,
-  buildPositionReward,
-  buildTickData,
-  buildTickDataByEvent,
-  getDynamicFields,
-  queryEvents,
-  multiGetObjects,
-} from '../utils/common'
+import { asUintN, buildPool, buildPositionReward, buildTickData, buildTickDataByEvent } from '../utils/common'
 import { extractStructTagFromType, isSortedSymbols } from '../utils/contracts'
 import { TickData } from '../types/clmmpool'
 import {
@@ -45,6 +29,7 @@ import {
 } from '../types/sui'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
+import { getObjectPreviousTransactionDigest } from '../utils/objects'
 
 type GetTickParams = {
   start: number[]
@@ -73,7 +58,7 @@ export class PoolModule implements IModule {
    * @returns A promise that resolves to an array of Position objects.
    */
   async getPositionList(positionHandle: string): Promise<Position[]> {
-    const objects = await getDynamicFields(this._sdk, positionHandle)
+    const objects = await this._sdk.fullClient.getDynamicFieldsByPage(positionHandle)
     const position_object_ids = objects.data.map((item: any) => {
       return item.name.value
     })
@@ -106,7 +91,7 @@ export class PoolModule implements IModule {
 
     if (allPools.length === 0) {
       try {
-        const objects = await queryEvents(this._sdk, { MoveEventType: `${package_id}::factory::CreatePoolEvent` })
+        const objects = await this._sdk.fullClient.queryEventsByPage({ MoveEventType: `${package_id}::factory::CreatePoolEvent` })
 
         objects.data.forEach((object: any) => {
           const fields = object.parsedJson
@@ -154,7 +139,7 @@ export class PoolModule implements IModule {
       poolImmutables.forEach((item) => poolObjectIds.push(item.poolAddress))
     }
 
-    const objectDataResponses: any[] = await multiGetObjects(this._sdk, poolObjectIds, {
+    const objectDataResponses: any[] = await this._sdk.fullClient.batchGetObjects(poolObjectIds, {
       showContent: true,
       showType: true,
     })
@@ -193,7 +178,7 @@ export class PoolModule implements IModule {
     if (allPools.length === 0) {
       try {
         const moveEventType = `${package_id}::factory::CreatePoolEvent`
-        const objects = await queryEvents(this._sdk, { MoveEventType: moveEventType }, paginationArgs)
+        const objects = await this._sdk.fullClient.queryEventsByPage({ MoveEventType: moveEventType }, paginationArgs)
         dataPage.hasNextPage = objects.hasNextPage
         dataPage.nextCursor = objects.nextCursor
         objects.data.forEach((object: any) => {
@@ -236,7 +221,7 @@ export class PoolModule implements IModule {
       poolImmutables.forEach((item) => poolObjectIds.push(item.poolAddress))
     }
 
-    const objectDataResponses: any[] = await multiGetObjects(this._sdk, poolObjectIds, {
+    const objectDataResponses: any[] = await this._sdk.fullClient.batchGetObjects(poolObjectIds, {
       showContent: true,
       showType: true,
     })
@@ -331,7 +316,7 @@ export class PoolModule implements IModule {
 
     const previousTx = getObjectPreviousTransactionDigest(packageObject) as string
 
-    const objects = (await queryEvents(this._sdk, { Transaction: previousTx })).data
+    const objects = (await this._sdk.fullClient.queryEventsByPage({ Transaction: previousTx })).data
 
     const clmmConfig: ClmmConfig = {
       pools_id: '',
@@ -377,7 +362,7 @@ export class PoolModule implements IModule {
    * @param forceRefresh - A boolean flag indicating whether to force a refresh of the response.
    * @returns A Promise that resolves with the SUI transaction block response or null if the response is not available.
    */
-  async getSuiTransactionResponse(digest: TransactionDigest, forceRefresh = false): Promise<SuiTransactionBlockResponse | null> {
+  async getSuiTransactionResponse(digest: string, forceRefresh = false): Promise<SuiTransactionBlockResponse | null> {
     const cacheKey = `${digest}_getSuiTransactionResponse`
     const cacheData = this.getCache<SuiTransactionBlockResponse>(cacheKey, forceRefresh)
 
@@ -665,7 +650,7 @@ export class PoolModule implements IModule {
 
   private async getTicksByRpc(tickObjectId: string[]): Promise<TickData[]> {
     const ticks: TickData[] = []
-    const objectDataResponses = await multiGetObjects(this.sdk, tickObjectId, { showContent: true, showType: true })
+    const objectDataResponses = await this.sdk.fullClient.batchGetObjects(tickObjectId, { showContent: true, showType: true })
     for (const suiObj of objectDataResponses) {
       ticks.push(buildTickData(suiObj))
     }

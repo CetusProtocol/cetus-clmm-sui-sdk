@@ -1,12 +1,13 @@
 import { Base64 } from 'js-base64'
-import { getObjectPreviousTransactionDigest, normalizeSuiObjectId, TransactionBlock } from '@mysten/sui.js'
+import { TransactionBlock } from '@mysten/sui.js/transactions'
+import { normalizeSuiObjectId } from '@mysten/sui.js/utils'
 import { getPackagerConfigs, PoolInfo, TokenConfigEvent, TokenInfo } from '../types'
 import { SuiResource, SuiAddressType } from '../types/sui'
 import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils/cachedContent'
 import { extractStructTagFromType, normalizeCoinType } from '../utils/contracts'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
-import { queryEvents } from '../utils'
+import { getObjectPreviousTransactionDigest } from '../utils/objects'
 
 /**
  * Helper class to help interact with pool and token config
@@ -303,7 +304,7 @@ export class TokenModule implements IModule {
     })
 
     const previousTx = getObjectPreviousTransactionDigest(packageObject) as string
-    const objects = await queryEvents(this._sdk, { Transaction: previousTx })
+    const objects = await this._sdk.fullClient.queryEventsByPage({ Transaction: previousTx })
     const tokenConfigEvent: TokenConfigEvent = {
       coin_registry_id: '',
       pool_registry_id: '',

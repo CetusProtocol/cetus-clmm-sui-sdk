@@ -6,7 +6,6 @@
 
 ```ts
 const sendKeypair = buildTestAccount()
-const signer = new RawSigner(sendKeypair, sdk.fullClient)
 // Fetch pool data
 const pool = await sdk.Pool.getPool(poolAddress)
 // Fetch all rewarder for position
@@ -25,6 +24,6 @@ const collectRewarderParams: CollectRewarderParams = {
 
 const collectRewarderPayload =  sdk.Rewarder.collectRewarderTransactionPayload(collectRewarderParams)
 
-const transferTxn = (await signer.signAndExecuteTransactionBlock({transactionBlock:collectRewarderPayload}))
-console.log('result: ', getTransactionEffects(transferTxn))
+const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair,collectRewarderPayload)
+console.log('collect_fee: ', transferTxn)
 ```

@@ -1,7 +1,9 @@
-import { Ed25519Keypair, getObjectPreviousTransactionDigest, RawSigner, TransactionBlock } from '@mysten/sui.js'
-import { CoinAssist, sendTransaction } from '../../src'
+import { CoinAssist, Package } from '../../src'
 import { CetusClmmSDK } from '../../src/sdk'
 import { buildSdkOptions, currSdkEnv } from './sdk_config'
+import { TransactionBlock } from '@mysten/sui.js/transactions'
+import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
+import { getObjectPreviousTransactionDigest } from '../../src/utils/objects'
 
 const sdkEnv = buildSdkOptions()
 export const faucetObjectId = sdkEnv.faucet?.package_id
@@ -9,7 +11,7 @@ export const faucet = sdkEnv.faucet
 
 const clmm_display = sdkEnv.clmm_pool.package_id
 
-export const position_object_id = '0xa4573dbb55e47608cd15aaa0f2094215571d981488f5eaeabc83e07d69c11318'
+export const position_object_id = '0x1f4ba879e065fe0550f9831a72009ac350632bf963b174a7b3c2a9bbb29259f0'
 export const TokensMapping = {
   SUI: {
     address: '0x2::sui::SUI',
@@ -26,41 +28,32 @@ export const TokensMapping = {
   USDT_USDC_LP: {
     address: `${clmm_display}::pool::Pool<${faucetObjectId}::usdt::USDC, ${faucetObjectId}::usdc::USDT>`,
     decimals: 8,
-    poolObjectIds: ['0x83c101a55563b037f4cd25e5b326b26ae6537dc8048004c1408079f7578dd160'],
+    poolObjectIds: ['0x6fd4915e6d8d3e2ba6d81787046eb948ae36fdfc75dad2e24f0d4aaa2417a416'],
   },
 }
 
-export async function mintAll(
-  sdk: CetusClmmSDK,
-  sendKeypair: Ed25519Keypair,
-  faucet: {
-    faucet_display: string
-    faucet_router: string
-  },
-  funName: string
-) {
-  const objects = await sdk.fullClient.getObject({ id: faucet.faucet_display, options: { showPreviousTransaction: true } })
+export async function mintAll(sdk: CetusClmmSDK, sendKeypair: Ed25519Keypair, faucet: Package, funName: string) {
+  const objects = await sdk.fullClient.getObject({ id: faucet.package_id, options: { showPreviousTransaction: true } })
   const previousTx = getObjectPreviousTransactionDigest(objects)
   console.log('previousTx', previousTx)
   if (previousTx) {
-    const txResult = await sdk.Pool.getSuiTransactionResponse(previousTx)
+    const txResult: any = await sdk.Pool.getSuiTransactionResponse(previousTx)
 
     if (txResult) {
       const faucetCoins = CoinAssist.getFaucetCoins(txResult)
       console.log('faucetCoins: ', faucetCoins)
 
       const tx = new TransactionBlock()
-      const signer = new RawSigner(sendKeypair, sdk.fullClient)
 
       faucetCoins.forEach((coin) => {
         tx.moveCall({
-          target: `${faucet.faucet_router}::${coin.transactionModule}::${funName}`,
+          target: `${faucet.published_at}::${coin.transactionModule}::${funName}`,
           typeArguments: [],
           arguments: [tx.object(coin.suplyID)],
         })
       })
 
-      const result = await sendTransaction(signer, tx)
+      const result = await  sdk.fullClient.sendTransaction(sendKeypair, tx)
       console.log('result: ', result)
     }
   }
@@ -95,7 +88,7 @@ export function buildTestAccount(): Ed25519Keypair {
 
 export function buildTestAccountNew(): Ed25519Keypair {
   // Please enter your test account secret or mnemonics
-  const mnemonics =''
+  const mnemonics = ''
   const testAccountObject = Ed25519Keypair.deriveKeypair(mnemonics)
   console.log(' Address: ', testAccountObject.getPublicKey().toSuiAddress())
 

@@ -4,4 +4,6 @@ dist/**/*
 yarn.lock
 /.vscode/
 package.test.json
-examples/**/*
+/examples/node_modules
+/examples/package-lock.json
+/examples/*.js

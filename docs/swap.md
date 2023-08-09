@@ -4,7 +4,6 @@
 
 ```ts
 const sendKeypair = buildTestAccount()
-const signer = new RawSigner(sendKeypair, sdk.fullClient)
 // Whether the swap direction is token a to token b
 const a2b = true
 // fix input token amount
@@ -78,6 +77,6 @@ const swapPayload = sdk.Swap.createSwapTransactionPayload(
   },
 )
 
-onst transferTxn = await sendTransaction(signer,swapPayload)
+const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair,swapPayload)
 console.log('swap: ', transferTxn)
 ```

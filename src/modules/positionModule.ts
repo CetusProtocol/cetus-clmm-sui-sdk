@@ -1,5 +1,6 @@
 import BN from 'bn.js'
-import { TransactionArgument, TransactionBlock, getObjectFields, isValidSuiObjectId } from '@mysten/sui.js'
+import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
+import { isValidSuiObjectId } from '@mysten/sui.js/utils'
 import {
   AddLiquidityFixTokenParams,
   AddLiquidityParams,
@@ -20,13 +21,12 @@ import {
   cacheTime5min,
   extractStructTagFromType,
   getFutureTime,
-  getOwnedObjects,
-  multiGetObjects,
 } from '../utils'
 import { findAdjustCoin, TransactionUtil } from '../utils/transaction-util'
 import { ClmmIntegratePoolModule, CLOCK_ADDRESS, SuiObjectIdType, SuiResource } from '../types/sui'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
+import { getObjectFields } from '../utils/objects'
 
 /**
  * Helper class to help interact with clmm position with a position router interface.
@@ -64,7 +64,7 @@ export class PositionModule implements IModule {
   async getPositionList(accountAddress: string, assignPoolIds: string[] = []): Promise<Position[]> {
     const allPosition: Position[] = []
 
-    const ownerRes: any = await getOwnedObjects(this._sdk, accountAddress, {
+    const ownerRes: any = await this._sdk.fullClient.getOwnedObjectsByPage(accountAddress, {
       options: { showType: true, showContent: true, showDisplay: true, showOwner: true },
       filter: { Package: this._sdk.sdkOptions.clmm_pool.package_id },
     })
@@ -97,9 +97,11 @@ export class PositionModule implements IModule {
    * @param positionId The ID of the position to get.
    * @returns Position object.
    */
-  async getPosition(positionHandle: string, positionId: string): Promise<Position> {
+  async getPosition(positionHandle: string, positionId: string, calculateRewarder = true): Promise<Position> {
     let position = await this.getSipmlePosition(positionId)
-    position = await this.updatePositionRewarders(positionHandle, position)
+    if (calculateRewarder) {
+      position = await this.updatePositionRewarders(positionHandle, position)
+    }
     return position
   }
 
@@ -109,11 +111,14 @@ export class PositionModule implements IModule {
    * @param positionId The ID of the position to get.
    * @returns Position object.
    */
-  async getPositionById(positionId: string): Promise<Position> {
+  async getPositionById(positionId: string, calculateRewarder = true): Promise<Position> {
     const position = await this.getSipmlePosition(positionId)
-    const pool = await this._sdk.Pool.getPool(position.pool, false)
-    const result = await this.updatePositionRewarders(pool.position_manager.positions_handle, position)
-    return result
+    if (calculateRewarder) {
+      const pool = await this._sdk.Pool.getPool(position.pool, false)
+      const result = await this.updatePositionRewarders(pool.position_manager.positions_handle, position)
+      return result
+    }
+    return position
   }
 
   /**
@@ -164,7 +169,7 @@ export class PositionModule implements IModule {
     })
 
     if (notFoundIds.length > 0) {
-      const objectDataResponses = await multiGetObjects(this._sdk, notFoundIds, {
+      const objectDataResponses = await this._sdk.fullClient.batchGetObjects(notFoundIds, {
         showOwner: true,
         showContent: true,
         showDisplay: true,
@@ -278,7 +283,7 @@ export class PositionModule implements IModule {
 
     if (needOpenPosition) {
       positionNft = tx.moveCall({
-        target: `${integrate.published_at}::pool::open_position`,
+        target: `${clmm_pool.published_at}::pool::open_position`,
         typeArguments,
         arguments: [
           tx.object(getPackagerConfigs(clmm_pool).global_config_id),

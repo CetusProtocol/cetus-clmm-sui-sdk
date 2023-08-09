@@ -1,5 +1,5 @@
+import { TransactionArgument } from '@mysten/sui.js/transactions'
 import Decimal from 'decimal.js'
-import { TransactionArgument } from '@mysten/sui.js'
 
 export type SuiAddressType = string
 export type SuiObjectIdType = string
@@ -9,6 +9,7 @@ export const CLOCK_ADDRESS = '0x000000000000000000000000000000000000000000000000
 
 export const ClmmIntegratePoolModule = 'pool_script'
 export const ClmmIntegrateRouterModule = 'router'
+export const ClmmIntegrateRouterWithPartnerModule = 'router_with_partner'
 export const ClmmFetcherModule = 'fetcher_script'
 export const ClmmExpectSwapModule = 'expect_swap'
 export const ClmmIntegrateUtilsModule = 'utils'

@@ -1,6 +1,6 @@
 {
   "name": "@cetusprotocol/cetus-sui-clmm-sdk",
-  "version": "3.6.4",
+  "version": "3.9.1",
   "description": "SDK for cetus swap and liquidity",
   "typings": "dist/index.d.ts",
   "main": "dist/index.js",
@@ -29,6 +29,7 @@
     "@types/cors": "^2.8.13",
     "@types/jest": "^29.0.0",
     "@types/lossless-json": "^1.0.1",
+    "@types/uuid": "^9.0.2",
     "@typescript-eslint/eslint-plugin": "^5.36.1",
     "@typescript-eslint/parser": "^5.36.1",
     "bip39-light": "^1.0.7",
@@ -47,7 +48,7 @@
   },
   "dependencies": {
     "@mysten/bcs": "^0.7.3",
-    "@mysten/sui.js": "^0.37.1",
+    "@mysten/sui.js": "^0.39.0",
     "@suchipi/femver": "^1.0.0",
     "@syntsugar/cc-graph": "^0.1.1",
     "@types/bn.js": "^5.1.1",
@@ -60,7 +61,8 @@
     "js-sha3": "^0.8.0",
     "superstruct": "^1.0.3",
     "tiny-invariant": "^1.1.0",
-    "tweetnacl": "^1.0.3"
+    "tweetnacl": "^1.0.3",
+    "uuid": "^9.0.0"
   },
   "lint-staged": {
     "src/**.{ts,js}": "eslint --fix",

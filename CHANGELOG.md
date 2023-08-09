@@ -1,7 +1,14 @@
 # @cetusprotocol/cetus-sui-clmm-sdk
 
 
-## 3.2.x
+## 3.6.4
+
+### Patch Changes
+- Add `batchFetchPositionRewarders` in `RewarderModule`
+- Updated dependencies
+  - @mysten/sui.js@0.39.0
+
+## 3.5.0
 
 ### Patch Changes
 - Remove `calculateSwapFeeAndImpact` from `SwapModule`

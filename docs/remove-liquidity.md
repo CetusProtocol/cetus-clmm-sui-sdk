@@ -4,7 +4,6 @@
 
 ```ts
 const sendKeypair = buildTestAccount()
-const signer = new RawSigner(sendKeypair, sdk.fullClient)
 // Fetch pool data
 const pool = await sdk.Pool.getPool(poolAddress)
 // Fetch position data
@@ -38,6 +37,7 @@ const removeLiquidityParams : RemoveLiquidityParams = {
     }
 const removeLiquidityTransactionPayload = sdk.Position.removeLiquidityTransactionPayload(removeLiquidityParams)
 
-const transferTxn = await sendTransaction(signer, removeLiquidityTransactionPayload)
+
+const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair,removeLiquidityParams)
 console.log('removeLiquidity: ', transferTxn)
 ```

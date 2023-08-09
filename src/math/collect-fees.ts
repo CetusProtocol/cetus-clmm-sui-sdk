@@ -17,6 +17,7 @@ export type CollectFeesQuoteParam = {
  * @category CollectFeesQuote
  */
 export type CollectFeesQuote = {
+  position_id: string
   feeOwedA: BN
   feeOwedB: BN
 }
@@ -72,6 +73,7 @@ function updateFees(position: Position, fee_growth_inside_a: BN, fee_growth_insi
   const fee_owed_b = new BN(position.fee_owed_b).add(fee_delta_b)
 
   return {
+    position_id: position.pos_object_id,
     feeOwedA: fee_owed_a,
     feeOwedB: fee_owed_b,
   }

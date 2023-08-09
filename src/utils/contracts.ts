@@ -1,4 +1,4 @@
-import { normalizeSuiObjectId } from '@mysten/sui.js'
+import { normalizeSuiObjectId } from '@mysten/sui.js/utils'
 import { SuiAddressType, SuiStructTag } from '../types/sui'
 import { CoinAssist } from '../math/CoinAssist'
 import { removeHexPrefix } from './hex'

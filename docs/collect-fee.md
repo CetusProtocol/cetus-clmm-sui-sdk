@@ -5,7 +5,6 @@
 
 ```ts
 const sendKeypair = buildTestAccount()
-const signer = new RawSigner(sendKeypair, sdk.fullClient)
 // Fetch pool data
 const pool = await sdk.Pool.getPool(poolAddress)
 // Fetch position data
@@ -21,6 +20,6 @@ const removeLiquidityPayload = (await sdk.Position.collectFeeTransactionPayload(
         },
         true
       ))
-const transferTxn = await sendTransaction(signer,collectFeeTransactionPayload)
+const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair,collectFeeTransactionPayload)
 console.log('collect_fee: ', transferTxn)
 ```

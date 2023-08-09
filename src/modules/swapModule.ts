@@ -1,6 +1,6 @@
 import BN from 'bn.js'
-import { TransactionBlock } from '@mysten/sui.js'
 import Decimal from 'decimal.js'
+import { TransactionBlock } from '@mysten/sui.js/transactions'
 import {
   CalculateRatesParams,
   CalculateRatesResult,

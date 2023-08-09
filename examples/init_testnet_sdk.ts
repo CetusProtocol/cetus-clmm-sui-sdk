@@ -1,4 +1,4 @@
-import { SdkOptions } from '../../src'
+import CetusClmmSDK, { SdkOptions } from '@cetusprotocol/cetus-sui-clmm-sdk'
 
 const SDKConfig = {
   clmmConfig: {
@@ -19,9 +19,8 @@ const SDKConfig = {
   },
 }
 
-export const clmm_testnet: SdkOptions = {
-  // fullRpcUrl: 'https://fullnode.testnet.sui.io',
-  fullRpcUrl: 'https://testnet.artifact.systems/sui',
+export const clmmTestnet: SdkOptions = {
+  fullRpcUrl: 'https://fullnode.testnet.sui.io',
   simulationAccount: {
     address: '0xcd0247d0b67e53dde69b285e7a748e3dc390e8a5244eb9dd9c5c53d95e4cf0aa',
   },
@@ -37,14 +36,12 @@ export const clmm_testnet: SdkOptions = {
 
   clmm_pool: {
     package_id: '0x0868b71c0cba55bf0faf6c40df8c179c67a4d0ba0e79965b68b3d72d7dfbf666',
-    published_at: '0x1c29d658882c40eeb39a8bb8fe58f71a216a918acb3e3eb3b47d24efd07257f2',
-    version: 6,
+    published_at: '0x0b3894660b18ecf88d97576d317067376fd544e9a0833e8cf21689e5fd5cbc36',
     config: SDKConfig.clmmConfig,
   },
   integrate: {
-    package_id: '0x8627c5cdcd8b63bc3daa09a6ab7ed81a829a90cafce6003ae13372d611fbb1a9',
-    published_at: '0x942a5371258a2dcf10b4b1df481cf9dd260c0a3bffffbbcade71427744b9333a',
-    version: 2,
+    package_id: '0xff5b5aea359bb153f84f0e091c43b270591f56ad3656c563eba0a88c948a3a58',
+    published_at: '0xc45106b28762f8037892a4ed06fb87532dd79a1c5c76a8432e99eae0e7f598f3',
   },
   deepbook: {
     package_id: '0x000000000000000000000000000000000000000000000000000000000000dee9',
@@ -55,5 +52,6 @@ export const clmm_testnet: SdkOptions = {
     published_at: '0x56d90d0c055edb534b11e7548270bb458fd47c69b77bf40c14d5eb00e6e6cf64',
   },
   aggregatorUrl: 'https://api-sui.devcetus.com/router',
-  // aggregatorUrl: 'http://localhost:8080/router',
 }
+
+export const TestnetSDK = new CetusClmmSDK(clmmTestnet)

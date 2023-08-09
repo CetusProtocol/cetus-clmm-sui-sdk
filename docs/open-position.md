@@ -3,7 +3,6 @@
 
 ```ts
 const sendKeypair = buildTestAccount()
-const signer = new RawSigner(sendKeypair, sdk.fullClient)
 // fetch pool data
 const pool = await sdk.Pool.getPool(poolAddress)
 // build tick range
@@ -25,6 +24,5 @@ const openPositionTransactionPayload = sdk.Position.openPositionTransactionPaylo
     })
 console.log('openPositionTransactionPayload: ', openPositionTransactionPayload)
 
-const transferTxn = (await signer.executeMoveCall(openPositionTransactionPayload)) as SuiExecuteTransactionResponse
-console.log('open position: ', getTransactionEffects(transferTxn))
+const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair,openPositionTransactionPayload)
 ```

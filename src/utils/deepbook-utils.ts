@@ -1,8 +1,7 @@
-import { TransactionArgument, TransactionBlock } from '@mysten/sui.js'
 import BN from 'bn.js'
+import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
 import { SdkOptions } from '../sdk'
 import { CLOCK_ADDRESS, DeepbookClobV2Moudle, DeepbookCustodianV2Moudle, DeepbookEndpointsV2Moudle } from '../types'
-import { getOwnedObjects, queryEvents } from './common'
 import SDK from '../main'
 import { extractStructTagFromType } from './contracts'
 import { TransactionUtil } from './transaction-util'
@@ -56,7 +55,7 @@ export class DeepbookUtils {
   }
 
   static async getAccountCap(sdk: SDK): Promise<string> {
-    const ownerRes: any = await getOwnedObjects(sdk, sdk.senderAddress, {
+    const ownerRes: any = await sdk.fullClient.getOwnedObjectsByPage(sdk.senderAddress, {
       options: { showType: true, showContent: true, showDisplay: true, showOwner: true },
       filter: {
         MoveModule: {
@@ -81,7 +80,7 @@ export class DeepbookUtils {
     const allPools: DeepbookPool[] = []
 
     try {
-      const objects = await queryEvents(sdk, { MoveEventType: `${deepbook}::clob_v2::PoolCreated` })
+      const objects = await sdk.fullClient.queryEventsByPage({ MoveEventType: `${deepbook}::clob_v2::PoolCreated` })
 
       objects.data.forEach((object: any) => {
         const fields = object.parsedJson

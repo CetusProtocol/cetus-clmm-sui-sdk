@@ -1,17 +1,16 @@
-import {
-  getTransactionEffects,
-  JsonRpcProvider,
-  RawSigner,
-  TransactionArgument,
-  TransactionBlock,
-  TransactionEffects,
-} from '@mysten/sui.js'
 import BN from 'bn.js'
 import Decimal from 'decimal.js'
+import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
 import { CoinAssist } from '../math/CoinAssist'
 import { OnePath, SwapWithRouterParams } from '../modules/routerModule'
 import { TickData } from '../types/clmmpool'
-import { ClmmIntegratePoolModule, ClmmIntegrateRouterModule, ClmmIntegrateUtilsModule, CLOCK_ADDRESS } from '../types/sui'
+import {
+  ClmmIntegratePoolModule,
+  ClmmIntegrateRouterModule,
+  ClmmIntegrateRouterWithPartnerModule,
+  ClmmIntegrateUtilsModule,
+  CLOCK_ADDRESS,
+} from '../types/sui'
 import SDK, {
   AddLiquidityFixTokenParams,
   adjustForSlippage,
@@ -51,34 +50,6 @@ function reverSelippageAmount(selippageAmount: number | string, slippage: number
   return Decimal.ceil(d(selippageAmount).div(1 + slippage)).toString()
 }
 
-export async function sendTransaction(
-  signer: RawSigner,
-  tx: TransactionBlock,
-  onlyCalculateGas = false
-): Promise<TransactionEffects | undefined> {
-  try {
-    if (onlyCalculateGas) {
-      tx.setSender(await signer.getAddress())
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      const gasAmount = await TransactionUtil.calculationTxGas(signer, tx)
-      console.log('need gas : ', gasAmount)
-      return undefined
-    }
-
-    const resultTxn = await signer.signAndExecuteTransactionBlock({
-      transactionBlock: tx,
-      options: {
-        showEffects: true,
-        showEvents: true,
-      },
-    })
-    return getTransactionEffects(resultTxn)
-  } catch (error) {
-    console.log('error: ', error)
-  }
-  return undefined
-}
-
 export async function printTransaction(tx: TransactionBlock, isPrint = true) {
   tx.blockData.transactions.forEach((item, index) => {
     if (isPrint) {
@@ -114,7 +85,7 @@ export class TransactionUtil {
     }
 
     // payload Estimated gas consumption
-    const estimateGas = await TransactionUtil.calculationTxGas(sdk.fullClient, tx)
+    const estimateGas = await sdk.fullClient.calculationTxGas(tx)
 
     // Find estimateGas objectIds
     const gasCoins = CoinAssist.selectCoinAssetGreaterThanOrEqual(
@@ -663,23 +634,6 @@ export class TransactionUtil {
     return undefined
   }
 
-  public static async calculationTxGas(sdk: JsonRpcProvider | RawSigner, tx: TransactionBlock): Promise<number> {
-    const { sender } = tx.blockData
-
-    if (sender === undefined) {
-      throw Error('sender is empty')
-    }
-
-    const devResult = await sdk.devInspectTransactionBlock({
-      transactionBlock: tx,
-      sender,
-    })
-    const { gasUsed } = devResult.effects
-
-    const estimateGas = Number(gasUsed.computationCost) + Number(gasUsed.storageCost) - Number(gasUsed.storageRebate)
-    return estimateGas
-  }
-
   static moveCallCoinZero = (txb: TransactionBlock, coinType: string) => {
     return txb.moveCall({
       target: '0x2::coin::zero',
@@ -695,6 +649,10 @@ export class TransactionUtil {
     allCoinAsset: CoinAsset[]
   ): Promise<TransactionBlock> {
     let tx = new TransactionBlock()
+    if (params.paths.length > 1) {
+      params.partner = ''
+    }
+
     tx = await this.buildRouterBasePathTx(sdk, params, byAmountIn, allCoinAsset, tx)
     return tx
   }
@@ -708,7 +666,49 @@ export class TransactionUtil {
     priceSplitPoint: number
   ) {
     let tx = new TransactionBlock()
-    if (param.byAmountIn) {
+    if (param.splitPaths.length > 1) {
+      partner = ''
+    }
+
+    if (!param.byAmountIn || param.splitPaths.length === 1) {
+      const onePaths: OnePath[] = []
+      for (const splitPath of param.splitPaths) {
+        const a2b = []
+        const poolAddress = []
+        const rawAmountLimit: BN[] = []
+        const coinType = []
+
+        for (let i = 0; i < splitPath.basePaths.length; i += 1) {
+          const basePath = splitPath.basePaths[i]
+          a2b.push(basePath.direction)
+          poolAddress.push(basePath.poolAddress)
+          rawAmountLimit.push(new BN(basePath.inputAmount))
+          if (i === 0) {
+            coinType.push(basePath.fromCoin, basePath.toCoin)
+          } else {
+            coinType.push(basePath.toCoin)
+          }
+        }
+
+        const onePath: OnePath = {
+          amountIn: new BN(splitPath.inputAmount),
+          amountOut: new BN(splitPath.outputAmount),
+          poolAddress,
+          a2b,
+          rawAmountLimit,
+          isExceed: false,
+          coinType,
+        }
+        onePaths.push(onePath)
+      }
+      const params: SwapWithRouterParams = {
+        paths: onePaths,
+        partner,
+        priceSplitPoint,
+      }
+
+      tx = await this.buildRouterBasePathTx(sdk, params, false, allCoinAsset, tx)
+    } else {
       const amountLimit = Math.round(param.outputAmount * (1 - priceSplitPoint))
 
       let fromCoin = TransactionUtil.buildCoinInputForAmount(
@@ -768,17 +768,17 @@ export class TransactionUtil {
           if (basePath.label === 'Cetus') {
             if (i === 0) {
               if (splitPath.basePaths.length === 1) {
-                const clmmTxBuild = this.buildClmmBasePathTx(sdk, basePath, tx, param.byAmountIn, fromCoin, toCoin, false)
+                const clmmTxBuild = this.buildClmmBasePathTx(sdk, basePath, tx, param.byAmountIn, fromCoin, toCoin, false, partner)
                 fromCoin = clmmTxBuild.from as TransactionArgument
                 toCoin = clmmTxBuild.to as TransactionArgument
               } else {
                 middleCoin = TransactionUtil.moveCallCoinZero(tx, basePath.toCoin)
-                const clmmTxBuild = this.buildClmmBasePathTx(sdk, basePath, tx, param.byAmountIn, fromCoin, middleCoin, false)
+                const clmmTxBuild = this.buildClmmBasePathTx(sdk, basePath, tx, param.byAmountIn, fromCoin, middleCoin, false, partner)
                 fromCoin = clmmTxBuild.from as TransactionArgument
                 middleCoin = clmmTxBuild.to as TransactionArgument
               }
             } else {
-              const clmmTxBuild = this.buildClmmBasePathTx(sdk, basePath, tx, param.byAmountIn, middleCoin, toCoin, true)
+              const clmmTxBuild = this.buildClmmBasePathTx(sdk, basePath, tx, param.byAmountIn, middleCoin, toCoin, true, partner)
               middleCoin = clmmTxBuild.from as TransactionArgument
               toCoin = clmmTxBuild.to as TransactionArgument
               tx.moveCall({
@@ -805,44 +805,6 @@ export class TransactionUtil {
       }
 
       tx.transferObjects(transferObjects, tx.pure(sdk.senderAddress))
-    } else {
-      const onePaths: OnePath[] = []
-      for (const splitPath of param.splitPaths) {
-        const a2b = []
-        const poolAddress = []
-        const rawAmountLimit: BN[] = []
-        const coinType = []
-
-        for (let i = 0; i < splitPath.basePaths.length; i += 1) {
-          const basePath = splitPath.basePaths[i]
-          a2b.push(basePath.direction)
-          poolAddress.push(basePath.poolAddress)
-          rawAmountLimit.push(new BN(basePath.inputAmount))
-          if (i === 0) {
-            coinType.push(basePath.fromCoin, basePath.toCoin)
-          } else {
-            coinType.push(basePath.toCoin)
-          }
-        }
-
-        const onePath: OnePath = {
-          amountIn: new BN(splitPath.inputAmount),
-          amountOut: new BN(splitPath.outputAmount),
-          poolAddress,
-          a2b,
-          rawAmountLimit,
-          isExceed: false,
-          coinType,
-        }
-        onePaths.push(onePath)
-      }
-      const params: SwapWithRouterParams = {
-        paths: onePaths,
-        partner,
-        priceSplitPoint,
-      }
-
-      tx = await this.buildRouterBasePathTx(sdk, params, false, allCoinAsset, tx)
     }
     return tx
   }
@@ -889,40 +851,56 @@ export class TransactionUtil {
     }
   }
 
-  static buildClmmBasePathTx(
+  private static buildClmmBasePathTx(
     sdk: SDK,
     basePath: BasePath,
     tx: TransactionBlock,
     byAmountIn: boolean,
     from: TransactionArgument,
     to: TransactionArgument,
-    middleStep: boolean
+    middleStep: boolean,
+    partner: string
   ) {
     const { clmm_pool, integrate } = sdk.sdkOptions
     const globalConfigID = getPackagerConfigs(clmm_pool).global_config_id
     let coinA = basePath.direction ? from : to
     let coinB = basePath.direction ? to : from
-
-    const functionName = 'swap'
+    const noPartner = partner === ''
+    const moduleName = noPartner ? ClmmIntegrateRouterModule : ClmmIntegrateRouterWithPartnerModule
+    const functionName = noPartner ? 'swap' : 'swap_with_partner'
     const amount = byAmountIn ? basePath.inputAmount.toString() : basePath.outputAmount.toString()
     const sqrtPriceLimit = SwapUtils.getDefaultSqrtPriceLimit(basePath.direction)
-    const args: any = [
-      tx.object(globalConfigID),
-      tx.object(basePath.poolAddress),
-      coinA,
-      coinB,
-      tx.pure(basePath.direction),
-      tx.pure(byAmountIn),
-      tx.pure(amount),
-      tx.pure(sqrtPriceLimit.toString()),
-      tx.pure(middleStep),
-      tx.object(CLOCK_ADDRESS),
-    ]
+    const args: any = noPartner
+      ? [
+          tx.object(globalConfigID),
+          tx.object(basePath.poolAddress),
+          coinA,
+          coinB,
+          tx.pure(basePath.direction),
+          tx.pure(byAmountIn),
+          tx.pure(amount),
+          tx.pure(sqrtPriceLimit.toString()),
+          tx.pure(middleStep),
+          tx.object(CLOCK_ADDRESS),
+        ]
+      : [
+          tx.object(globalConfigID),
+          tx.object(basePath.poolAddress),
+          tx.pure(partner),
+          coinA,
+          coinB,
+          tx.pure(basePath.direction),
+          tx.pure(byAmountIn),
+          tx.pure(amount),
+          tx.pure(sqrtPriceLimit.toString()),
+          tx.pure(middleStep),
+          tx.object(CLOCK_ADDRESS),
+        ]
 
     const typeArguments = basePath.direction ? [basePath.fromCoin, basePath.toCoin] : [basePath.toCoin, basePath.fromCoin]
 
     const coinAB: TransactionArgument[] = tx.moveCall({
-      target: `${integrate.published_at}::${ClmmIntegrateRouterModule}::${functionName}`,
+      target: `${integrate.published_at}::${moduleName}::${functionName}`,
       typeArguments,
       arguments: args,
     })
@@ -973,6 +951,10 @@ export class TransactionUtil {
 
     const transferObjects: TransactionArgument[] = []
 
+    const noPartner = params.partner === ''
+
+    const moduleName = noPartner ? ClmmIntegrateRouterModule : ClmmIntegrateRouterWithPartnerModule
+
     for (const path of validPaths) {
       if (path.poolAddress.length === 1) {
         const a2b = path.a2b[0]
@@ -983,28 +965,44 @@ export class TransactionUtil {
           poolCoinB: path.a2b[0] ? toCoinType : fromCoinType,
         }
 
+        const functionName = noPartner ? 'swap' : 'swap_with_partner'
+
         const poolCoinA = a2b ? fromCoin : toCoin
         const poolCoinB = a2b ? toCoin : fromCoin
         const amount = byAmountIn ? path.amountIn.toString() : path.amountOut.toString()
 
         const sqrtPriceLimit = SwapUtils.getDefaultSqrtPriceLimit(a2b).toString()
-        const args: any = [
-          tx.object(globalConfigID),
-          tx.object(path.poolAddress[0]),
-          poolCoinA,
-          poolCoinB,
-          tx.pure(a2b),
-          tx.pure(byAmountIn),
-          tx.pure(amount),
-          tx.pure(sqrtPriceLimit),
-          tx.pure(false),
-          tx.object(CLOCK_ADDRESS),
-        ]
+        const args: any = noPartner
+          ? [
+              tx.object(globalConfigID),
+              tx.object(path.poolAddress[0]),
+              poolCoinA,
+              poolCoinB,
+              tx.pure(a2b),
+              tx.pure(byAmountIn),
+              tx.pure(amount),
+              tx.pure(sqrtPriceLimit),
+              tx.pure(false),
+              tx.object(CLOCK_ADDRESS),
+            ]
+          : [
+              tx.object(globalConfigID),
+              tx.object(path.poolAddress[0]),
+              tx.pure(params.partner),
+              poolCoinA,
+              poolCoinB,
+              tx.pure(a2b),
+              tx.pure(byAmountIn),
+              tx.pure(amount),
+              tx.pure(sqrtPriceLimit),
+              tx.pure(false),
+              tx.object(CLOCK_ADDRESS),
+            ]
 
         const typeArguments = [swapParams.poolCoinA, swapParams.poolCoinB]
 
         const coinABs: TransactionArgument[] = tx.moveCall({
-          target: `${sdk.sdkOptions.integrate.published_at}::${ClmmIntegrateRouterModule}::swap`,
+          target: `${sdk.sdkOptions.integrate.published_at}::${moduleName}::${functionName}`,
           typeArguments,
           arguments: args,
         })
@@ -1015,35 +1013,67 @@ export class TransactionUtil {
         const amount1 = byAmountIn ? path.rawAmountLimit[0] : path.amountOut
 
         let functionName = ''
-        if (path.a2b[0]) {
-          if (path.a2b[1]) {
-            functionName = 'swap_ab_bc'
+        if (noPartner) {
+          if (path.a2b[0]) {
+            if (path.a2b[1]) {
+              functionName = 'swap_ab_bc'
+            } else {
+              functionName = 'swap_ab_cb'
+            }
+          } else if (path.a2b[1]) {
+            functionName = 'swap_ba_bc'
           } else {
-            functionName = 'swap_ab_cb'
+            functionName = 'swap_ba_cb'
           }
-        } else if (path.a2b[1]) {
-          functionName = 'swap_ba_bc'
-        } else {
-          functionName = 'swap_ba_cb'
         }
+
+        if (!noPartner) {
+          if (path.a2b[0]) {
+            if (path.a2b[1]) {
+              functionName = 'swap_ab_bc_with_partner'
+            } else {
+              functionName = 'swap_ab_cb_with_partner'
+            }
+          } else if (path.a2b[1]) {
+            functionName = 'swap_ba_bc_with_partner'
+          } else {
+            functionName = 'swap_ba_cb_with_partner'
+          }
+        }
+
         const sqrtPriceLimit0 = SwapUtils.getDefaultSqrtPriceLimit(path.a2b[0])
         const sqrtPriceLimit1 = SwapUtils.getDefaultSqrtPriceLimit(path.a2b[1])
-        const args: any = [
-          tx.object(globalConfigID),
-          tx.object(path.poolAddress[0]),
-          tx.object(path.poolAddress[1]),
-          fromCoin,
-          toCoin,
-          tx.pure(byAmountIn),
-          tx.pure(amount0.toString()),
-          tx.pure(amount1.toString()),
-          tx.pure(sqrtPriceLimit0.toString()),
-          tx.pure(sqrtPriceLimit1.toString()),
-          tx.object(CLOCK_ADDRESS),
-        ]
+        const args: any = noPartner
+          ? [
+              tx.object(globalConfigID),
+              tx.object(path.poolAddress[0]),
+              tx.object(path.poolAddress[1]),
+              fromCoin,
+              toCoin,
+              tx.pure(byAmountIn),
+              tx.pure(amount0.toString()),
+              tx.pure(amount1.toString()),
+              tx.pure(sqrtPriceLimit0.toString()),
+              tx.pure(sqrtPriceLimit1.toString()),
+              tx.object(CLOCK_ADDRESS),
+            ]
+          : [
+              tx.object(globalConfigID),
+              tx.object(path.poolAddress[0]),
+              tx.object(path.poolAddress[1]),
+              tx.pure(params.partner),
+              fromCoin,
+              toCoin,
+              tx.pure(byAmountIn),
+              tx.pure(amount0.toString()),
+              tx.pure(amount1.toString()),
+              tx.pure(sqrtPriceLimit0.toString()),
+              tx.pure(sqrtPriceLimit1.toString()),
+              tx.object(CLOCK_ADDRESS),
+            ]
         const typeArguments = [path.coinType[0], path.coinType[1], path.coinType[2]]
         const fromToCoins = tx.moveCall({
-          target: `${integrate.published_at}::${ClmmIntegrateRouterModule}::${functionName}`,
+          target: `${integrate.published_at}::${moduleName}::${functionName}`,
           typeArguments,
           arguments: args,
         })

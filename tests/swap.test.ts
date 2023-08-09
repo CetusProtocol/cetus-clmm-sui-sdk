@@ -1,9 +1,9 @@
-import { Ed25519Keypair, RawSigner } from '@mysten/sui.js'
 import BN from 'bn.js'
 import { buildSdk, buildTestAccount, buildTestPool, TokensMapping } from './data/init_test_data'
 import 'isomorphic-fetch'
-import { printTransaction, sendTransaction } from '../src/utils/transaction-util'
+import { printTransaction } from '../src/utils/transaction-util'
 import { adjustForSlippage, d, Percentage, TickMath } from '../src'
+import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
 
 let sendKeypair: Ed25519Keypair
 
@@ -129,8 +129,6 @@ describe('Swap Module', () => {
   })
 
   test('swap', async () => {
-    const signer = new RawSigner(sendKeypair, sdk.fullClient)
-
     const a2b = true
     const byAmountIn = true
     const amount = new BN('1664')
@@ -180,7 +178,7 @@ describe('Swap Module', () => {
     })
 
     printTransaction(swapPayload)
-    const transferTxn = await sendTransaction(signer, swapPayload, false)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, swapPayload)
     console.log('swap: ', transferTxn)
   })
 })

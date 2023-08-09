@@ -1,4 +1,5 @@
-import { normalizeSuiObjectId, TransactionArgument, TransactionBlock } from '@mysten/sui.js'
+import { normalizeSuiObjectId } from '@mysten/sui.js/utils'
+import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
 import { getDefaultSuiInputType, SuiInputTypes, SuiTxArg } from '../types/sui'
 
 export class TxBlock {
