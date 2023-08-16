@@ -54,6 +54,19 @@ export class DeepbookUtils {
     return tx
   }
 
+  static deleteAccountCapByObject(accountCap: TransactionArgument, sdkOptions: SdkOptions, tx: TransactionBlock): TransactionBlock {
+    const { deepbook } = sdkOptions
+
+    const args = [accountCap]
+
+    tx.moveCall({
+      target: `${deepbook.published_at}::${DeepbookCustodianV2Moudle}::delete_account_cap`,
+      typeArguments: [],
+      arguments: args,
+    })
+    return tx
+  }
+
   static async getAccountCap(sdk: SDK): Promise<string> {
     const ownerRes: any = await sdk.fullClient.getOwnedObjectsByPage(sdk.senderAddress, {
       options: { showType: true, showContent: true, showDisplay: true, showOwner: true },

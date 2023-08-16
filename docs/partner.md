@@ -28,3 +28,16 @@ In this example, if you want to use partner, orderSplit must equal `false`.
     externalRouter = false
   ) {}
 ```
+
+## 4. check ref fee of partner
+How to check ref fee of partner?
+We provider one function `sdk.Pool.getPartnerRefFeeAmount()`` to check ref fee.
+### Function input params
+Please refer to the original function for specific parameter types.
+partnerID: The object id about partner.
+### Example
+```ts
+const partnerID = '0x...'
+const refFee = await sdk.Pool.getPartnerRefFeeAmount(partnerID)
+console.log('ref fee:', refFee)
+```

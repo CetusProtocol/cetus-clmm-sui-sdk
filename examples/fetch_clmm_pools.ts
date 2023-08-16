@@ -1,14 +1,14 @@
 import { TestnetSDK } from './init_testnet_sdk'
 
-async function fetchAllPools() {
+async function retrievelAllPools() {
   // If you want to get all pools, just pass one empty array.
   const pools = await TestnetSDK.Pool.getPoolsWithPage([])
   console.log(`pool length: ${pools.length}`)
 }
-// fetchAllPools()
+// retrievelAllPools()
 //pool length: 82
 
-async function fetchBetchPools() {
+async function batchRetrievalPools() {
   const betch_pool_addresses = [
     '0xbed3136f15b0ea649fb94bcdf9d3728fb82ba1c3e189bf6062d78ff547850054',
     '0x74dcb8625ddd023e2ef7faf1ae299e3bc4cb4c337d991a5326751034676acdae',
@@ -18,7 +18,7 @@ async function fetchBetchPools() {
   const betch_pools = await TestnetSDK.Pool.getPoolsWithPage(betch_pool_addresses)
   console.log({ betch_pools })
 }
-//fetchBetchPools()
+//batchRetrievalPools()
 /*
 {
   betch_pools: [

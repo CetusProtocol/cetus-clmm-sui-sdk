@@ -235,6 +235,12 @@ export class TickMath {
     return tickIndex - (tickIndex % tickSpacing)
   }
 
+  /**
+   *
+   * @param tickIndex
+   * @param tickSpacing
+   * @returns
+   */
   static getNextInitializableTickIndex(tickIndex: number, tickSpacing: number) {
     return TickMath.getInitializableTickIndex(tickIndex, tickSpacing) + tickSpacing
   }

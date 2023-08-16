@@ -20,7 +20,7 @@ const SDKConfig = {
 }
 
 export const clmmTestnet: SdkOptions = {
-  fullRpcUrl: 'https://fullnode.testnet.sui.io',
+  fullRpcUrl: 'https://testnet.artifact.systems/sui',
   simulationAccount: {
     address: '0xcd0247d0b67e53dde69b285e7a748e3dc390e8a5244eb9dd9c5c53d95e4cf0aa',
   },
@@ -36,12 +36,12 @@ export const clmmTestnet: SdkOptions = {
 
   clmm_pool: {
     package_id: '0x0868b71c0cba55bf0faf6c40df8c179c67a4d0ba0e79965b68b3d72d7dfbf666',
-    published_at: '0x0b3894660b18ecf88d97576d317067376fd544e9a0833e8cf21689e5fd5cbc36',
+    published_at: '0x1c29d658882c40eeb39a8bb8fe58f71a216a918acb3e3eb3b47d24efd07257f2',
     config: SDKConfig.clmmConfig,
   },
   integrate: {
-    package_id: '0xff5b5aea359bb153f84f0e091c43b270591f56ad3656c563eba0a88c948a3a58',
-    published_at: '0xc45106b28762f8037892a4ed06fb87532dd79a1c5c76a8432e99eae0e7f598f3',
+    package_id: '0x8627c5cdcd8b63bc3daa09a6ab7ed81a829a90cafce6003ae13372d611fbb1a9',
+    published_at: '0x220f80b3f3e39da9d67db7d0400cd2981a28c37bb2e383ed9eecabdca2a54417',
   },
   deepbook: {
     package_id: '0x000000000000000000000000000000000000000000000000000000000000dee9',

@@ -1,11 +1,10 @@
 import BN from 'bn.js'
-import { buildSdk, buildTestAccount, TokensMapping, position_object_id } from './data/init_test_data'
+import { buildSdk, buildTestAccount, pool_object_id, position_object_id } from './data/init_test_data'
 import { TickMath } from '../src/math/tick'
 import { d } from '../src/utils/numbers'
 import { ClmmPoolUtil } from '../src/math/clmm'
 import 'isomorphic-fetch'
 import { printTransaction } from '../src/utils/transaction-util'
-import { poolList } from './data/pool_data'
 import { CreatePoolParams } from '../src'
 
 describe('Pool Module', () => {
@@ -27,69 +26,28 @@ describe('Pool Module', () => {
   })
 
   test('getSiginlePool', async () => {
-    const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectIds[0])
+    const pool = await sdk.Pool.getPool('0x25ccb77dc4de57879e12ac7f8458860a0456a0a46a84b9f4a8903b5498b96665')
     console.log('pool', pool)
-  })
-
-  test('get ower position list', async () => {
-    const res = await sdk.Position.getPositionList(buildTestAccount().getPublicKey().toSuiAddress(),[TokensMapping.USDT_USDC_LP.poolObjectIds[0]])
-    console.log('getPositionList####', res)
-  })
-
-  test('get pool position list', async () => {
-    const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectIds[0])
-    const res = await sdk.Pool.getPositionList(pool.position_manager.positions_handle)
-    console.log('getPositionList####', res)
-  })
-
-  test('getPositionById', async () => {
-    const res = await sdk.Position.getPositionById('0xac12f1a37cdbe6b7cd24d107d735152d9f82c33079f55e117c13d971b5248ff5')
-    console.log('getPositionById###', res)
-  })
-
-  test('getSipmlePosition', async () => {
-    const res = await sdk.Position.getSipmlePosition(position_object_id)
-    console.log('getSipmlePosition####', res)
-  })
-
-  test('getPositionInfo', async () => {
-    const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectIds[0])
-    const res = await sdk.Position.getPosition(pool.position_manager.positions_handle, position_object_id)
-    console.log('getPositionInfo####', res)
-  })
-
-  test('fetchPositionRewardList', async () => {
-    const pool = await sdk.Pool.getPool(TokensMapping.USDT_USDC_LP.poolObjectIds[0])
-    const res = await sdk.Pool.fetchPositionRewardList({
-      pool_id: pool.poolAddress,
-      coinTypeA: pool.coinTypeA,
-      coinTypeB: pool.coinTypeB,
-    })
-
-    console.log('getPosition####', res)
   })
 
   test('doCreatPools', async () => {
     sdk.senderAddress = buildTestAccount().getPublicKey().toSuiAddress()
-    const pools = poolList
-    const paramss: CreatePoolParams[] = []
-    for (const pool of pools) {
-      if (!pool.hasCreat) {
-        paramss.push({
-          tick_spacing: pool.tick_spacing,
-          initialize_sqrt_price: TickMath.priceToSqrtPriceX64(
-            d(pool.initialize_price),
-            pool.coin_a_decimals,
-            pool.coin_b_decimals
-          ).toString(),
-          uri: pool.uri,
-          coinTypeA: pool.coin_type_a,
-          coinTypeB: pool.coin_type_b,
-        })
-      }
-    }
+    const tick_spacing = 2
+    const initialize_price = 1
+    const coin_a_decimals = 6
+    const coin_b_decimals = 6
+    const coin_type_a = `${sdk.sdkOptions.faucet?.package_id}::usdt::USDT`
+    const coin_type_b = `{sdk.sdkOptions.faucet?.package_id}::usdc::USDC`
 
-    const creatPoolTransactionPayload = await sdk.Pool.creatPoolsTransactionPayload(paramss)
+    const creatPoolTransactionPayload = await sdk.Pool.creatPoolsTransactionPayload([
+      {
+        tick_spacing: tick_spacing,
+        initialize_sqrt_price: TickMath.priceToSqrtPriceX64(d(initialize_price), coin_a_decimals, coin_b_decimals).toString(),
+        uri: '',
+        coinTypeA: coin_type_a,
+        coinTypeB: coin_type_b,
+      },
+    ])
 
     printTransaction(creatPoolTransactionPayload)
     const transferTxn = await sdk.fullClient.sendTransaction(buildTestAccount(), creatPoolTransactionPayload)
@@ -104,6 +62,8 @@ describe('Pool Module', () => {
 
     const lowerTick = TickMath.getPrevInitializableTickIndex(new BN(current_tick_index).toNumber(), new BN(tick_spacing).toNumber())
     const upperTick = TickMath.getNextInitializableTickIndex(new BN(current_tick_index).toNumber(), new BN(tick_spacing).toNumber())
+    const coin_type_a = `${sdk.sdkOptions.faucet?.package_id}::usdt::USDT`
+    const coin_type_b = `{sdk.sdkOptions.faucet?.package_id}::usdc::USDC`
 
     const fix_coin_amount = new BN(200)
     const fix_amount_a = true
@@ -128,8 +88,8 @@ describe('Pool Module', () => {
       tick_spacing: tick_spacing,
       initialize_sqrt_price: initialize_sqrt_price,
       uri: '',
-      coinTypeA: '0x219d80b1be5d586ff3bdbfeaf4d051ec721442c3a6498a3222773c6945a73d9f::usdt::USDT',
-      coinTypeB: TokensMapping.SUI.address,
+      coinTypeA: coin_type_a,
+      coinTypeB: coin_type_b,
       amount_a: amount_a,
       amount_b: amount_b,
       slippage,
@@ -140,5 +100,10 @@ describe('Pool Module', () => {
 
     const transferTxn = await sdk.fullClient.sendTransaction(buildTestAccount(), creatPoolTransactionPayload)
     console.log('doCreatPool: ', transferTxn)
+  })
+
+  test('get partner ref fee', async () => {
+    const refFee = await sdk.Pool.getPartnerRefFeeAmount('0x5c41a004f0a781e9d050eec46f64c7f713deb385405b619148a845c5df63805d')
+    console.log('ref fee:', refFee)
   })
 })

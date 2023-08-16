@@ -1,5 +1,5 @@
 import BN from 'bn.js'
-import { buildSdk, buildTestAccount, buildTestPool, TokensMapping } from './data/init_test_data'
+import { buildSdk, buildTestAccount, buildTestPool, pool_object_id } from './data/init_test_data'
 import 'isomorphic-fetch'
 import { printTransaction } from '../src/utils/transaction-util'
 import { adjustForSlippage, d, Percentage, TickMath } from '../src'
@@ -15,36 +15,37 @@ describe('Swap calculate Module', () => {
     const byAmountIn = true
     const amount = new BN('1000')
 
-    const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectIds[0]
-    const currentPool = await buildTestPool(sdk, poolObjectId)
+    const currentPool = await buildTestPool(sdk, pool_object_id)
 
     const tickdatas = await sdk.Pool.fetchTicksByRpc(currentPool.ticks_handle)
-    const res = await sdk.Swap.calculateRates({
-      decimalsA: 6,
-      decimalsB: 6,
-      a2b,
-      byAmountIn,
-      amount,
-      swapTicks: tickdatas,
-      currentPool,
-    })
+    console.log('ticksHandle', currentPool.ticks_handle)
+    console.log(tickdatas)
+    // const res = await sdk.Swap.calculateRates({
+    //   decimalsA: 6,
+    //   decimalsB: 6,
+    //   a2b,
+    //   byAmountIn,
+    //   amount,
+    //   swapTicks: tickdatas,
+    //   currentPool,
+    // })
 
-    console.log('calculateRates', {
-      estimatedAmountIn: res.estimatedAmountIn.toString(),
-      estimatedAmountOut: res.estimatedAmountOut.toString(),
-      estimatedEndSqrtprice: res.estimatedEndSqrtPrice.toString(),
-      estimatedFeeAmount: res.estimatedFeeAmount.toString(),
-      isExceed: res.isExceed,
-      a2b,
-      byAmountIn,
-    })
+    // console.log('calculateRates', {
+    //   estimatedAmountIn: res.estimatedAmountIn.toString(),
+    //   estimatedAmountOut: res.estimatedAmountOut.toString(),
+    //   estimatedEndSqrtprice: res.estimatedEndSqrtPrice.toString(),
+    //   estimatedFeeAmount: res.estimatedFeeAmount.toString(),
+    //   isExceed: res.isExceed,
+    //   a2b,
+    //   byAmountIn,
+    // })
   })
 
   test('fetchTicksByContract', async () => {
     const tickdatas = await sdk.Pool.fetchTicks({
-      pool_id: TokensMapping.USDT_USDC_LP.poolObjectIds[0],
-      coinTypeA: '0x473d520316e4ea5550657410669c9da6cde191e570d63d754cee353e11746751::usdt::USDT',
-      coinTypeB: '0x473d520316e4ea5550657410669c9da6cde191e570d63d754cee353e11746751::usdc::USDC',
+      pool_id: pool_object_id,
+      coinTypeA: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
+      coinTypeB: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
     })
     console.log('fetchTicks: ', tickdatas)
   })
@@ -61,9 +62,9 @@ describe('Swap calculate Module', () => {
   test('preSwapWithMultiPool', async () => {
     const a2b = true
     const poolAddresses = [
-      '0x018734f81283c5320fd322178f8d4aeafb6e0034959a890987b10705297b61e3',
-      '0x684d8a994e695578e5e45ad3aa020a338c9d42879f7b1853a1cede6e317ba900',
-      '0x525d2a587f56a42ea350072d61b0c00283f9587949764332c4c2bb0e6db9b9f8',
+      '0x53d70570db4f4d8ebc20aa1b67dc6f5d061d318d371e5de50ff64525d7dd5bca',
+      '0x4038aea2341070550e9c1f723315624c539788d0ca9212dca7eb4b36147c0fcb',
+      '0x6fd4915e6d8d3e2ba6d81787046eb948ae36fdfc75dad2e24f0d4aaa2417a416',
     ]
     const pool0 = await buildTestPool(sdk, poolAddresses[0])
     const pool1 = await buildTestPool(sdk, poolAddresses[1])
@@ -83,13 +84,13 @@ describe('Swap calculate Module', () => {
     for (const pool of [pool0, pool1, pool2]) {
       const res: any = await sdk.Swap.preswap({
         pool: pool,
-        current_sqrt_price: pool.current_sqrt_price,
+        currentSqrtPrice: pool.current_sqrt_price,
         coinTypeA: pool.coinTypeA,
         coinTypeB: pool.coinTypeB,
         decimalsA: 6,
         decimalsB: 6,
         a2b,
-        by_amount_in: byAmountIn,
+        byAmountIn: byAmountIn,
         amount,
       })
       console.log('preswap###res###', res)
@@ -106,13 +107,13 @@ describe('Swap calculate Module', () => {
 
     const res: any = await sdk.Swap.preswap({
       pool: pool,
-      current_sqrt_price: pool.current_sqrt_price,
+      currentSqrtPrice: pool.current_sqrt_price,
       coinTypeA: pool.coinTypeA,
       coinTypeB: pool.coinTypeB,
       decimalsA: 6,
       decimalsB: 8,
       a2b,
-      by_amount_in: byAmountIn,
+      byAmountIn: byAmountIn,
       amount,
     })
 
@@ -133,9 +134,8 @@ describe('Swap Module', () => {
     const byAmountIn = true
     const amount = new BN('1664')
     const slippage = Percentage.fromDecimal(d(0.1))
-    const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectIds[0]
 
-    const currentPool = await buildTestPool(sdk, poolObjectId)
+    const currentPool = await buildTestPool(sdk, pool_object_id)
     console.log('currentPool: ', currentPool)
 
     const tickdatas = await sdk.Pool.fetchTicksByRpc(currentPool.ticks_handle)

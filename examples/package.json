@@ -10,8 +10,8 @@
   "author": "cetus",
   "license": "ISC",
   "dependencies": {
-    "@cetusprotocol/cetus-sui-clmm-sdk": "^3.6.0",
-    "@mysten/sui.js": "^0.37.1"
+    "@cetusprotocol/cetus-sui-clmm-sdk": "^3.7.0",
+    "@mysten/sui.js": "^0.39.0"
   },
   "devDependencies": {
     "typescript": "4.3"

@@ -12,9 +12,10 @@ import {
   Position,
   PositionReward,
   getPackagerConfigs,
+  CoinAsset,
 } from '../types'
 import { TransactionUtil } from '../utils/transaction-util'
-import { tickScore } from '../math'
+import { CoinAssist, tickScore } from '../math'
 import { asUintN, buildPool, buildPositionReward, buildTickData, buildTickDataByEvent } from '../utils/common'
 import { extractStructTagFromType, isSortedSymbols } from '../utils/contracts'
 import { TickData } from '../types/clmmpool'
@@ -54,30 +55,29 @@ export class PoolModule implements IModule {
 
   /**
    * Gets a list of positions for the given positionHandle.
-   *
-   * @returns A promise that resolves to an array of Position objects.
+   * @param {string} positionHandle The handle for the position.
+   * @returns {Promise<Position[]>} A promise that resolves to an array of Position objects.
    */
   async getPositionList(positionHandle: string): Promise<Position[]> {
     const objects = await this._sdk.fullClient.getDynamicFieldsByPage(positionHandle)
-    const position_object_ids = objects.data.map((item: any) => {
+    const positionObjectIDs = objects.data.map((item: any) => {
       return item.name.value
     })
 
-    const allPosition: Position[] = await this._sdk.Position.getSipmlePositionList(position_object_ids)
+    const allPosition: Position[] = await this._sdk.Position.getSipmlePositionList(positionObjectIDs)
 
     return allPosition
   }
 
   /**
    * Gets a list of pool immutables.
-   *
-   * @param assignPools An array of pool IDs to get.
-   * @param offset The offset to start at.
-   * @param limit The number of pools to get.
-   * @param forceRefresh Whether to force a refresh of the cache.
-   * @returns array of PoolImmutable objects.
+   * @param {string[]} assignPoolIDs An array of pool IDs to get.
+   * @param {number} offset The offset to start at.
+   * @param {number} limit The number of pools to get.
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
+   * @returns {Promise<PoolImmutables[]>} array of PoolImmutable objects.
    */
-  async getPoolImmutables(assignPools: string[] = [], offset = 0, limit = 100, forceRefresh = false): Promise<PoolImmutables[]> {
+  async getPoolImmutables(assignPoolIDs: string[] = [], offset = 0, limit = 100, forceRefresh = false): Promise<PoolImmutables[]> {
     const { package_id } = this._sdk.sdkOptions.clmm_pool
     const cacheKey = `${package_id}_getInitPoolEvent`
     const cacheData = this.getCache<PoolImmutables[]>(cacheKey, forceRefresh)
@@ -110,10 +110,10 @@ export class PoolModule implements IModule {
       }
     }
 
-    const hasAssignPools = assignPools.length > 0
+    const hasAssignPools = assignPoolIDs.length > 0
     for (let index = 0; index < allPools.length; index += 1) {
       const item = allPools[index]
-      if (hasAssignPools && !assignPools.includes(item.poolAddress)) continue
+      if (hasAssignPools && !assignPoolIDs.includes(item.poolAddress)) continue
       if (!hasAssignPools && (index < offset || index >= offset + limit)) continue
       filterPools.push(item)
     }
@@ -122,11 +122,10 @@ export class PoolModule implements IModule {
 
   /**
    * Gets a list of pools.
-   *
-   * @param assignPools An array of pool IDs to get.
-   * @param offset The offset to start at.
-   * @param limit The number of pools to get.
-   * @returns array of Pool objects.
+   * @param {string[]} assignPools An array of pool IDs to get.
+   * @param {number} offset The offset to start at.
+   * @param {number} limit The number of pools to get.
+   * @returns {Promise<Pool[]>} array of Pool objects.
    */
   async getPools(assignPools: string[] = [], offset = 0, limit = 100): Promise<Pool[]> {
     const allPool: Pool[] = []
@@ -155,9 +154,8 @@ export class PoolModule implements IModule {
 
   /**
    * Gets a list of pool immutables.
-   *
-   * @param paginationArgs The cursor and limit to start at.
-   * @returns array of PoolImmutable objects.
+   * @param {PaginationArgs} paginationArgs The cursor and limit to start at.
+   * @returns {Promise<DataPage<PoolImmutables>>} Array of PoolImmutable objects.
    */
   async getPoolImmutablesWithPage(paginationArgs: PaginationArgs = 'all', forceRefresh = false): Promise<DataPage<PoolImmutables>> {
     const { package_id } = this._sdk.sdkOptions.clmm_pool
@@ -206,9 +204,8 @@ export class PoolModule implements IModule {
 
   /**
    * Gets a list of pools.
-   *
-   * @param assignPools An array of pool IDs to get.
-   * @returns array of Pool objects.
+   * @param {string[]} assignPools An array of pool IDs to get.
+   * @returns {Promise<Pool[]>} An array of Pool objects.
    */
   async getPoolsWithPage(assignPools: string[] = []): Promise<Pool[]> {
     const allPool: Pool[] = []
@@ -237,19 +234,18 @@ export class PoolModule implements IModule {
 
   /**
    * Gets a pool by its object ID.
-   *
-   * @param poolObjectId The object ID of the pool to get.
-   * @param forceRefresh Whether to force a refresh of the cache.
-   * @returns A promise that resolves to a Pool object.
+   * @param {string} poolID The object ID of the pool to get.
+   * @param {true} forceRefresh Whether to force a refresh of the cache.
+   * @returns {Promise<Pool>} A promise that resolves to a Pool object.
    */
-  async getPool(poolObjectId: string, forceRefresh = true): Promise<Pool> {
-    const cacheKey = `${poolObjectId}_getPoolObject`
+  async getPool(poolID: string, forceRefresh = true): Promise<Pool> {
+    const cacheKey = `${poolID}_getPoolObject`
     const cacheData = this.getCache<Pool>(cacheKey, forceRefresh)
     if (cacheData !== undefined) {
       return cacheData
     }
     const objects = (await this._sdk.fullClient.getObject({
-      id: poolObjectId,
+      id: poolID,
       options: {
         showType: true,
         showContent: true,
@@ -262,7 +258,6 @@ export class PoolModule implements IModule {
 
   /**
    * Creates a transaction payload for creating multiple pools.
-   *
    * @param {CreatePoolParams[]} paramss The parameters for the pools.
    * @returns {Promise<TransactionBlock>} A promise that resolves to the transaction payload.
    */
@@ -280,8 +275,8 @@ export class PoolModule implements IModule {
 
   /**
    * Create a pool of clmmpool protocol. The pool is identified by (CoinTypeA, CoinTypeB, tick_spacing).
-   * @param params
-   * @returns
+   * @param {CreatePoolParams | CreatePoolAddLiquidityParams} params
+   * @returns {Promise<TransactionBlock>}
    */
   async creatPoolTransactionPayload(params: CreatePoolParams | CreatePoolAddLiquidityParams): Promise<TransactionBlock> {
     if (isSortedSymbols(normalizeSuiAddress(params.coinTypeA), normalizeSuiAddress(params.coinTypeB))) {
@@ -298,8 +293,7 @@ export class PoolModule implements IModule {
 
   /**
    * Gets the ClmmConfig object for the given package object ID.
-   *
-   * @param forceRefresh Whether to force a refresh of the cache.
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
    * @returns the ClmmConfig object.
    */
   async getClmmConfigs(forceRefresh = false): Promise<ClmmConfig> {
@@ -508,7 +502,6 @@ export class PoolModule implements IModule {
 
   /**
    * Fetches ticks from the exchange.
-   *
    * @param {FetchParams} params The parameters for the fetch.
    * @returns {Promise<TickData[]>} A promise that resolves to an array of tick data.
    */
@@ -534,6 +527,11 @@ export class PoolModule implements IModule {
     return ticks
   }
 
+  /**
+   * Fetches ticks from the exchange using the simulation exec tx.
+   * @param {GetTickParams} params The parameters for the fetch.
+   * @returns {Promise<TickData[]>} A promise that resolves to an array of tick data.
+   */
   private async getTicks(params: GetTickParams): Promise<TickData[]> {
     const { integrate, simulationAccount } = this.sdk.sdkOptions
     const ticks: TickData[] = []
@@ -564,7 +562,6 @@ export class PoolModule implements IModule {
 
   /**
    * Fetches a list of position rewards from the exchange.
-   *
    * @param {FetchParams} params The parameters for the fetch.
    * @returns {Promise<PositionReward[]>} A promise that resolves to an array of position rewards.
    */
@@ -614,8 +611,7 @@ export class PoolModule implements IModule {
   }
 
   /**
-   * Fetches ticks from the exchange using the RPC API.
-   *
+   * Fetches ticks from the fullnode using the RPC API.
    * @param {string} tickHandle The handle for the tick.
    * @returns {Promise<TickData[]>} A promise that resolves to an array of tick data.
    */
@@ -686,6 +682,45 @@ export class PoolModule implements IModule {
     })
 
     return buildTickData(res)
+  }
+
+  async getPartnerRefFeeAmount(partner: string): Promise<CoinAsset[]> {
+    const objectDataResponses = await this._sdk.fullClient.batchGetObjects([partner], {
+      showOwner: true,
+      showContent: true,
+      showDisplay: true,
+      showType: true,
+    })
+
+    let balance: any
+    objectDataResponses.forEach((info) => {
+      balance = info.data.content.fields.balances
+    })
+
+    const objects = await this._sdk.fullClient.getDynamicFieldsByPage(balance.fields.id.id)
+
+    const coins: string[] = []
+    objects.data.forEach((object) => {
+      coins.push(object.objectId)
+    })
+
+    const refFee: CoinAsset[] = []
+    const object = await this._sdk.fullClient.batchGetObjects(coins, {
+      showOwner: true,
+      showContent: true,
+      showDisplay: true,
+      showType: true,
+    })
+    object.forEach((info) => {
+      const coinAsset: CoinAsset = {
+        coinAddress: info.data.content.fields.name,
+        coinObjectId: info.data.objectId,
+        balance: BigInt(info.data.content.fields.value),
+      }
+      refFee.push(coinAsset)
+    })
+
+    return refFee
   }
 
   /**

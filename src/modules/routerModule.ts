@@ -8,27 +8,30 @@ import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { U64_MAX, ZERO } from '../math'
 
-// prepare router data
-// includes coin and path
+// coin node in coin map
 export interface CoinNode {
   address: string
   decimals: number
 }
 
+// pass coin node to coin map
 export interface CoinProvider {
   coins: CoinNode[]
 }
 
+// path link to coin map
 export interface PathLink {
   base: string
   quote: string
   addressMap: Map<number, string>
 }
 
+// pass path link to coin map
 export interface PathProvider {
   paths: PathLink[]
 }
 
+// simple path in router path
 export type OnePath = {
   amountIn: BN
   amountOut: BN
@@ -39,17 +42,20 @@ export type OnePath = {
   coinType: string[]
 }
 
+// label address map with direction
 export type AddressAndDirection = {
   addressMap: Map<number, string>
   direction: boolean
 }
 
+// use to build router swap transaction
 export type SwapWithRouterParams = {
   paths: OnePath[]
   partner: string
   priceSplitPoint: number
 }
 
+// use to do pre router swap param by sdk
 export type PreRouterSwapParams = {
   stepNums: number
   poolAB: string
@@ -63,6 +69,7 @@ export type PreRouterSwapParams = {
   coinTypeC: SuiAddressType | undefined
 }
 
+// return the best path in pre swap result
 export type PreSwapResult = {
   index: number
   amountIn: BN
@@ -74,6 +81,7 @@ export type PreSwapResult = {
   stepNum: number
 }
 
+// return the
 export type PriceResult = {
   amountIn: BN
   amountOut: BN
@@ -90,6 +98,12 @@ export type PriceResult = {
   createTxParams: SwapWithRouterParams | undefined
 }
 
+/**
+ * build pair symbol
+ * @param base base coin
+ * @param quote quote coin
+ * @returns pair symbol
+ */
 function _pairSymbol(
   base: string,
   quote: string
@@ -139,6 +153,12 @@ export class RouterModule implements IModule {
     return this._sdk
   }
 
+  /**
+   * Get pool address map with direction
+   * @param {string} base base coin
+   * @param {string} quote quote coin
+   * @returns {AddressAndDirection} address with direction
+   */
   getPoolAddressMapAndDirection(base: string, quote: string): AddressAndDirection | undefined {
     const { pair, reversePair } = _pairSymbol(base, quote)
     let addressMap: any = this.poolAddressMap.get(pair)
@@ -160,12 +180,20 @@ export class RouterModule implements IModule {
     return undefined
   }
 
+  /**
+   * set coin list in coin address map
+   */
   private setCoinList() {
     this.coinProviders.coins.forEach((coin) => {
       this._coinAddressMap.set(coin.address, coin)
     })
   }
 
+  /**
+   * Find best router must load graph first
+   * @param {CoinProvider} coins all coins
+   * @param {PathProvider} paths all paths
+   */
   loadGraph(coins: CoinProvider, paths: PathProvider) {
     this.addCoinProvider(coins)
     this.addPathProvider(paths)
@@ -190,6 +218,11 @@ export class RouterModule implements IModule {
     })
   }
 
+  /**
+   * Add path provider to router graph
+   * @param {PathProvider} provider path provider
+   * @returns {RouterModule} module of router
+   */
   private addPathProvider(provider: PathProvider): RouterModule {
     // fix all order about base and quote in paths
     for (let i = 0; i < provider.paths.length; i += 1) {
@@ -215,15 +248,32 @@ export class RouterModule implements IModule {
     return this
   }
 
+  /**
+   * Add coin provider to router graph
+   * @param {CoinProvider} provider  coin provider
+   * @returns {RouterModule} module of router
+   */
   private addCoinProvider(provider: CoinProvider): RouterModule {
     this.coinProviders = provider
     return this
   }
 
+  /**
+   * Get token info from coin address map
+   * @param {string} key coin type
+   * @returns {CoinNode | undefined}
+   */
   tokenInfo(key: string): CoinNode | undefined {
     return this._coinAddressMap.get(key)
   }
 
+  /**
+   * Get fee rate info from pool address map
+   * @param from from coin type
+   * @param to to coin type
+   * @param address pool address
+   * @returns fee rate of pool
+   */
   getFeeRate(from: string, to: string, address: string): number {
     const poolSymbol = _pairSymbol(from, to).pair
     const addressMap = this.poolAddressMap.get(poolSymbol)
@@ -249,12 +299,24 @@ export class RouterModule implements IModule {
     return 0
   }
 
+  // get the best price from router graph
+  /**
+   *
+   * @param {string} from from coin type
+   * @param {string} to to coin type
+   * @param {BN} amount coin amount
+   * @param {boolean} byAmountIn weather fixed inoput amount
+   * @param {number} priceSlippagePoint price splippage point
+   * @param {string} partner partner object id
+   * @param {PreSwapWithMultiPoolParams} swapWithMultiPoolParams use to downgrade
+   * @returns {Promise<PriceResult | undefined>} best swap router
+   */
   async price(
     from: string,
     to: string,
     amount: BN,
     byAmountIn: boolean,
-    priceSplitPoint: number,
+    priceSlippagePoint: number,
     partner: string,
     swapWithMultiPoolParams?: PreSwapWithMultiPoolParams
   ): Promise<PriceResult | undefined> {
@@ -275,7 +337,7 @@ export class RouterModule implements IModule {
       throw new Error('No find valid path in coin graph')
     }
 
-    const preRouterSwapParams: PreRouterSwapParams[] = []
+    let preRouterSwapParams: PreRouterSwapParams[] = []
 
     for (let i = 0; i < allPaths.length; i += 1) {
       const path = allPaths[i]
@@ -346,6 +408,11 @@ export class RouterModule implements IModule {
       }
     }
 
+    // add one limit, must calculated two steps path.
+    const stepNumsOne = preRouterSwapParams.filter((item) => item.stepNums === 1)
+    const notStepNumsOne = preRouterSwapParams.filter((item) => item.stepNums !== 1)
+    preRouterSwapParams = [...stepNumsOne, ...notStepNumsOne]
+
     if (preRouterSwapParams.length === 0) {
       if (swapWithMultiPoolParams != null) {
         const preSwapResult = await this.sdk.Swap.preSwapWithMultiPool(swapWithMultiPoolParams)
@@ -363,7 +430,7 @@ export class RouterModule implements IModule {
         const swapWithRouterParams = {
           paths: [onePath],
           partner,
-          priceSplitPoint,
+          priceSplitPoint: priceSlippagePoint,
         }
 
         const result: PriceResult = {
@@ -404,7 +471,7 @@ export class RouterModule implements IModule {
         const swapWithRouterParams = {
           paths: [onePath],
           partner,
-          priceSplitPoint,
+          priceSplitPoint: priceSlippagePoint,
         }
 
         const result: PriceResult = {
@@ -480,7 +547,7 @@ export class RouterModule implements IModule {
     const swapWithRouterParams = {
       paths: [onePath],
       partner,
-      priceSplitPoint,
+      priceSplitPoint: priceSlippagePoint,
     }
 
     const result: PriceResult = {
@@ -547,8 +614,6 @@ export class RouterModule implements IModule {
         })
       }
     }
-
-    printTransaction(tx, true)
 
     const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
       transactionBlock: tx,

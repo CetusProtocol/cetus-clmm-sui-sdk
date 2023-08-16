@@ -1,6 +1,6 @@
 import { TickMath } from '../src/math/tick'
 import BN from 'bn.js'
-import { buildSdk, buildTestAccount, buildTestPool, buildTestPosition, position_object_id, TokensMapping } from './data/init_test_data'
+import { buildSdk, buildTestAccount, buildTestPool, buildTestPosition, pool_object_id, position_object_id } from './data/init_test_data'
 import { ClmmPoolUtil } from '../src/math/clmm'
 import { Percentage } from '../src/math/percentage'
 import { adjustForCoinSlippage } from '../src/math/position'
@@ -20,377 +20,46 @@ describe('Position add Liquidity Module', () => {
     sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()
   })
 
-  test('open_and_add_liquidity_fix_token', async () => {
-    const poolObjectId = '0xcf994611fd4c48e277ce3ffd4d4364c914af2c3cbb05f7bf6facd371de688630' //  TokensMapping.USDT_USDC_LP.poolObjectIds[0]
-    const pool = await buildTestPool(sdk, poolObjectId)
-    const lowerTick = TickMath.getPrevInitializableTickIndex(
-      new BN(pool.current_tick_index).toNumber(),
-      new BN(pool.tickSpacing).toNumber()
-    )
-    const upperTick = TickMath.getNextInitializableTickIndex(
-      new BN(pool.current_tick_index).toNumber(),
-      new BN(pool.tickSpacing).toNumber()
-    )
-    const coinAmount = new BN(100)
-    const fix_amount_a = true
-    const slippage = 0.01
-    const curSqrtPrice = new BN(pool.current_sqrt_price)
+  test('get ower position list', async () => {
+    const res = await sdk.Position.getPositionList(buildTestAccount().getPublicKey().toSuiAddress(), [pool_object_id])
+    console.log('getPositionList####', res)
+  })
 
-    const liquidityInput = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
-      lowerTick,
-      upperTick,
-      coinAmount,
-      fix_amount_a,
-      true,
-      slippage,
-      curSqrtPrice
-    )
+  test('get pool position list', async () => {
+    const pool = await sdk.Pool.getPool(pool_object_id)
+    const res = await sdk.Pool.getPositionList(pool.position_manager.positions_handle)
+    console.log('getPositionList####', res)
+  })
 
-    const amount_a = fix_amount_a ? coinAmount.toNumber() : liquidityInput.tokenMaxA.toNumber()
-    const amount_b = fix_amount_a ? liquidityInput.tokenMaxB.toNumber() : coinAmount.toNumber()
+  test('getPositionById', async () => {
+    const res = await sdk.Position.getPositionById('0xac12f1a37cdbe6b7cd24d107d735152d9f82c33079f55e117c13d971b5248ff5')
+    console.log('getPositionById###', res)
+  })
 
-    console.log('amount: ', { amount_a, amount_b })
+  test('getSipmlePosition', async () => {
+    const res = await sdk.Position.getSipmlePosition(position_object_id)
+    console.log('getSipmlePosition####', res)
+  })
 
-    const addLiquidityPayloadParams: AddLiquidityFixTokenParams = {
+  test('getPositionInfo', async () => {
+    const pool = await sdk.Pool.getPool(pool_object_id)
+    const res = await sdk.Position.getPosition(pool.position_manager.positions_handle, position_object_id)
+    console.log('getPositionInfo####', res)
+  })
+
+  test('fetchPositionRewardList', async () => {
+    const pool = await sdk.Pool.getPool(pool_object_id)
+    const res = await sdk.Pool.fetchPositionRewardList({
+      pool_id: pool.poolAddress,
       coinTypeA: pool.coinTypeA,
       coinTypeB: pool.coinTypeB,
-      pool_id: pool.poolAddress,
-      tick_lower: lowerTick.toString(),
-      tick_upper: upperTick.toString(),
-      fix_amount_a,
-      amount_a,
-      amount_b,
-      slippage,
-      is_open: true,
-      rewarder_coin_types: [],
-      collect_fee: false,
-      pos_id: '',
-    }
-    const createAddLiquidityTransactionPayload = await sdk.Position.createAddLiquidityFixTokenPayload(addLiquidityPayloadParams, {
-      slippage: slippage,
-      curSqrtPrice: curSqrtPrice,
     })
 
-    printTransaction(createAddLiquidityTransactionPayload)
-    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, createAddLiquidityTransactionPayload)
-    console.log('open_and_add_liquidity_fix_token: ', transferTxn)
+    console.log('getPosition####', res)
   })
 
-  test('add_liquidity_fix_token', async () => {
-    const poolObjectId =  TokensMapping.USDT_USDC_LP.poolObjectIds[0]
-    const pool = await buildTestPool(sdk, poolObjectId)
-    const position = (await buildTestPosition(sdk, position_object_id)) as Position
-    const lowerTick = position.tick_lower_index
-    const upperTick = position.tick_upper_index
-    const coinAmount = new BN(1000000)
-    const fix_amount_a = true
-    const slippage = 0.1
-    const curSqrtPrice = new BN(pool.current_sqrt_price)
-
-    const liquidityInput = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
-      lowerTick,
-      upperTick,
-      coinAmount,
-      fix_amount_a,
-      true,
-      slippage,
-      curSqrtPrice
-    )
-
-    const amount_a = fix_amount_a ? coinAmount.toNumber() : liquidityInput.tokenMaxA.toNumber()
-    const amount_b = fix_amount_a ? liquidityInput.tokenMaxB.toNumber() : coinAmount.toNumber()
-
-    console.log('amount: ', { amount_a, amount_b })
-
-    const addLiquidityPayloadParams: AddLiquidityFixTokenParams = {
-      coinTypeA: pool.coinTypeA,
-      coinTypeB: pool.coinTypeB,
-      pool_id: pool.poolAddress,
-      tick_lower: lowerTick.toString(),
-      tick_upper: upperTick.toString(),
-      fix_amount_a,
-      amount_a,
-      amount_b,
-      slippage,
-      is_open: false,
-      pos_id: position.pos_object_id,
-      rewarder_coin_types: [],
-      collect_fee: true,
-    }
-    const createAddLiquidityTransactionPayload = await sdk.Position.createAddLiquidityFixTokenPayload(addLiquidityPayloadParams)
-
-    printTransaction(createAddLiquidityTransactionPayload)
-
-    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, createAddLiquidityTransactionPayload)
-    console.log('add_liquidity_fix_token: ', transferTxn)
-  })
-
-  test('getCoinAmountFromLiquidity', async () => {
-    const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectIds[0]
-    const pool = await buildTestPool(sdk, poolObjectId)
-    const position = (await buildTestPosition(sdk, position_object_id)) as Position
-    const curSqrtPrice = new BN(pool.current_sqrt_price)
-
-    const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_lower_index)
-    const upperSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_upper_index)
-    const coinAmounts = ClmmPoolUtil.getCoinAmountFromLiquidity(
-      new BN(Number(d(position.liquidity))),
-      curSqrtPrice,
-      lowerSqrtPrice,
-      upperSqrtPrice,
-      true
-    )
-
-    console.log('coinA: ', coinAmounts.coinA.toString())
-    console.log('coinB: ', coinAmounts.coinB.toString())
-
-
-})
-
-  test('add liquidity for input totalAmount', async () => {
-    const pool = await buildTestPool(sdk, TokensMapping.USDT_USDC_LP.poolObjectIds[0])
-    const curSqrtPrice = new BN(pool.current_sqrt_price)
-    // ===>tick_uppe
-    const tick_lower_index = -304
-    const tick_upper_index = 552
-    const slippageTolerance = new Percentage(new BN(5), new BN(100))
-
-    const totalAmount = '18.73'
-    const tokenPriceA = '1.000625867190606471'
-    const tokenPriceB = '1'
-
-    const coinAmounts = ClmmPoolUtil.estCoinAmountsFromTotalAmount(
-      tick_lower_index,
-      tick_upper_index,
-      curSqrtPrice,
-      totalAmount,
-      tokenPriceA,
-      tokenPriceB
-    )
-    console.log('coinAmounts: ', coinAmounts)
-
-    const amountA = toDecimalsAmount(coinAmounts.amountA.toFixed(6, Decimal.ROUND_UP).toString(), 6)
-    const amountB = toDecimalsAmount(coinAmounts.amountB.toFixed(6, Decimal.ROUND_UP).toString(), 6)
-
-    const tokenAmounts = {
-      coinA: new BN(amountA),
-      coinB: new BN(amountB),
-    }
-
-    const liquidity = ClmmPoolUtil.estimateLiquidityFromcoinAmounts(curSqrtPrice, tick_lower_index, tick_upper_index, tokenAmounts)
-
-    console.log('liquidity: ', liquidity.toString())
-
-    const { tokenMaxA, tokenMaxB } = adjustForCoinSlippage(tokenAmounts, slippageTolerance, true)
-
-    const addLiquidityPayloadParams: AddLiquidityParams = {
-      coinTypeA: pool.coinTypeA,
-      coinTypeB: pool.coinTypeB,
-      pool_id: pool.poolAddress,
-      tick_lower: tick_lower_index.toString(),
-      tick_upper: tick_upper_index.toString(),
-      delta_liquidity: liquidity.toString(),
-      max_amount_a: tokenMaxA.toString(),
-      max_amount_b: tokenMaxB.toString(),
-      pos_id: '',
-      rewarder_coin_types: [],
-      collect_fee: false,
-    }
-
-    const payload = await sdk.Position.createAddLiquidityPayload(addLiquidityPayloadParams)
-
-    printTransaction(payload)
-
-    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, payload)
-    console.log('createAddLiquidityPayload: ', transferTxn)
-  })
-
-  test('1 remove liquidity for input totalAmount', async () => {
-    const pool = await buildTestPool(sdk, TokensMapping.USDT_USDC_LP.poolObjectIds[0])
-    const position = await buildTestPosition(sdk, position_object_id)
-    const curSqrtPrice = new BN(pool.current_sqrt_price)
-    // ===>tick_uppe
-    const tick_lower_index = position.tick_lower_index
-    const tick_upper_index = position.tick_upper_index
-    const slippageTolerance = new Percentage(new BN(5), new BN(100))
-
-    const totalAmount = '18.73'
-    const tokenPriceA = '1.000625867190606471'
-    const tokenPriceB = '1'
-
-    const coinAmounts = ClmmPoolUtil.estCoinAmountsFromTotalAmount(
-      tick_lower_index,
-      tick_upper_index,
-      curSqrtPrice,
-      totalAmount,
-      tokenPriceA,
-      tokenPriceB
-    )
-    console.log('coinAmounts: ', coinAmounts)
-
-    const amountA = toDecimalsAmount(coinAmounts.amountA.toFixed(6, Decimal.ROUND_UP).toString(), 6)
-    const amountB = toDecimalsAmount(coinAmounts.amountB.toFixed(6, Decimal.ROUND_UP).toString(), 6)
-
-    const tokenAmounts = {
-      coinA: new BN(amountA),
-      coinB: new BN(amountB),
-    }
-
-    const liquidity = ClmmPoolUtil.estimateLiquidityFromcoinAmounts(curSqrtPrice, tick_lower_index, tick_upper_index, tokenAmounts)
-
-    console.log('liquidity: ', liquidity.toString())
-
-    const { tokenMaxA, tokenMaxB } = adjustForCoinSlippage(tokenAmounts, slippageTolerance, false)
-
-    const removeLiquidityParams: RemoveLiquidityParams = {
-      coinTypeA: pool.coinTypeA,
-      coinTypeB: pool.coinTypeB,
-      delta_liquidity: liquidity.toString(),
-      min_amount_a: tokenMaxA.toString(),
-      min_amount_b: tokenMaxB.toString(),
-      pool_id: pool.poolAddress,
-      pos_id: position.pos_object_id,
-      rewarder_coin_types: [],
-      collect_fee: true,
-    }
-
-    const payload = sdk.Position.removeLiquidityTransactionPayload(removeLiquidityParams)
-
-    printTransaction(payload)
-
-    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, payload)
-    console.log('removeLiquidity: ', transferTxn)
-  })
-
-
-  test('estCoinAmountsFromTotalAmount', async () => {
-    const curSqrtPrice = new BN("533835442526411312729")
-    // ===>tick_uppe
-    const tick_lower_index = 67300
-    const tick_upper_index = 67312
-
-    const decimalsA = 6
-    const decimalsB = 9
-
-    const totalAmount = '715'
-    const tokenPriceA = '0.999728'
-    const tokenPriceB = '396.3536950482113947695850345003989648528620680256157171584034162209'
-
-    const coinAmounts = ClmmPoolUtil.estCoinAmountsFromTotalAmount(
-      tick_lower_index,
-      tick_upper_index,
-      curSqrtPrice,
-      totalAmount,
-      tokenPriceA,
-      tokenPriceB
-    )
-    console.log('coinAmounts: ', coinAmounts)
-
-    const amountA = Decimal.floor(toDecimalsAmount(coinAmounts.amountA.toString(), decimalsA))
-    const amountB = Decimal.floor(toDecimalsAmount(coinAmounts.amountB.toString(), decimalsB))
-
-    console.log('tokenAmounts: ', {amountA,  amountB })
-
-    const liquidityInput = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
-      tick_lower_index,
-      tick_upper_index,
-      new BN(amountA.toString()),
-      true,
-      false,
-      0.01,
-      curSqrtPrice
-    )
-
-    console.log('liquidity: ', {tokenMaxA: liquidityInput.coinAmountA.toString(), tokenMaxB: liquidityInput.coinAmountB.toString() })
-
-
-  })
-  test('2 remove liquidity for input one token', async () => {
-    const pool = await buildTestPool(sdk, TokensMapping.USDT_USDC_LP.poolObjectIds[0])
-    const position = await buildTestPosition(sdk, position_object_id)
-    const lowerTick = position.tick_lower_index
-    const upperTick = position.tick_upper_index
-    const coinAmount = new BN(5995942)
-    const fix_amount_a = true
-    const slippage = 0.005
-    const curSqrtPrice = new BN(pool.current_sqrt_price)
-
-    const liquidityInput = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
-      lowerTick,
-      upperTick,
-      coinAmount,
-      fix_amount_a,
-      false,
-      slippage,
-      curSqrtPrice
-    )
-
-    const amount_a = fix_amount_a ? coinAmount.toNumber() : liquidityInput.tokenMaxA.toNumber()
-    const amount_b = fix_amount_a ? liquidityInput.tokenMaxB.toNumber() : coinAmount.toNumber()
-    const liquidity = liquidityInput.liquidityAmount.toString()
-
-    console.log('amount: ', { amount_a, amount_b, liquidity })
-
-    const removeLiquidityParams: RemoveLiquidityParams = {
-      coinTypeA: pool.coinTypeA,
-      coinTypeB: pool.coinTypeB,
-      delta_liquidity: liquidity,
-      min_amount_a: amount_a.toString(),
-      min_amount_b: amount_b.toString(),
-      pool_id: pool.poolAddress,
-      pos_id: position.pos_object_id,
-      rewarder_coin_types: [],
-      collect_fee: true,
-    }
-
-    const payload = sdk.Position.removeLiquidityTransactionPayload(removeLiquidityParams)
-
-    printTransaction(payload)
-
-    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, payload)
-    console.log('removeLiquidity: ', transferTxn)
-  })
-  test('3 removeLiquidity', async () => {
-    const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectIds[0]
-    const pool = await buildTestPool(sdk, poolObjectId)
-    const position = (await buildTestPosition(sdk, position_object_id)) as Position
-    console.log('position: ', position)
-
-    const lowerTick = Number(position.tick_lower_index)
-    const upperTick = Number(position.tick_upper_index)
-
-    const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(lowerTick)
-    const upperSqrtPrice = TickMath.tickIndexToSqrtPriceX64(upperTick)
-
-    const liquidity = new BN(position.liquidity)
-    const slippageTolerance = new Percentage(new BN(5), new BN(100))
-    const curSqrtPrice = new BN(pool.current_sqrt_price)
-
-    const coinAmounts = ClmmPoolUtil.getCoinAmountFromLiquidity(liquidity, curSqrtPrice, lowerSqrtPrice, upperSqrtPrice, false)
-    const { tokenMaxA, tokenMaxB } = adjustForCoinSlippage(coinAmounts, slippageTolerance, false)
-
-    const removeLiquidityParams: RemoveLiquidityParams = {
-      coinTypeA: pool.coinTypeA,
-      coinTypeB: pool.coinTypeB,
-      delta_liquidity: liquidity.toString(),
-      min_amount_a: tokenMaxA.toString(),
-      min_amount_b: tokenMaxB.toString(),
-      pool_id: pool.poolAddress,
-      pos_id: position.pos_object_id,
-      rewarder_coin_types: [],
-      collect_fee: true,
-    }
-
-    const removeLiquidityTransactionPayload = sdk.Position.removeLiquidityTransactionPayload(removeLiquidityParams)
-
-    printTransaction(removeLiquidityTransactionPayload)
-
-    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, removeLiquidityTransactionPayload)
-    console.log('removeLiquidity: ', transferTxn)
-  })
-
-  test('only open position', async () => {
-    const pool = await buildTestPool(sdk, TokensMapping.USDT_USDC_LP.poolObjectIds[0])
+  test('open position', async () => {
+    const pool = await buildTestPool(sdk, pool_object_id)
     const lowerTick = TickMath.getPrevInitializableTickIndex(
       new BN(pool.current_tick_index).toNumber(),
       new BN(pool.tickSpacing).toNumber()
@@ -409,11 +78,11 @@ describe('Position add Liquidity Module', () => {
     })
 
     const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, openPositionTransactionPayload)
-    console.log('only open position: ', transferTxn)
+    console.log('open position: ', transferTxn)
   })
 
   test('close position', async () => {
-    const poolObjectId = TokensMapping.USDT_USDC_LP.poolObjectIds[0]
+    const poolObjectId = pool_object_id
     const pool = await buildTestPool(sdk, poolObjectId)
     const position = (await buildTestPosition(sdk, position_object_id)) as Position
     console.log('position: ', position)
@@ -454,7 +123,7 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('collect_fee', async () => {
-    const pool = await buildTestPool(sdk, TokensMapping.USDT_USDC_LP.poolObjectIds[0])
+    const pool = await buildTestPool(sdk, pool_object_id)
     const collectFeeTransactionPayload = sdk.Position.collectFeeTransactionPayload({
       coinTypeA: pool.coinTypeA,
       coinTypeB: pool.coinTypeB,
@@ -466,14 +135,4 @@ describe('Position add Liquidity Module', () => {
     console.log('collect_fee: ', transferTxn)
   })
 
-  test('calculateFee', async () => {
-    const pool = await buildTestPool(sdk, TokensMapping.USDT_USDC_LP.poolObjectIds[0])
-    const res = await sdk.Position.calculateFee({
-      coinTypeA: pool.coinTypeA,
-      coinTypeB: pool.coinTypeB,
-      pool_id: pool.poolAddress,
-      pos_id: position_object_id,
-    })
-    console.log('res: ', res)
-  })
 })

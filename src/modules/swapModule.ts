@@ -211,7 +211,7 @@ export class SwapModule implements IModule {
     const tx = new TransactionBlock()
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
-    const args = [tx.pure(params.pool.poolAddress), tx.pure(params.a2b), tx.pure(params.by_amount_in), tx.pure(params.amount)]
+    const args = [tx.pure(params.pool.poolAddress), tx.pure(params.a2b), tx.pure(params.byAmountIn), tx.pure(params.amount)]
 
     tx.moveCall({
       target: `${integrate.published_at}::${ClmmFetcherModule}::calculate_swap_result`,
@@ -236,7 +236,7 @@ export class SwapModule implements IModule {
     const estimatedAmountIn = data.amount_in && data.fee_amount ? new BN(data.amount_in).add(new BN(data.fee_amount)).toString() : ''
     return {
       poolAddress: params.pool.poolAddress,
-      currentSqrtPrice: params.current_sqrt_price,
+      currentSqrtPrice: params.currentSqrtPrice,
       estimatedAmountIn,
       estimatedAmountOut: data.amount_out,
       estimatedEndSqrtPrice: data.after_sqrt_price,
@@ -244,7 +244,7 @@ export class SwapModule implements IModule {
       isExceed: data.is_exceed,
       amount: params.amount,
       aToB: params.a2b,
-      byAmountIn: params.by_amount_in,
+      byAmountIn: params.byAmountIn,
     }
   }
 

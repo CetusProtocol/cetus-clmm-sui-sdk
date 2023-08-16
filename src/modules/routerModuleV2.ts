@@ -41,11 +41,6 @@ export type AggregatorResult = {
   splitPaths: SplitPath[]
 }
 
-export type Order = {
-  quantity: number
-  price: number
-}
-
 export class RouterModuleV2 implements IModule {
   protected _sdk: CetusClmmSDK
 
@@ -57,6 +52,7 @@ export class RouterModuleV2 implements IModule {
     return this._sdk
   }
 
+  //
   private calculatePrice(currentSqrtPrice: BN, fromDecimals: number, toDecimals: number, a2b: boolean, label: string): Decimal {
     if (label === 'Cetus') {
       const decimalA = a2b ? fromDecimals : toDecimals
@@ -145,12 +141,15 @@ export class RouterModuleV2 implements IModule {
 
   /**
    * Optimal routing method with fallback functionality.
-   *
    * This method first attempts to find the optimal route using the routing backend. If the optimal route is available, it will return this route.
    * If the optimal route is not available (for example, due to network issues or API errors), this method will activate a fallback mechanism,
    * and try to find a suboptimal route using the routing algorithm built into the SDK, which only includes clmm pool. This way, even if the optimal route is not available, this method can still provide a usable route.
-   *
    * This method uses a fallback strategy to ensure that it can provide the best available route when facing problems, rather than failing completely.
+   *
+   * @param {string} from Sold `from` coin
+   * @param {string} from: get `to` coin
+   * @param {number} from: the amount of sold coin
+   * @param {boolena} byAmountIn:
    */
   async getBestRouter(
     from: string,
@@ -159,7 +158,10 @@ export class RouterModuleV2 implements IModule {
     byAmountIn: boolean,
     priceSplitPoint: number,
     partner: string,
-    senderAddress: string,
+    /**
+     * @deprecated don't need to pass, just use empty string.
+     */
+    _senderAddress?: string,
     swapWithMultiPoolParams?: PreSwapWithMultiPoolParams,
     orderSplit = false,
     externalRouter = false
@@ -172,7 +174,7 @@ export class RouterModuleV2 implements IModule {
       amount
     )}&by_amount_in=${encodeURIComponent(byAmountIn)}&order_split=${encodeURIComponent(orderSplit)}&external_router=${encodeURIComponent(
       externalRouter
-    )}&sender_address=${encodeURIComponent(senderAddress)}&request_id=${encodeURIComponent(uuidv4())}
+    )}&sender_address=''&request_id=${encodeURIComponent(uuidv4())}
     `
     result = await this.fetchAndParseData(apiUrl)
 
@@ -282,10 +284,6 @@ export class RouterModuleV2 implements IModule {
       version = 'v1'
       result = aggregatorResult
     }
-
-    result.splitPaths.sort((a, b) => {
-      return b.outputAmount - a.outputAmount
-    })
 
     return { result, version }
   }

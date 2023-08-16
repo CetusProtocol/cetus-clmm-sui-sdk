@@ -30,7 +30,17 @@ import SDK, {
 } from '../index'
 import { AggregatorResult, BasePath } from '../modules/routerModuleV2'
 
-export function findAdjustCoin(coinPair: CoinPairType): { isAdjustCoinA: boolean; isAdjustCoinB: boolean } {
+export type AdjustResult = {
+  isAdjustCoinA: boolean
+  isAdjustCoinB: boolean
+}
+
+/**
+ * Adjust coinpair is sui
+ * @param {CoinPairType} coinPair
+ * @returns
+ */
+export function findAdjustCoin(coinPair: CoinPairType): AdjustResult {
   const isAdjustCoinA = CoinAssist.isSuiCoin(coinPair.coinTypeA)
   const isAdjustCoinB = CoinAssist.isSuiCoin(coinPair.coinTypeB)
   return { isAdjustCoinA, isAdjustCoinB }
@@ -42,12 +52,18 @@ export type BuildCoinInputResult = {
 }
 
 type CoinInputInterval = {
-  amount_second: bigint
-  amount_first: bigint
+  amountSecond: bigint
+  amountFirst: bigint
 }
 
-function reverSelippageAmount(selippageAmount: number | string, slippage: number): string {
-  return Decimal.ceil(d(selippageAmount).div(1 + slippage)).toString()
+/**
+ *
+ * @param {number} slippageAmount
+ * @param slippage
+ * @returns
+ */
+function reverSlippageAmount(slippageAmount: number | string, slippage: number): string {
+  return Decimal.ceil(d(slippageAmount).div(1 + slippage)).toString()
 }
 
 export async function printTransaction(tx: TransactionBlock, isPrint = true) {
@@ -227,17 +243,17 @@ export class TransactionUtil {
 
   public static buildAddLiquidityFixTokenCoinInput(
     tx: TransactionBlock,
-    need_interval_amount: boolean,
+    needIntervalAmount: boolean,
     amount: number | string,
     slippage: number,
     coinType: string,
     allCoinAsset: CoinAsset[]
   ) {
-    return need_interval_amount
+    return needIntervalAmount
       ? TransactionUtil.buildCoinInputForAmountInterval(
           tx,
           allCoinAsset,
-          { amount_second: BigInt(reverSelippageAmount(amount, slippage)), amount_first: BigInt(amount) },
+          { amountSecond: BigInt(reverSlippageAmount(amount, slippage)), amountFirst: BigInt(amount) },
           coinType
         )?.transactionArgument
       : TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, BigInt(amount), coinType)?.transactionArgument
@@ -559,10 +575,10 @@ export class TransactionUtil {
       throw new Error(`The amount(${amountTotal}) is Insufficient balance for ${coinType} , expect ${amount} `)
     }
 
-    return TransactionUtil.builddCoinInput(tx, allCoins, coinAssets, amount, coinType, buildVector)
+    return TransactionUtil.buildCoinInput(tx, allCoins, coinAssets, amount, coinType, buildVector)
   }
 
-  private static builddCoinInput(
+  private static buildCoinInput(
     tx: TransactionBlock,
     allCoins: CoinAsset[],
     coinAssets: CoinAsset[],
@@ -614,22 +630,22 @@ export class TransactionUtil {
     coinType: string,
     buildVector = true
   ): BuildCoinInputResult | undefined {
-    if (amounts.amount_first === BigInt(0)) {
+    if (amounts.amountFirst === BigInt(0)) {
       return undefined
     }
 
     const coinAssets: CoinAsset[] = CoinAssist.getCoinAssets(coinType, allCoins)
     const amountTotal = CoinAssist.calculateTotalBalance(coinAssets)
 
-    if (amountTotal >= amounts.amount_first) {
-      return TransactionUtil.builddCoinInput(tx, [...allCoins], [...coinAssets], amounts.amount_first, coinType, buildVector)
+    if (amountTotal >= amounts.amountFirst) {
+      return TransactionUtil.buildCoinInput(tx, [...allCoins], [...coinAssets], amounts.amountFirst, coinType, buildVector)
     }
 
-    if (amountTotal >= amounts.amount_second) {
-      return TransactionUtil.builddCoinInput(tx, [...allCoins], [...coinAssets], amounts.amount_second, coinType, buildVector)
+    if (amountTotal >= amounts.amountSecond) {
+      return TransactionUtil.buildCoinInput(tx, [...allCoins], [...coinAssets], amounts.amountSecond, coinType, buildVector)
     }
-    if (amountTotal < amounts.amount_second) {
-      throw new Error(`The amount(${amountTotal}) is Insufficient balance for ${coinType} , expect ${amounts.amount_second} `)
+    if (amountTotal < amounts.amountSecond) {
+      throw new Error(`The amount(${amountTotal}) is Insufficient balance for ${coinType} , expect ${amounts.amountSecond} `)
     }
     return undefined
   }
@@ -707,7 +723,7 @@ export class TransactionUtil {
         priceSplitPoint,
       }
 
-      tx = await this.buildRouterBasePathTx(sdk, params, false, allCoinAsset, tx)
+      tx = await this.buildRouterBasePathTx(sdk, params, param.byAmountIn, allCoinAsset, tx)
     } else {
       const amountLimit = Math.round(param.outputAmount * (1 - priceSplitPoint))
 
@@ -1010,7 +1026,7 @@ export class TransactionUtil {
         toCoin = a2b ? coinABs[1] : coinABs[0]
       } else {
         const amount0 = byAmountIn ? path.amountIn : path.rawAmountLimit[0]
-        const amount1 = byAmountIn ? path.rawAmountLimit[0] : path.amountOut
+        const amount1 = byAmountIn ? 0 : path.amountOut
 
         let functionName = ''
         if (noPartner) {

@@ -23,10 +23,12 @@ import {
   getFutureTime,
 } from '../utils'
 import { findAdjustCoin, TransactionUtil } from '../utils/transaction-util'
-import { ClmmIntegratePoolModule, CLOCK_ADDRESS, SuiObjectIdType, SuiResource } from '../types/sui'
+import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS, SuiObjectIdType, SuiResource } from '../types/sui'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { getObjectFields } from '../utils/objects'
+import { CollectFeesQuote } from '../math'
+import { FetchPosFeeParams } from './rewarderModule'
 
 /**
  * Helper class to help interact with clmm position with a position router interface.
@@ -46,7 +48,6 @@ export class PositionModule implements IModule {
 
   /**
    * Builds the full address of the Position type.
-   *
    * @returns The full address of the Position type.
    */
   buildPositionType() {
@@ -56,7 +57,6 @@ export class PositionModule implements IModule {
 
   /**
    * Gets a list of positions for the given account address.
-   *
    * @param accountAddress The account address to get positions for.
    * @param assignPoolIds An array of pool IDs to filter the positions by.
    * @returns array of Position objects.
@@ -91,14 +91,15 @@ export class PositionModule implements IModule {
   }
 
   /**
-   * Gets a position by its handle and ID.
-   *
-   * @param positionHandle The handle of the position to get.
-   * @param positionId The ID of the position to get.
-   * @returns Position object.
+   * Gets a position by its handle and ID. But it needs pool info, so it is not recommended to use this method.
+   * if you want to get a position, you can use getPositionById method directly.
+   * @param {string} positionHandle The handle of the position to get.
+   * @param {string} positionID The ID of the position to get.
+   * @param {boolean} calculateRewarder Whether to calculate the rewarder of the position.
+   * @returns {Promise<Position>} Position object.
    */
-  async getPosition(positionHandle: string, positionId: string, calculateRewarder = true): Promise<Position> {
-    let position = await this.getSipmlePosition(positionId)
+  async getPosition(positionHandle: string, positionID: string, calculateRewarder = true): Promise<Position> {
+    let position = await this.getSipmlePosition(positionID)
     if (calculateRewarder) {
       position = await this.updatePositionRewarders(positionHandle, position)
     }
@@ -107,12 +108,12 @@ export class PositionModule implements IModule {
 
   /**
    * Gets a position by its ID.
-   *
-   * @param positionId The ID of the position to get.
-   * @returns Position object.
+   * @param {string} positionID The ID of the position to get.
+   * @param {boolean} calculateRewarder Whether to calculate the rewarder of the position.
+   * @returns {Promise<Position>} Position object.
    */
-  async getPositionById(positionId: string, calculateRewarder = true): Promise<Position> {
-    const position = await this.getSipmlePosition(positionId)
+  async getPositionById(positionID: string, calculateRewarder = true): Promise<Position> {
+    const position = await this.getSipmlePosition(positionID)
     if (calculateRewarder) {
       const pool = await this._sdk.Pool.getPool(position.pool, false)
       const result = await this.updatePositionRewarders(pool.position_manager.positions_handle, position)
@@ -123,18 +124,17 @@ export class PositionModule implements IModule {
 
   /**
    * Gets a simple position for the given position ID.
-   *
-   * @param positionId The ID of the position to get.
-   * @returns Position object.
+   * @param {string} positionID The ID of the position to get.
+   * @returns {Promise<Position>} Position object.
    */
-  async getSipmlePosition(positionId: string): Promise<Position> {
-    const cacheKey = `${positionId}_getPositionList`
+  async getSipmlePosition(positionID: string): Promise<Position> {
+    const cacheKey = `${positionID}_getPositionList`
 
-    let position = this.getSipmlePositionByCache(positionId)
+    let position = this.getSipmlePositionByCache(positionID)
 
     if (position === undefined) {
       const objectDataResponses = await this.sdk.fullClient.getObject({
-        id: positionId,
+        id: positionID,
         options: { showContent: true, showType: true, showDisplay: true, showOwner: true },
       })
       position = buildPosition(objectDataResponses)
@@ -144,22 +144,26 @@ export class PositionModule implements IModule {
     return position
   }
 
-  private getSipmlePositionByCache(positionId: string): Position | undefined {
-    const cacheKey = `${positionId}_getPositionList`
+  /**
+   * Gets a simple position for the given position ID.
+   * @param {string} positionID Position object id
+   * @returns {Position | undefined} Position object
+   */
+  private getSipmlePositionByCache(positionID: string): Position | undefined {
+    const cacheKey = `${positionID}_getPositionList`
     return this.getCache<Position>(cacheKey)
   }
 
   /**
    * Gets a list of simple positions for the given position IDs.
-   *
-   * @param positionIds The IDs of the positions to get.
-   * @returns A promise that resolves to an array of Position objects.
+   * @param {SuiObjectIdType[]} positionIDs The IDs of the positions to get.
+   * @returns {Promise<Position[]>} A promise that resolves to an array of Position objects.
    */
-  async getSipmlePositionList(positionIds: SuiObjectIdType[]): Promise<Position[]> {
+  async getSipmlePositionList(positionIDs: SuiObjectIdType[]): Promise<Position[]> {
     const positionList: Position[] = []
     const notFoundIds: SuiObjectIdType[] = []
 
-    positionIds.forEach((id) => {
+    positionIDs.forEach((id) => {
       const position = this.getSipmlePositionByCache(id)
       if (position) {
         positionList.push(position)
@@ -187,6 +191,12 @@ export class PositionModule implements IModule {
     return positionList
   }
 
+  /**
+   * Updates the rewarders of position
+   * @param {string} positionHandle Position handle
+   * @param {Position} position Position object
+   * @returns {Promise<Position>} A promise that resolves to an array of Position objects.
+   */
   private async updatePositionRewarders(positionHandle: string, position: Position): Promise<Position> {
     const positionReward = await this.getPositionRewarders(positionHandle, position.pos_object_id)
     return {
@@ -197,18 +207,17 @@ export class PositionModule implements IModule {
 
   /**
    * Gets the position rewarders for the given position handle and position object ID.
-   *
-   * @param positionHandle The handle of the position.
-   * @param posObjectId The ID of the position object.
-   * @returns PositionReward object.
+   * @param {string} positionHandle The handle of the position.
+   * @param {string} positionID The ID of the position object.
+   * @returns {Promise<PositionReward | undefined>} PositionReward object.
    */
-  async getPositionRewarders(positionHandle: string, posObjectId: string): Promise<PositionReward | undefined> {
+  async getPositionRewarders(positionHandle: string, positionID: string): Promise<PositionReward | undefined> {
     try {
       const dynamicFieldObject = await this._sdk.fullClient.getDynamicFieldObject({
         parentId: positionHandle,
         name: {
           type: '0x2::object::ID',
-          value: posObjectId,
+          value: positionID,
         },
       })
 
@@ -225,11 +234,91 @@ export class PositionModule implements IModule {
   }
 
   /**
+   * Fetches the Position fee amount for a given list of addresses.
+   * @param {FetchPosFeeParams[]} params  An array of FetchPosFeeParams objects containing the target addresses and their corresponding amounts.
+   * @returns {Promise<CollectFeesQuote[]>} A Promise that resolves with the fetched position fee amount for the specified addresses.
+   */
+  private async fetchPosFeeAmount(params: FetchPosFeeParams[]): Promise<CollectFeesQuote[]> {
+    const { clmm_pool, integrate, simulationAccount } = this.sdk.sdkOptions
+    const tx = new TransactionBlock()
+
+    for (const paramItem of params) {
+      const typeArguments = [paramItem.coinTypeA, paramItem.coinTypeB]
+      const args = [
+        tx.object(getPackagerConfigs(clmm_pool).global_config_id),
+        tx.object(paramItem.poolAddress),
+        tx.pure(paramItem.positionId),
+      ]
+      tx.moveCall({
+        target: `${integrate.published_at}::${ClmmFetcherModule}::fetch_position_fees`,
+        arguments: args,
+        typeArguments,
+      })
+    }
+
+    const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: simulationAccount.address,
+    })
+
+    const valueData: any = simulateRes.events?.filter((item: any) => {
+      return extractStructTagFromType(item.type).name === `FetchPositionFeesEvent`
+    })
+    if (valueData.length === 0) {
+      return []
+    }
+
+    const result: CollectFeesQuote[] = []
+
+    for (let i = 0; i < valueData.length; i += 1) {
+      const { parsedJson } = valueData[i]
+      const posRrewarderResult: CollectFeesQuote = {
+        feeOwedA: new BN(parsedJson.fee_owned_a),
+        feeOwedB: new BN(parsedJson.fee_owned_b),
+        position_id: parsedJson.position_id,
+      }
+      result.push(posRrewarderResult)
+    }
+
+    return result
+  }
+
+  /**
+   * Fetches the Position fee amount for a given list of addresses.
+   * @param positionIDs An array of position object ids.
+   * @returns {Promise<Record<string, CollectFeesQuote>>} A Promise that resolves with the fetched position fee amount for the specified position object ids.
+   */
+  async batchFetchPositionFees(positionIDs: string[]): Promise<Record<string, CollectFeesQuote>> {
+    const posFeeParamsList: FetchPosFeeParams[] = []
+    for (const id of positionIDs) {
+      const position = await this._sdk.Position.getPositionById(id, false)
+      const pool = await this._sdk.Pool.getPool(position.pool, false)
+      posFeeParamsList.push({
+        poolAddress: pool.poolAddress,
+        positionId: position.pos_object_id,
+        coinTypeA: pool.coinTypeA,
+        coinTypeB: pool.coinTypeB,
+      })
+    }
+
+    const positionMap: Record<string, CollectFeesQuote> = {}
+
+    if (posFeeParamsList.length > 0) {
+      const result: CollectFeesQuote[] = await this.fetchPosFeeAmount(posFeeParamsList)
+      for (const posRewarderInfo of result) {
+        positionMap[posRewarderInfo.position_id] = posRewarderInfo
+      }
+      return positionMap
+    }
+    return positionMap
+  }
+
+  /**
    * create add liquidity transaction payload with fix token
-   * @param params
+   * @param {AddLiquidityFixTokenParams} params
    * @param gasEstimateArg : When the fix input amount is SUI, gasEstimateArg can control whether to recalculate the number of SUI to prevent insufficient gas.
    * If this parameter is not passed, gas estimation is not performed
-   * @returns
+   * @returns {Promise<TransactionBlock>}
    */
   async createAddLiquidityFixTokenPayload(
     params: AddLiquidityFixTokenParams,
@@ -243,16 +332,12 @@ export class PositionModule implements IModule {
     }
     const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
 
-    const isFixToken = !('delta_liquidity' in params)
-
     if (gasEstimateArg) {
       const { isAdjustCoinA, isAdjustCoinB } = findAdjustCoin(params)
-      if (isFixToken) {
-        params = params as AddLiquidityFixTokenParams
-        if ((params.fix_amount_a && isAdjustCoinA) || (!params.fix_amount_a && isAdjustCoinB)) {
-          const tx = await TransactionUtil.buildAddLiquidityFixTokenForGas(this._sdk, allCoinAsset, params, gasEstimateArg)
-          return tx
-        }
+      params = params as AddLiquidityFixTokenParams
+      if ((params.fix_amount_a && isAdjustCoinA) || (!params.fix_amount_a && isAdjustCoinB)) {
+        const tx = await TransactionUtil.buildAddLiquidityFixTokenForGas(this._sdk, allCoinAsset, params, gasEstimateArg)
+        return tx
       }
     }
 
@@ -261,8 +346,8 @@ export class PositionModule implements IModule {
 
   /**
    * create add liquidity transaction payload
-   * @param params
-   * @returns
+   * @param {AddLiquidityParams} params
+   * @returns {Promise<TransactionBlock>}
    */
   async createAddLiquidityPayload(params: AddLiquidityParams): Promise<TransactionBlock> {
     const { integrate, clmm_pool } = this._sdk.sdkOptions
@@ -368,9 +453,8 @@ export class PositionModule implements IModule {
 
   /**
    * Remove liquidity from a position.
-   * @param params
-   * @param gasBudget
-   * @returns
+   * @param {RemoveLiquidityParams} params
+   * @returns {TransactionBlock}
    */
   removeLiquidityTransactionPayload(params: RemoveLiquidityParams): TransactionBlock {
     const { clmm_pool, integrate } = this.sdk.sdkOptions
@@ -414,11 +498,9 @@ export class PositionModule implements IModule {
 
   /**
    * Close position and remove all liquidity and collect_reward
-   * @param params
-   * @param gasBudget
-   * @returns
+   * @param {ClosePositionParams} params
+   * @returns {TransactionBlock}
    */
-
   closePositionTransactionPayload(params: ClosePositionParams): TransactionBlock {
     const { clmm_pool, integrate } = this.sdk.sdkOptions
 
@@ -456,8 +538,8 @@ export class PositionModule implements IModule {
 
   /**
    * Open position in clmmpool.
-   * @param params
-   * @returns
+   * @param {OpenPositionParams} params
+   * @returns {TransactionBlock}
    */
   openPositionTransactionPayload(params: OpenPositionParams): TransactionBlock {
     const { clmm_pool, integrate } = this.sdk.sdkOptions
@@ -485,8 +567,9 @@ export class PositionModule implements IModule {
 
   /**
    * Collect LP fee from Position.
-   * @param params
-   * @returns
+   * @param {CollectFeeParams} params
+   * @param {TransactionBlock} tx
+   * @returns {TransactionBlock}
    */
   collectFeeTransactionPayload(params: CollectFeeParams, tx?: TransactionBlock): TransactionBlock {
     const { clmm_pool, integrate } = this.sdk.sdkOptions
@@ -505,6 +588,11 @@ export class PositionModule implements IModule {
     return tx
   }
 
+  /**
+   * calculate fee
+   * @param {CollectFeeParams} params
+   * @returns
+   */
   async calculateFee(params: CollectFeeParams) {
     const paylod = this.collectFeeTransactionPayload(params, new TransactionBlock())
 
@@ -530,10 +618,9 @@ export class PositionModule implements IModule {
 
   /**
    * Updates the cache for the given key.
-   *
-   * @param key The key of the cache entry to update.
-   * @param data The data to store in the cache.
-   * @param time The time in minutes after which the cache entry should expire.
+   * @param {string} key The key of the cache entry to update.
+   * @param {SuiResource} data The data to store in the cache.
+   * @param {cacheTime5min} time The time in minutes after which the cache entry should expire.
    */
   private updateCache(key: string, data: SuiResource, time = cacheTime5min) {
     let cacheData = this._cache[key]
@@ -548,9 +635,8 @@ export class PositionModule implements IModule {
 
   /**
    * Gets the cache entry for the given key.
-   *
-   * @param key The key of the cache entry to get.
-   * @param forceRefresh Whether to force a refresh of the cache entry.
+   * @param {string} key The key of the cache entry to get.
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache entry.
    * @returns The cache entry for the given key, or undefined if the cache entry does not exist or is expired.
    */
   private getCache<T>(key: string, forceRefresh = false): T | undefined {

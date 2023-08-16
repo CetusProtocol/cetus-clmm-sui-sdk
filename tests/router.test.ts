@@ -1,5 +1,5 @@
 import BN from 'bn.js'
-import { buildSdk, buildTestAccountNew as buildTestAccount, buildTestPool, TokensMapping } from './data/init_test_data'
+import { buildSdk, buildTestAccountNew as buildTestAccount, buildTestPool, currSdkEnv } from './data/init_test_data'
 import { CoinProvider, OnePath, PreRouterSwapParams, SwapWithRouterParams } from '../src/modules/routerModule'
 import SDK, { CoinAsset, CoinAssist, DeepbookUtils, getPackagerConfigs, Pool, printTransaction, SwapUtils, TransactionUtil } from '../src'
 import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS } from '../src/types/sui'
@@ -12,125 +12,73 @@ import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactio
 
 describe('Router Module', () => {
   const sdk = buildSdk()
-  const { simulationAccount } = sdk.sdkOptions
   const sendKeypair = buildTestAccount()
   sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()
+  let USDC: string
+  let USDT: string
+  let ETH: string
+  let AFR: string
+  let SUI: string
+  let BTC: string
+  let CETUS: string
+  let url: string
 
-  // const USDC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
-  // const USDT = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
-  // const ETH = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::eth::ETH'
-  // const SUI = '0x2::sui::SUI'
-  // const BTC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::btc::BTC'
-  // const CETUS = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS'
-  // const AFR = '0x8ed60050f9c887864991b674cfc4b435be8e20e3e5a9970f7249794bd1319963::aifrens::AIFRENS'
-
-  const USDC = '0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN'
-  const USDT = '0xc060006111016b8a020ad5b33834984a437aaa7d3c74c18e09a95d48aceab08c::coin::COIN'
-  const ETH = '0xaf8cd5edc19c4512f4259f0bee101a40d41ebed738ade5874359610ef8eeced5::coin::COIN'
-  const SUI = '0x2::sui::SUI'
-  const BTC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::btc::BTC'
-  const CETUS = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS'
-
-  const tokens: CoinProvider = {
-    coins: [
-      {
-        address: '0x2::sui::SUI',
-        decimals: 9,
-      },
-      {
-        address: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::eth::ETH',
-        decimals: 8,
-      },
-      {
-        address: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::btc::BTC',
-        decimals: 8,
-      },
-      {
-        address: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
-        decimals: 6,
-      },
-      {
-        address: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
-        decimals: 6,
-      },
-      {
-        address: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS',
-        decimals: 9,
-      },
-    ],
-  }
-
-  const path_testnet = {
-    paths: [
-      {
-        base: USDC,
-        quote: ETH,
-        addressMap: new Map([
-          [2500, '0x74dcb8625ddd023e2ef7faf1ae299e3bc4cb4c337d991a5326751034676acdae'],
-          // [100, '0x4ef9d8c9e7a251975936ec5342874f0dcc372d7a894462cba398b9db4fb7c52e'],
-          // [10000, '0x1d732a627137158f6ec713b65cb16f1c3b83ad3a2d6740b32b21f79346eafca2'],
-          [500, '0x8ad82df6fc8ee93b519f8e2d38c6985b1e5e21ea8bd2c8a94fe930dafd990d6b'],
-        ]),
-      },
-      {
-        base: USDT,
-        quote: USDC,
-        addressMap: new Map([
-          [2500, '0x53d70570db4f4d8ebc20aa1b67dc6f5d061d318d371e5de50ff64525d7dd5bca'],
-          // [500, '0x40c2dd0a9395b1f15a477f0e368c55651b837fd27765395a9412ab07fc75971c'],
-          [10000, '0x4038aea2341070550e9c1f723315624c539788d0ca9212dca7eb4b36147c0fcb'],
-          [100, '0x6fd4915e6d8d3e2ba6d81787046eb948ae36fdfc75dad2e24f0d4aaa2417a416'],
-        ]),
-      },
-      {
-        base: USDC,
-        quote: CETUS,
-        addressMap: new Map([
-          [2500, '0xc41621d02d5ee00a7a993b912a8550df50524c9b2494339691e5896936ff269b'],
-          [10000, '0x48630694d5632005a6d498883aa666b03aa4edf84366c5d0253e8bcca5f9008a'],
-        ]),
-      },
-      {
-        base: USDC,
-        quote: SUI,
-        addressMap: new Map([[100, '0x2b4570ea787289a433a53279020102681ed1af01c111f9cee50c44b1af55c7b5']]),
-      },
-    ],
-  }
+  beforeAll(async () => {
+    if (currSdkEnv === 'mainnet') {
+      USDC = '0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN'
+      USDT = '0xc060006111016b8a020ad5b33834984a437aaa7d3c74c18e09a95d48aceab08c::coin::COIN'
+      ETH = '0xaf8cd5edc19c4512f4259f0bee101a40d41ebed738ade5874359610ef8eeced5::coin::COIN'
+      SUI = '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'
+      CETUS = '0x06864a6f921804860930db6ddbe2e16acdf8504495ea7481637a1c8b9a8fe54b::cetus::CETUS'
+      url = 'https://api-sui.cetus.zone/v2/sui/pools_info'
+    } else {
+      USDC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
+      USDT = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
+      ETH = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::eth::ETH'
+      AFR = '0x8ed60050f9c887864991b674cfc4b435be8e20e3e5a9970f7249794bd1319963::aifrens::AIFRENS'
+      CETUS = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS'
+      SUI = '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'
+      url = 'https://api-sui.devcetus.com/v2/sui/pools_info'
+    }
+  })
 
   test('integration test <= router module', async () => {
-    const pools = await sdk.Pool.getPools([], 0, 200)
-
     const coinMap = new Map()
     const poolMap = new Map()
 
-    for (let i = 0; i < pools.length; i += 1) {
-      if (pools[i].is_pause) {
-        continue
-      }
+    const resp: any = await fetch('https://api-sui.cetus.zone/v2/sui/pools_info', { method: 'GET' })
+    // const resp: any = await fetch('https://api-sui.devcetus.com/v2/sui/pools_info', { method: 'GET' })
+    const poolsInfo = await resp.json()
 
-      let coin_a = pools[i].coinTypeA
-      let coin_b = pools[i].coinTypeB
+    if (poolsInfo.code === 200) {
+      for (const pool of poolsInfo.data.lp_list) {
+        if (pool.is_closed) {
+          continue
+        }
 
-      coinMap.set(coin_a, {
-        address: coin_a,
-        decimals: 8,
-      })
-      coinMap.set(coin_b, {
-        address: coin_b,
-        decimals: 6,
-      })
+        let coin_a = pool.coin_a.address
+        let coin_b = pool.coin_b.address
 
-      const pair = `${coin_a}-${coin_b}`
-      const pathProvider = poolMap.get(pair)
-      if (pathProvider) {
-        pathProvider.addressMap.set(pools[i].fee_rate, pools[i].poolAddress)
-      } else {
-        poolMap.set(pair, {
-          base: coin_a,
-          quote: coin_b,
-          addressMap: new Map([[pools[i].fee_rate, pools[i].poolAddress]]),
+        coinMap.set(coin_a, {
+          address: pool.coin_a.address,
+          decimals: pool.coin_a.decimals,
         })
+        coinMap.set(coin_b, {
+          address: pool.coin_b.address,
+          decimals: pool.coin_b.decimals,
+        })
+
+        const pair = `${coin_a}-${coin_b}`
+        const pathProvider = poolMap.get(pair)
+        if (pathProvider) {
+          pathProvider.addressMap.set(Number(pool.fee) * 100, pool.address)
+        } else {
+          poolMap.set(pair, {
+            base: coin_a,
+            quote: coin_b,
+            addressMap: new Map([[Number(pool.fee) * 100, pool.address]]),
+          })
+        }
       }
     }
 
@@ -143,42 +91,42 @@ describe('Router Module', () => {
 
     sdk.Router.loadGraph(coins, paths)
 
-    const byAmountIn = true
-    const amount = new BN('271113')
+    const byAmountIn = false
+    const amount = new BN('1000000000')
 
-    const result = await sdk.Router.price(SUI, USDC, amount, byAmountIn, 0.05, '')
+    const result = await sdk.Router.price(CETUS, SUI, amount, byAmountIn, 0, '')
 
     console.log(result, result?.amountIn.toString(), result?.amountOut.toString())
 
-    const params: SwapWithRouterParams = {
-      paths: [result?.paths![0]!, result?.paths![1]!],
-      partner: '',
-      priceSplitPoint: 5,
-    }
+    // const params: SwapWithRouterParams = {
+    //   paths: [result?.paths![0]!, result?.paths![1]!],
+    //   partner: '',
+    //   priceSplitPoint: 5,
+    // }
 
-    const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-    const routerPayload = await TransactionUtil.buildRouterSwapTransaction(sdk, params, byAmountIn, allCoinAsset)
-    printTransaction(routerPayload)
+    // const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
+    // const routerPayload = await TransactionUtil.buildRouterSwapTransaction(sdk, params, byAmountIn, allCoinAsset)
+    // printTransaction(routerPayload)
 
-    // const simulateRes = await sdk.fullClient.devInspectTransactionBlock({
-    //   transactionBlock: routerPayload,
-    //   sender: simulationAccount.address,
-    // })
-    // console.log('simulateRes', simulateRes)
+    // // const simulateRes = await sdk.fullClient.devInspectTransactionBlock({
+    // //   transactionBlock: routerPayload,
+    // //   sender: simulationAccount.address,
+    // // })
+    // // console.log('simulateRes', simulateRes)
 
-    console.log(result?.amountIn.toString(), result?.amountOut.toString())
-    if (!result?.isExceed) {
-      const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-      const routerPayload = await TransactionUtil.buildRouterSwapTransaction(sdk, params, byAmountIn, allCoinAsset)
-      printTransaction(routerPayload)
-      const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, routerPayload)
-      console.log('router: ', transferTxn)
-      console.log(result?.amountIn.toString(), result?.amountOut.toString())
-    }
+    // console.log(result?.amountIn.toString(), result?.amountOut.toString())
+    // if (!result?.isExceed) {
+    //   const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
+    //   const routerPayload = await TransactionUtil.buildRouterSwapTransaction(sdk, params, byAmountIn, allCoinAsset)
+    //   printTransaction(routerPayload)
+    //   const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, routerPayload)
+    //   console.log('router: ', transferTxn)
+    //   console.log(result?.amountIn.toString(), result?.amountOut.toString())
+    // }
   })
 
   test('calculate swap fee Impact', async () => {
-    const res = await sdk.RouterV2.getBestRouter(USDT, USDC, 100000000, true, 5, '', '', undefined, true, false)
+    const res = await sdk.RouterV2.getBestRouter(CETUS, USDC, 100000000, true, 5, '', '', undefined, true, false)
     let param: any
     if (res.version === 'v2') {
       param = res.result
@@ -416,7 +364,7 @@ function createRouterTransaction(
   coinsA: TransactionArgument,
   coinsB: TransactionArgument
 ) {
-  const { clmm_pool , integrate} = sdk.sdkOptions
+  const { clmm_pool, integrate } = sdk.sdkOptions
 
   const args = [
     tx.pure(getPackagerConfigs(clmm_pool).global_config_id),

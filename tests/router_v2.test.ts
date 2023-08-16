@@ -1,7 +1,6 @@
 import CetusClmmSDK, { TransactionUtil, printTransaction } from '../src'
 import { AggregatorResult, CoinProvider, PathProvider } from '../src/modules'
-import { buildSdk, buildTestAccount } from './data/init_test_data'
-import { currSdkEnv } from './data/sdk_config'
+import { buildSdk, buildTestAccount, currSdkEnv } from './data/init_test_data'
 import { assert } from 'console'
 import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
 import { Secp256k1Keypair } from '@mysten/sui.js/keypairs/secp256k1'
@@ -19,6 +18,7 @@ describe('Router Module', () => {
   let BTC: string
   let CETUS: string
   let url: string
+  let SBOX: string
 
   beforeAll(async () => {
     if (currSdkEnv === 'mainnet') {
@@ -27,8 +27,9 @@ describe('Router Module', () => {
       ETH = '0xaf8cd5edc19c4512f4259f0bee101a40d41ebed738ade5874359610ef8eeced5::coin::COIN'
       SUI = '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'
       BTC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::btc::BTC'
-      CETUS = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS'
       url = 'https://api-sui.cetus.zone/v2/sui/pools_info'
+      SBOX = '0xbff8dc60d3f714f678cd4490ff08cabbea95d308c6de47a150c79cc875e0c7c6::sbox::SBOX'
+      CETUS = '0x06864a6f921804860930db6ddbe2e16acdf8504495ea7481637a1c8b9a8fe54b::cetus::CETUS'
     } else {
       USDC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
       USDT = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
@@ -87,36 +88,29 @@ describe('Router Module', () => {
     }
 
     sdk.Router.loadGraph(coins, paths)
+
+    const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
+    const res = (await sdk.RouterV2.getBestRouter(SBOX, CETUS, 2987896547653, true, 0.5, '', '', undefined, false, false))
+      .result as AggregatorResult
+    printAggregatorResult(res)
+
+    const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, res, allCoinAsset, '', 0.5)
+    // printTransaction(payload, true)
+
+    const succeed = await execTx(sdk, true, payload, sendKeypair)
+    assert(succeed, 'error')
   })
 
   test('USDC -> CETUS', async () => {
     const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-    const res = (
-      await sdk.RouterV2.getBestRouter(
-        USDC,
-        CETUS,
-        1000000000000,
-        false,
-        0.5,
-        '0x8e0b7668a79592f70fbfb1ae0aebaf9e2019a7049783b9a4b6fe7c6ae038b528',
-        '',
-        undefined,
-        true,
-        false
-      )
-    ).result as AggregatorResult
+    const res = (await sdk.RouterV2.getBestRouter(SBOX, CETUS, 1000000000000, true, 0.5, '', '', undefined, false, false))
+      .result as AggregatorResult
     // printAggregatorResult(res)
 
-    const payload = await TransactionUtil.buildAggregatorSwapTransaction(
-      sdk,
-      res,
-      allCoinAsset,
-      '0x8e0b7668a79592f70fbfb1ae0aebaf9e2019a7049783b9a4b6fe7c6ae038b528',
-      0.5
-    )
+    const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, res, allCoinAsset, '', 0.5)
     // printTransaction(payload, true)
 
-    const succeed = await execTx(sdk, false, payload, sendKeypair)
+    const succeed = await execTx(sdk, true, payload, sendKeypair)
     assert(succeed, 'error')
   })
 

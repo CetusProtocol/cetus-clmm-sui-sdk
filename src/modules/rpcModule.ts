@@ -14,6 +14,9 @@ import { Secp256k1Keypair } from '@mysten/sui.js/keypairs/secp256k1'
 
 import { DataPage, PaginationArgs, SuiObjectIdType } from '../types'
 
+/**
+ * Represents a module for making RPC (Remote Procedure Call) requests.
+ */
 export class RpcModule extends SuiClient {
   /**
    * Get events for a given query criteria
@@ -134,6 +137,12 @@ export class RpcModule extends SuiClient {
     return objectDataResponses
   }
 
+  /**
+   * Calculates the gas cost of a transaction block.
+   * @param {TransactionBlock} tx - The transaction block to calculate gas for.
+   * @returns {Promise<number>} - The estimated gas cost of the transaction block.
+   * @throws {Error} - Throws an error if the sender is empty.
+   */
   async calculationTxGas(tx: TransactionBlock): Promise<number> {
     const { sender } = tx.blockData
 
@@ -151,6 +160,13 @@ export class RpcModule extends SuiClient {
     return estimateGas
   }
 
+  /**
+   * Sends a transaction block after signing it with the provided keypair.
+   *
+   * @param {Ed25519Keypair | Secp256k1Keypair} keypair - The keypair used for signing the transaction.
+   * @param {TransactionBlock} tx - The transaction block to send.
+   * @returns {Promise<SuiTransactionBlockResponse | undefined>} - The response of the sent transaction block.
+   */
   async sendTransaction(
     keypair: Ed25519Keypair | Secp256k1Keypair,
     tx: TransactionBlock

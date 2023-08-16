@@ -25,6 +25,11 @@ export class ConfigModule implements IModule {
     return this._sdk
   }
 
+  /**
+   * Get token config list by coin type list.
+   * @param {SuiAddressType[]} coinTypes Coin type list.
+   * @returns {Promise<Record<string, CoinConfig>>} Token config map.
+   */
   async getTokenListByCoinTypes(coinTypes: SuiAddressType[]): Promise<Record<string, CoinConfig>> {
     const tokenMap: Record<string, CoinConfig> = {}
     const { coin_list_handle } = getPackagerConfigs(this.sdk.sdkOptions.cetus_config)
@@ -83,8 +88,9 @@ export class ConfigModule implements IModule {
 
   /**
    * Get coin config list.
-   * @param forceRefresh
-   * @returns
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache entry.
+   * @param {boolean} transformExtensions Whether to transform extensions.
+   * @returns {Promise<CoinConfig[]>} Coin config list.
    */
   async getCoinConfigs(forceRefresh = false, transformExtensions = true): Promise<CoinConfig[]> {
     const { coin_list_handle } = getPackagerConfigs(this.sdk.sdkOptions.cetus_config)
@@ -108,6 +114,13 @@ export class ConfigModule implements IModule {
     return coinList
   }
 
+  /**
+   * Get coin config by coin type.
+   * @param {string} coinType Coin type.
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache entry.
+   * @param {boolean} transformExtensions Whether to transform extensions.
+   * @returns {Promise<CoinConfig>} Coin config.
+   */
   async getCoinConfig(coinType: string, forceRefresh = false, transformExtensions = true): Promise<CoinConfig> {
     const { coin_list_handle } = getPackagerConfigs(this.sdk.sdkOptions.cetus_config)
     const cacheKey = `${coin_list_handle}_${coinType}_getCoinConfig`
@@ -129,6 +142,12 @@ export class ConfigModule implements IModule {
     return coin
   }
 
+  /**
+   * Build coin config.
+   * @param {SuiObjectResponse} object Coin object.
+   * @param {boolean} transformExtensions Whether to transform extensions.
+   * @returns {CoinConfig} Coin config.
+   */
   private buildCoinConfig(object: SuiObjectResponse, transformExtensions = true) {
     let fields = getObjectFields(object)
     fields = fields.value.fields

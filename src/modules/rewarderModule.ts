@@ -51,11 +51,11 @@ export class RewarderModule implements IModule {
   /**
    * Gets the emissions for the given pool every day.
    *
-   * @param {string} poolObjectId The object ID of the pool.
+   * @param {string} poolID The object ID of the pool.
    * @returns {Promise<Array<{emissions: number, coinAddress: string}>>} A promise that resolves to an array of objects with the emissions and coin address for each rewarder.
    */
-  async emissionsEveryDay(poolObjectId: string) {
-    const currentPool: Pool = await this.sdk.Pool.getPool(poolObjectId)
+  async emissionsEveryDay(poolID: string) {
+    const currentPool: Pool = await this.sdk.Pool.getPool(poolID)
     const rewarderInfos = currentPool.rewarder_infos
     if (!rewarderInfos) {
       return null
@@ -76,13 +76,13 @@ export class RewarderModule implements IModule {
   /**
    * Updates the rewarder for the given pool.
    *
-   * @param {string} poolObjectId The object ID of the pool.
+   * @param {string} poolID The object ID of the pool.
    * @param {BN} currentTime The current time in seconds since the Unix epoch.
    * @returns {Promise<Pool>} A promise that resolves to the updated pool.
    */
-  async updatePoolRewarder(poolObjectId: string, currentTime: BN): Promise<Pool> {
+  private async updatePoolRewarder(poolID: string, currentTime: BN): Promise<Pool> {
     // refresh pool rewarder
-    const currentPool: Pool = await this.sdk.Pool.getPool(poolObjectId)
+    const currentPool: Pool = await this.sdk.Pool.getPool(poolID)
     const lastTime = currentPool.rewarder_last_updated_time
     currentPool.rewarder_last_updated_time = currentTime.toString()
 
@@ -109,15 +109,15 @@ export class RewarderModule implements IModule {
   /**
    * Gets the amount owed to the rewarders for the given position.
    *
-   * @param {string} poolObjectId The object ID of the pool.
+   * @param {string} poolID The object ID of the pool.
    * @param {string} positionHandle The handle of the position.
-   * @param {string} positionId The ID of the position.
+   * @param {string} positionID The ID of the position.
    * @returns {Promise<Array<{amountOwed: number}>>} A promise that resolves to an array of objects with the amount owed to each rewarder.
    */
-  async posRewardersAmount(poolObjectId: string, positionHandle: string, positionId: string) {
+  async posRewardersAmount(poolID: string, positionHandle: string, positionID: string) {
     const currentTime = Date.parse(new Date().toString())
-    const pool: Pool = await this.updatePoolRewarder(poolObjectId, new BN(currentTime))
-    const position = await this.sdk.Position.getPositionRewarders(positionHandle, positionId)
+    const pool: Pool = await this.updatePoolRewarder(poolID, new BN(currentTime))
+    const position = await this.sdk.Position.getPositionRewarders(positionHandle, positionID)
 
     if (position === undefined) {
       return []
@@ -134,15 +134,15 @@ export class RewarderModule implements IModule {
   /**
    * Gets the amount owed to the rewarders for the given account and pool.
    *
-   * @param {string} account The account.
-   * @param {string} poolObjectId The object ID of the pool.
+   * @param {string} accountAddress The account address.
+   * @param {string} poolID The object ID of the pool.
    * @returns {Promise<Array<{amountOwed: number}>>} A promise that resolves to an array of objects with the amount owed to each rewarder.
    */
-  async poolRewardersAmount(account: string, poolObjectId: string) {
+  async poolRewardersAmount(accountAddress: string, poolID: string) {
     const currentTime = Date.parse(new Date().toString())
-    const pool: Pool = await this.updatePoolRewarder(poolObjectId, new BN(currentTime))
+    const pool: Pool = await this.updatePoolRewarder(poolID, new BN(currentTime))
 
-    const positions = await this.sdk.Position.getPositionList(account, [poolObjectId])
+    const positions = await this.sdk.Position.getPositionList(accountAddress, [poolID])
     const tickDatas = await this.getPoolLowerAndUpperTicks(pool.ticks_handle, positions)
 
     const rewarderAmount = [ZERO, ZERO, ZERO]
@@ -158,6 +158,14 @@ export class RewarderModule implements IModule {
     return rewarderAmount
   }
 
+  /**
+   * Gets the amount owed to the rewarders for the given account and pool.
+   * @param {Pool} pool Pool object
+   * @param {PositionReward} position Position object
+   * @param {TickData} tickLower Lower tick data
+   * @param {TickData} tickUpper Upper tick data
+   * @returns {RewarderAmountOwed[]}
+   */
   private posRewardersAmountInternal(pool: Pool, position: PositionReward, tickLower: TickData, tickUpper: TickData): RewarderAmountOwed[] {
     const tickLowerIndex = position.tick_lower_index
     const tickUpperIndex = position.tick_upper_index
@@ -167,13 +175,13 @@ export class RewarderModule implements IModule {
     const AmountOwed = []
 
     if (rewardersInside.length > 0) {
-      let growthDelta_0 = MathUtil.subUnderflowU128(rewardersInside[0], new BN(position.reward_growth_inside_0))
+      let growthDelta0 = MathUtil.subUnderflowU128(rewardersInside[0], new BN(position.reward_growth_inside_0))
 
-      if (growthDelta_0.gt(new BN('3402823669209384634633745948738404'))) {
-        growthDelta_0 = ONE
+      if (growthDelta0.gt(new BN('3402823669209384634633745948738404'))) {
+        growthDelta0 = ONE
       }
 
-      const amountOwed_0 = MathUtil.checkMulShiftRight(new BN(position.liquidity), growthDelta_0, 64, 128)
+      const amountOwed_0 = MathUtil.checkMulShiftRight(new BN(position.liquidity), growthDelta0, 64, 128)
       growthInside.push(rewardersInside[0])
       AmountOwed.push({
         amount_owed: new BN(position.reward_amount_owed_0).add(amountOwed_0),
@@ -214,9 +222,14 @@ export class RewarderModule implements IModule {
     return AmountOwed
   }
 
-  async batchFetchPositionRewarders(positionIds: string[]) {
+  /**
+   * Fetches the Position reward amount for a given list of addresses.
+   * @param {string[]}positionIDs An array of position object ids.
+   * @returns {Promise<Record<string, RewarderAmountOwed[]>>} A Promise that resolves with the fetched position reward amount for the specified position object ids.
+   */
+  async batchFetchPositionRewarders(positionIDs: string[]): Promise<Record<string, RewarderAmountOwed[]>> {
     const posRewardParamsList: FetchPosRewardParams[] = []
-    for (const id of positionIds) {
+    for (const id of positionIDs) {
       const position = await this._sdk.Position.getPositionById(id, false)
       const pool = await this._sdk.Pool.getPool(position.pool, false)
       posRewardParamsList.push({
@@ -240,9 +253,15 @@ export class RewarderModule implements IModule {
     return positionMap
   }
 
-  async batchFetchPositionFees(positionIds: string[]) {
+  /**
+   * Fetches the Position fee amount for a given list of addresses.
+   * @param positionIDs An array of position object ids.
+   * @returns {Promise<Record<string, CollectFeesQuote>>} A Promise that resolves with the fetched position fee amount for the specified position object ids.
+   * @deprecated This method is deprecated and may be removed in future versions. Use alternative methods if available.
+   */
+  async batchFetchPositionFees(positionIDs: string[]): Promise<Record<string, CollectFeesQuote>> {
     const posFeeParamsList: FetchPosFeeParams[] = []
-    for (const id of positionIds) {
+    for (const id of positionIDs) {
       const position = await this._sdk.Position.getPositionById(id, false)
       const pool = await this._sdk.Pool.getPool(position.pool, false)
       posFeeParamsList.push({
@@ -269,8 +288,9 @@ export class RewarderModule implements IModule {
    * Fetches the Position fee amount for a given list of addresses.
    * @param params  An array of FetchPosFeeParams objects containing the target addresses and their corresponding amounts.
    * @returns
+   * @deprecated This method is deprecated and may be removed in future versions. Use `sdk.Position.fetchPosFeeAmount()` instead.
    */
-  async fetchPosFeeAmount(params: FetchPosFeeParams[]) {
+  async fetchPosFeeAmount(params: FetchPosFeeParams[]): Promise<CollectFeesQuote[]> {
     const { clmm_pool, integrate, simulationAccount } = this.sdk.sdkOptions
     const tx = new TransactionBlock()
 

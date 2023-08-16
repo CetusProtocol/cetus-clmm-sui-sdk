@@ -108,8 +108,7 @@ function buildPoolName(coin_type_a: string, coin_type_b: string, tick_spacing: s
 export function buildPool(objects: SuiObjectResponse): Pool {
   const type = getMoveObjectType(objects) as string
   const formatType = extractStructTagFromType(type)
-  const fields = getObjectFields(objects)
-
+  const fields = getObjectFields(objects) as any
   const rewarders: Rewarder[] = []
   fields.rewarder_manager.fields.rewarders.forEach((item: any) => {
     const { emissions_per_second } = item.fields
