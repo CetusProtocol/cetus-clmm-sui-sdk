@@ -50,6 +50,7 @@ describe('Rewarder Module', () => {
   test('collectPoolRewarderTransactionPayload', async () => {
     const account = buildTestAccount()
     const signer = new RawSigner(account, sdk.fullClient)
+    sdk.senderAddress = account.getPublicKey().toSuiAddress()
 
     const pool = await sdk.Pool.getPool(poolObjectId)
 
@@ -66,14 +67,12 @@ describe('Rewarder Module', () => {
       rewarder_coin_types: [...rewardCoinTypes],
       coinTypeA: pool.coinTypeA,
       coinTypeB: pool.coinTypeB,
-      collect_fee: false,
+      collect_fee: true,
     }
 
-    const collectRewarderPayload = sdk.Rewarder.collectRewarderTransactionPayload(collectRewarderParams)
+    const collectRewarderPayload = await sdk.Rewarder.collectRewarderTransactionPayload(collectRewarderParams)
 
-    console.log('collectRewarderPayload: ', collectRewarderPayload.blockData.transactions[0])
 
     const transferTxn: any = await signer.signAndExecuteTransactionBlock({ transactionBlock: collectRewarderPayload })
-    console.log('result: ', getTransactionEffects(transferTxn))
   })
 })

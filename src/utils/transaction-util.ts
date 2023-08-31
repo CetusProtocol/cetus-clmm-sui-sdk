@@ -5,9 +5,9 @@ import { CoinAssist } from '../math/CoinAssist'
 import { OnePath, SwapWithRouterParams } from '../modules/routerModule'
 import { TickData } from '../types/clmmpool'
 import {
-  ClmmIntegratePoolModule,
-  ClmmIntegrateRouterModule,
   ClmmIntegrateRouterWithPartnerModule,
+  ClmmIntegratePoolV2Module,
+  ClmmIntegrateRouterModule,
   ClmmIntegrateUtilsModule,
   CLOCK_ADDRESS,
 } from '../types/sui'
@@ -18,6 +18,7 @@ import SDK, {
   ClmmPoolUtil,
   CoinAsset,
   CoinPairType,
+  CollectRewarderParams,
   d,
   DeepbookUtils,
   getPackagerConfigs,
@@ -49,6 +50,7 @@ export function findAdjustCoin(coinPair: CoinPairType): AdjustResult {
 export type BuildCoinInputResult = {
   transactionArgument: TransactionArgument
   remainCoins: CoinAsset[]
+  isMintCoin?: boolean
 }
 
 type CoinInputInterval = {
@@ -67,6 +69,7 @@ function reverSlippageAmount(slippageAmount: number | string, slippage: number):
 }
 
 export async function printTransaction(tx: TransactionBlock, isPrint = true) {
+  console.log(`inputs`, tx.blockData.inputs)
   tx.blockData.transactions.forEach((item, index) => {
     if (isPrint) {
       console.log(`transaction ${index}: `, item)
@@ -75,6 +78,57 @@ export async function printTransaction(tx: TransactionBlock, isPrint = true) {
 }
 
 export class TransactionUtil {
+  static createCollectRewarderAndFeeParams(
+    sdk: SDK,
+    tx: TransactionBlock,
+    params: CollectRewarderParams,
+    allCoinAsset: CoinAsset[],
+    allCoinAssetA?: CoinAsset[],
+    allCoinAssetB?: CoinAsset[]
+  ) {
+    if (allCoinAssetA === undefined) {
+      allCoinAssetA = [...allCoinAsset]
+    }
+    if (allCoinAssetB === undefined) {
+      allCoinAssetB = [...allCoinAsset]
+    }
+    if (params.collect_fee) {
+      const primaryCoinAInput = TransactionUtil.buildCoinInputForAmount(tx, allCoinAssetA, BigInt(0), params.coinTypeA, false)
+      allCoinAssetA = primaryCoinAInput.remainCoins
+
+      const primaryCoinBInput = TransactionUtil.buildCoinInputForAmount(tx, allCoinAssetB, BigInt(0), params.coinTypeB, false)
+      allCoinAssetB = primaryCoinBInput.remainCoins
+
+      tx = sdk.Position.createCollectFeePaylod(
+        {
+          pool_id: params.pool_id,
+          pos_id: params.pos_id,
+          coinTypeA: params.coinTypeA,
+          coinTypeB: params.coinTypeB,
+        },
+        tx,
+        primaryCoinAInput.transactionArgument,
+        primaryCoinBInput.transactionArgument
+      )
+    }
+    const primaryCoinInputs: TransactionArgument[] = []
+    params.rewarder_coin_types.forEach((type) => {
+      switch (type) {
+        case params.coinTypeA:
+          primaryCoinInputs.push(TransactionUtil.buildCoinInputForAmount(tx, allCoinAssetA!, BigInt(0), type, false).transactionArgument)
+          break
+        case params.coinTypeB:
+          primaryCoinInputs.push(TransactionUtil.buildCoinInputForAmount(tx, allCoinAssetB!, BigInt(0), type, false).transactionArgument)
+          break
+        default:
+          primaryCoinInputs.push(TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, BigInt(0), type, false).transactionArgument)
+          break
+      }
+    })
+    tx = sdk.Rewarder.createCollectRewarderPaylod(params, tx, primaryCoinInputs)
+    return tx
+  }
+
   /**
    * adjust transaction for gas
    * @param sdk
@@ -87,7 +141,7 @@ export class TransactionUtil {
     allCoins: CoinAsset[],
     amount: bigint,
     tx: TransactionBlock
-  ): Promise<{ fixAmount: bigint; fixCoinInput?: TransactionArgument; newTx?: TransactionBlock }> {
+  ): Promise<{ fixAmount: bigint; newTx?: TransactionBlock }> {
     tx.setSender(sdk.senderAddress)
     // amount coins
     const amountCoins = CoinAssist.selectCoinAssetGreaterThanOrEqual(allCoins, amount).selectedCoins
@@ -121,9 +175,7 @@ export class TransactionUtil {
         }
 
         const newTx = new TransactionBlock()
-        const primaryCoinAInput = newTx.splitCoins(newTx.gas, [newTx.pure(amount)])
-        newTx.setGasBudget(newGas)
-        return { fixAmount: amount, fixCoinInput: newTx.makeMoveVec({ objects: [primaryCoinAInput] }), newTx }
+        return { fixAmount: amount, newTx }
       }
     }
     return { fixAmount: amount }
@@ -160,23 +212,31 @@ export class TransactionUtil {
     )
 
     const { fixAmount } = newResult
-    const { fixCoinInput } = newResult
     const { newTx } = newResult
 
-    if (fixCoinInput !== undefined && newTx !== undefined) {
-      let primaryCoinAInputs: TransactionArgument | undefined | any
-      let primaryCoinBInputs: TransactionArgument | undefined | any
+    if (newTx !== undefined) {
+      let primaryCoinAInputs: BuildCoinInputResult
+      let primaryCoinBInputs: BuildCoinInputResult
 
       if (isAdjustCoinA) {
         params.amount_a = Number(fixAmount)
-        primaryCoinAInputs = fixCoinInput
+        primaryCoinAInputs = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
+          newTx,
+          !params.fix_amount_a,
+          fixAmount.toString(),
+          params.slippage,
+          params.coinTypeA,
+          allCoins,
+          false
+        )
         primaryCoinBInputs = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
           newTx,
           params.fix_amount_a,
           params.amount_b,
           params.slippage,
           params.coinTypeB,
-          allCoins
+          allCoins,
+          false
         )
       } else {
         params.amount_b = Number(fixAmount)
@@ -186,12 +246,21 @@ export class TransactionUtil {
           params.amount_a,
           params.slippage,
           params.coinTypeA,
-          allCoins
+          allCoins,
+          false
         )
-        primaryCoinBInputs = fixCoinInput
+        primaryCoinBInputs = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
+          newTx,
+          params.fix_amount_a,
+          fixAmount.toString(),
+          params.slippage,
+          params.coinTypeB,
+          allCoins,
+          false
+        )
         params = TransactionUtil.fixAddLiquidityFixTokenParams(params, gasEstimateArg.slippage, gasEstimateArg.curSqrtPrice)
 
-        tx = TransactionUtil.buildAddLiquidityFixTokenArgs(newTx, sdk, params, primaryCoinAInputs, primaryCoinBInputs)
+        tx = await TransactionUtil.buildAddLiquidityFixTokenArgs(newTx, sdk, allCoins, params, primaryCoinAInputs, primaryCoinBInputs)
         return tx
       }
     }
@@ -214,26 +283,29 @@ export class TransactionUtil {
     }
 
     let tx = new TransactionBlock()
-    const primaryCoinAInputs: any = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
+    const primaryCoinAInputs = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
       tx,
       !params.fix_amount_a,
       params.amount_a,
       params.slippage,
       params.coinTypeA,
-      allCoinAsset
+      allCoinAsset,
+      false
     )
-    const primaryCoinBInputs: any = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
+    const primaryCoinBInputs = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
       tx,
       params.fix_amount_a,
       params.amount_b,
       params.slippage,
       params.coinTypeB,
-      allCoinAsset
+      allCoinAsset,
+      false
     )
 
     tx = TransactionUtil.buildAddLiquidityFixTokenArgs(
       tx,
       sdk,
+      allCoinAsset,
       params as AddLiquidityFixTokenParams,
       primaryCoinAInputs,
       primaryCoinBInputs
@@ -243,20 +315,22 @@ export class TransactionUtil {
 
   public static buildAddLiquidityFixTokenCoinInput(
     tx: TransactionBlock,
-    needIntervalAmount: boolean,
+    need_interval_amount: boolean,
     amount: number | string,
     slippage: number,
     coinType: string,
-    allCoinAsset: CoinAsset[]
-  ) {
-    return needIntervalAmount
+    allCoinAsset: CoinAsset[],
+    buildVector = true
+  ): BuildCoinInputResult {
+    return need_interval_amount
       ? TransactionUtil.buildCoinInputForAmountInterval(
           tx,
           allCoinAsset,
           { amountSecond: BigInt(reverSlippageAmount(amount, slippage)), amountFirst: BigInt(amount) },
-          coinType
-        )?.transactionArgument
-      : TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, BigInt(amount), coinType)?.transactionArgument
+          coinType,
+          buildVector
+        )
+      : TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, BigInt(amount), coinType, buildVector)
   }
 
   /**
@@ -287,85 +361,37 @@ export class TransactionUtil {
   private static buildAddLiquidityFixTokenArgs(
     tx: TransactionBlock,
     sdk: SDK,
+    allCoinAsset: CoinAsset[],
     params: AddLiquidityFixTokenParams,
-    primaryCoinAInputs?: TransactionArgument,
-    primaryCoinBInputs?: TransactionArgument
+    primaryCoinAInputs: BuildCoinInputResult,
+    primaryCoinBInputs: BuildCoinInputResult
   ) {
     const typeArguments = [params.coinTypeA, params.coinTypeB]
-    let functionName = 'add_liquidity_fix_coin_with_all'
+    const functionName = params.is_open ? 'open_position_with_liquidity_by_fix_coin' : 'add_liquidity_by_fix_coin'
     const { clmm_pool, integrate } = sdk.sdkOptions
-    const primaryCoinInputs: {
-      coinInput: TransactionArgument
-      coinAmount: string
-    }[] = []
 
-    if (primaryCoinAInputs) {
-      primaryCoinInputs.push({
-        coinInput: primaryCoinAInputs,
-        coinAmount: params.amount_a.toString(),
-      })
-    }
-    if (primaryCoinBInputs) {
-      primaryCoinInputs.push({
-        coinInput: primaryCoinBInputs,
-        coinAmount: params.amount_b.toString(),
-      })
-    }
     if (!params.is_open) {
-      sdk.Rewarder.collectRewarderTransactionPayload(
-        {
-          pool_id: params.pool_id,
-          pos_id: params.pos_id,
-          coinTypeA: params.coinTypeA,
-          coinTypeB: params.coinTypeB,
-          collect_fee: params.collect_fee,
-          rewarder_coin_types: params.rewarder_coin_types,
-        },
-        tx
+      tx = TransactionUtil.createCollectRewarderAndFeeParams(
+        sdk,
+        tx,
+        params,
+        allCoinAsset,
+        primaryCoinAInputs.remainCoins,
+        primaryCoinBInputs.remainCoins
       )
     }
-    const isWithAll = primaryCoinInputs.length === 2
 
-    if (isWithAll) {
-      functionName = params.is_open ? 'open_position_with_liquidity_with_all' : 'add_liquidity_fix_coin_with_all'
-    } else {
-      functionName = params.is_open
-        ? primaryCoinAInputs !== undefined
-          ? 'open_position_with_liquidity_only_a'
-          : 'open_position_with_liquidity_only_b'
-        : primaryCoinAInputs !== undefined
-        ? 'add_liquidity_fix_coin_only_a'
-        : 'add_liquidity_fix_coin_only_b'
-    }
     const clmmConfig = getPackagerConfigs(clmm_pool)
     const args = params.is_open
-      ? isWithAll
-        ? [
-            tx.object(clmmConfig.global_config_id),
-            tx.object(params.pool_id),
-            tx.pure(asUintN(BigInt(params.tick_lower)).toString()),
-            tx.pure(asUintN(BigInt(params.tick_upper)).toString()),
-            ...primaryCoinInputs.map((item) => item.coinInput),
-            ...primaryCoinInputs.map((item) => tx.pure(item.coinAmount)),
-            tx.pure(params.fix_amount_a),
-            tx.object(CLOCK_ADDRESS),
-          ]
-        : [
-            tx.object(clmmConfig.global_config_id),
-            tx.object(params.pool_id),
-            tx.pure(asUintN(BigInt(params.tick_lower)).toString()),
-            tx.pure(asUintN(BigInt(params.tick_upper)).toString()),
-            ...primaryCoinInputs.map((item) => item.coinInput),
-            ...primaryCoinInputs.map((item) => tx.pure(item.coinAmount)),
-            tx.object(CLOCK_ADDRESS),
-          ]
-      : isWithAll
       ? [
           tx.object(clmmConfig.global_config_id),
           tx.object(params.pool_id),
-          tx.object(params.pos_id),
-          ...primaryCoinInputs.map((item) => item.coinInput),
-          ...primaryCoinInputs.map((item) => tx.pure(item.coinAmount)),
+          tx.pure(asUintN(BigInt(params.tick_lower)).toString()),
+          tx.pure(asUintN(BigInt(params.tick_upper)).toString()),
+          primaryCoinAInputs.transactionArgument,
+          primaryCoinBInputs.transactionArgument,
+          tx.pure(params.amount_a),
+          tx.pure(params.amount_b),
           tx.pure(params.fix_amount_a),
           tx.object(CLOCK_ADDRESS),
         ]
@@ -373,13 +399,16 @@ export class TransactionUtil {
           tx.object(clmmConfig.global_config_id),
           tx.object(params.pool_id),
           tx.object(params.pos_id),
-          ...primaryCoinInputs.map((item) => item.coinInput),
-          ...primaryCoinInputs.map((item) => tx.pure(item.coinAmount)),
+          primaryCoinAInputs.transactionArgument,
+          primaryCoinBInputs.transactionArgument,
+          tx.pure(params.amount_a),
+          tx.pure(params.amount_b),
+          tx.pure(params.fix_amount_a),
           tx.object(CLOCK_ADDRESS),
         ]
 
     tx.moveCall({
-      target: `${integrate.published_at}::${ClmmIntegratePoolModule}::${functionName}`,
+      target: `${integrate.published_at}::${ClmmIntegratePoolV2Module}::${functionName}`,
       typeArguments,
       arguments: args,
     })
@@ -408,7 +437,7 @@ export class TransactionUtil {
     }
   ): Promise<TransactionBlock> {
     let tx = TransactionUtil.buildSwapTransaction(sdk, params, allCoinAsset)
-
+    tx.setSender(sdk.senderAddress)
     const newResult = await TransactionUtil.adjustTransactionForGas(
       sdk,
       CoinAssist.getCoinAssets(params.a2b ? params.coinTypeA : params.coinTypeB, allCoinAsset),
@@ -416,16 +445,32 @@ export class TransactionUtil {
       tx
     )
 
-    const { fixAmount, fixCoinInput, newTx } = newResult
+    const { fixAmount, newTx } = newResult
 
-    if (fixCoinInput !== undefined && newTx !== undefined) {
+    if (newTx !== undefined) {
+      newTx.setSender(sdk.senderAddress)
       if (params.by_amount_in) {
         params.amount = fixAmount.toString()
       } else {
         params.amount_limit = fixAmount.toString()
       }
       params = TransactionUtil.fixSwapParams(sdk, params, gasEstimateArg)
-      tx = TransactionUtil.buildSwapTransactionArgs(newTx, params, sdk.sdkOptions, fixCoinInput)
+
+      const primaryCoinInputA = TransactionUtil.buildCoinInputForAmount(
+        tx,
+        allCoinAsset,
+        params.a2b ? BigInt(params.by_amount_in ? params.amount : params.amount_limit) : BigInt(0),
+        params.coinTypeA
+      )
+
+      const primaryCoinInputB = TransactionUtil.buildCoinInputForAmount(
+        tx,
+        allCoinAsset,
+        params.a2b ? BigInt(0) : BigInt(params.by_amount_in ? params.amount : params.amount_limit),
+        params.coinTypeB
+      )
+
+      tx = TransactionUtil.buildSwapTransactionArgs(newTx, params, sdk.sdkOptions, primaryCoinInputA, primaryCoinInputB)
     }
 
     return tx
@@ -439,14 +484,25 @@ export class TransactionUtil {
    */
   static buildSwapTransaction(sdk: SDK, params: SwapParams, allCoinAsset: CoinAsset[]): TransactionBlock {
     let tx = new TransactionBlock()
-    const primaryCoinInputs: any = TransactionUtil.buildCoinInputForAmount(
+    tx.setSender(sdk.senderAddress)
+
+    const primaryCoinInputA = TransactionUtil.buildCoinInputForAmount(
       tx,
       allCoinAsset,
-      BigInt(params.by_amount_in ? params.amount : params.amount_limit),
-      params.a2b ? params.coinTypeA : params.coinTypeB
-    )?.transactionArgument
+      params.a2b ? BigInt(params.by_amount_in ? params.amount : params.amount_limit) : BigInt(0),
+      params.coinTypeA,
+      false
+    )
 
-    tx = TransactionUtil.buildSwapTransactionArgs(tx, params, sdk.sdkOptions, primaryCoinInputs as TransactionArgument)
+    const primaryCoinInputB = TransactionUtil.buildCoinInputForAmount(
+      tx,
+      allCoinAsset,
+      params.a2b ? BigInt(0) : BigInt(params.by_amount_in ? params.amount : params.amount_limit),
+      params.coinTypeB,
+      false
+    )
+
+    tx = TransactionUtil.buildSwapTransactionArgs(tx, params, sdk.sdkOptions, primaryCoinInputA, primaryCoinInputB)
     return tx
   }
 
@@ -460,7 +516,8 @@ export class TransactionUtil {
     tx: TransactionBlock,
     params: SwapParams,
     sdkOptions: SdkOptions,
-    primaryCoinInput: TransactionArgument
+    primaryCoinInputA: BuildCoinInputResult,
+    primaryCoinInputB: BuildCoinInputResult
   ): TransactionBlock {
     const { clmm_pool, integrate } = sdkOptions
 
@@ -487,7 +544,8 @@ export class TransactionUtil {
           tx.pure(global_config_id),
           tx.pure(params.pool_id),
           tx.pure(params.swap_partner),
-          primaryCoinInput,
+          primaryCoinInputA.transactionArgument,
+          primaryCoinInputB.transactionArgument,
           tx.pure(params.by_amount_in),
           tx.pure(params.amount),
           tx.pure(params.amount_limit),
@@ -497,7 +555,8 @@ export class TransactionUtil {
       : [
           tx.pure(global_config_id),
           tx.pure(params.pool_id),
-          primaryCoinInput,
+          primaryCoinInputA.transactionArgument,
+          primaryCoinInputB.transactionArgument,
           tx.pure(params.by_amount_in),
           tx.pure(params.amount),
           tx.pure(params.amount_limit),
@@ -506,7 +565,7 @@ export class TransactionUtil {
         ]
 
     tx.moveCall({
-      target: `${integrate.published_at}::${ClmmIntegratePoolModule}::${functionName}`,
+      target: `${integrate.published_at}::${ClmmIntegratePoolV2Module}::${functionName}`,
       typeArguments,
       arguments: args,
     })
@@ -565,10 +624,13 @@ export class TransactionUtil {
     amount: bigint,
     coinType: string,
     buildVector = true
-  ): BuildCoinInputResult | undefined {
+  ): BuildCoinInputResult {
     const coinAssets: CoinAsset[] = CoinAssist.getCoinAssets(coinType, allCoins)
     if (amount === BigInt(0)) {
-      return undefined
+      if (coinAssets.length > 0) {
+        return TransactionUtil.buildCoinInput(tx, [...allCoins], [...coinAssets], amount, coinType, buildVector)
+      }
+      return TransactionUtil.buildCoinZero(allCoins, tx, coinType, buildVector)
     }
     const amountTotal = CoinAssist.calculateTotalBalance(coinAssets)
     if (amountTotal < amount) {
@@ -585,18 +647,27 @@ export class TransactionUtil {
     amount: bigint,
     coinType: string,
     buildVector = true
-  ) {
+  ): BuildCoinInputResult {
     if (CoinAssist.isSuiCoin(coinType)) {
-      const amountCoin = tx.splitCoins(tx.gas, [tx.pure(amount.toString())])
       if (buildVector) {
+        const amountCoin = tx.splitCoins(tx.gas, [tx.pure(amount.toString())])
         return {
           transactionArgument: tx.makeMoveVec({ objects: [amountCoin] }),
           remainCoins: allCoins,
         }
       }
+      if (amount === BigInt(0) && coinAssets.length > 1) {
+        const selectedCoinsResult = CoinAssist.selectCoinObjectIdGreaterThanOrEqual(coinAssets, amount)
+        return {
+          transactionArgument: tx.object(selectedCoinsResult.objectArray[0]),
+          remainCoins: selectedCoinsResult.remainCoins,
+        }
+      }
+      const selectedCoinsResult = CoinAssist.selectCoinObjectIdGreaterThanOrEqual(coinAssets, amount)
+      const amountCoin = tx.splitCoins(tx.gas, [tx.pure(amount.toString())])
       return {
         transactionArgument: amountCoin,
-        remainCoins: allCoins,
+        remainCoins: selectedCoinsResult.remainCoins,
       }
     }
     const selectedCoinsResult = CoinAssist.selectCoinObjectIdGreaterThanOrEqual(coinAssets, amount)
@@ -623,31 +694,48 @@ export class TransactionUtil {
     }
   }
 
+  private static buildCoinZero(allCoins: CoinAsset[], tx: TransactionBlock, coinType: string, buildVector = true) {
+    const zeroCoin = TransactionUtil.moveCallCoinZero(tx, coinType)
+    if (buildVector) {
+      return {
+        transactionArgument: tx.makeMoveVec({ objects: [zeroCoin] }),
+        remainCoins: allCoins,
+        isMintCoin: true,
+      }
+    }
+    return {
+      transactionArgument: zeroCoin,
+      remainCoins: allCoins,
+      isMintCoin: true,
+    }
+  }
+
   public static buildCoinInputForAmountInterval(
     tx: TransactionBlock,
     allCoins: CoinAsset[],
     amounts: CoinInputInterval,
     coinType: string,
     buildVector = true
-  ): BuildCoinInputResult | undefined {
+  ): BuildCoinInputResult {
+    const coinAssets: CoinAsset[] = CoinAssist.getCoinAssets(coinType, allCoins)
     if (amounts.amountFirst === BigInt(0)) {
-      return undefined
+      if (coinAssets.length > 0) {
+        return TransactionUtil.buildCoinInput(tx, [...allCoins], [...coinAssets], amounts.amountFirst, coinType, buildVector)
+      }
+      return TransactionUtil.buildCoinZero(allCoins, tx, coinType, buildVector)
     }
 
-    const coinAssets: CoinAsset[] = CoinAssist.getCoinAssets(coinType, allCoins)
     const amountTotal = CoinAssist.calculateTotalBalance(coinAssets)
 
     if (amountTotal >= amounts.amountFirst) {
       return TransactionUtil.buildCoinInput(tx, [...allCoins], [...coinAssets], amounts.amountFirst, coinType, buildVector)
     }
 
-    if (amountTotal >= amounts.amountSecond) {
-      return TransactionUtil.buildCoinInput(tx, [...allCoins], [...coinAssets], amounts.amountSecond, coinType, buildVector)
-    }
     if (amountTotal < amounts.amountSecond) {
       throw new Error(`The amount(${amountTotal}) is Insufficient balance for ${coinType} , expect ${amounts.amountSecond} `)
     }
-    return undefined
+
+    return TransactionUtil.buildCoinInput(tx, [...allCoins], [...coinAssets], amounts.amountSecond, coinType, buildVector)
   }
 
   static moveCallCoinZero = (txb: TransactionBlock, coinType: string) => {
@@ -686,7 +774,9 @@ export class TransactionUtil {
       partner = ''
     }
 
-    if (!param.byAmountIn || param.splitPaths.length === 1) {
+    const hasExternalPool = param.splitPaths.some((splitPath) => splitPath.basePaths.some((basePath) => basePath.label === 'Deepbook'))
+
+    if ((!param.byAmountIn || param.splitPaths.length === 1) && !hasExternalPool) {
       const onePaths: OnePath[] = []
       for (const splitPath of param.splitPaths) {
         const a2b = []
@@ -735,24 +825,19 @@ export class TransactionUtil {
         false
       )?.transactionArgument as TransactionArgument
 
-      let toCoin = TransactionUtil.moveCallCoinZero(tx, param.toCoin) as TransactionArgument
+      let toCoin = TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, BigInt(0), param.toCoin, false)
+        ?.transactionArgument as TransactionArgument
 
       const transferObjects: TransactionArgument[] = []
+
       let isCreateAccountCap = false
 
-      const isHasDeepbook = param.splitPaths.some((splitPath) => splitPath.basePaths.some((basePath) => basePath.label === 'Deepbook'))
-
       let accountCap
-      if (isHasDeepbook) {
-        const accountCapStr = await DeepbookUtils.getAccountCap(sdk)
-        if (!accountCapStr) {
-          const [cap, createAccountCapTX] = DeepbookUtils.createAccountCap(sdk.senderAddress, sdk.sdkOptions, tx)
-          tx = createAccountCapTX as TransactionBlock
-          accountCap = cap as TransactionArgument
-          isCreateAccountCap = true
-        } else {
-          accountCap = tx.object(accountCapStr)
-        }
+      if (hasExternalPool) {
+        const [cap, createAccountCapTX] = DeepbookUtils.createAccountCap(sdk.senderAddress, sdk.sdkOptions, tx)
+        tx = createAccountCapTX as TransactionBlock
+        accountCap = cap as TransactionArgument
+        isCreateAccountCap = true
       }
 
       for (let i = 0; i < param.splitPaths.length; i += 1) {
@@ -809,7 +894,7 @@ export class TransactionUtil {
       transferObjects.push(fromCoin, toCoin)
 
       if (isCreateAccountCap) {
-        transferObjects.push(accountCap as TransactionArgument)
+        tx = DeepbookUtils.deleteAccountCapByObject(accountCap as TransactionArgument, sdk.sdkOptions, tx)
       }
 
       if (param.byAmountIn) {
@@ -963,7 +1048,8 @@ export class TransactionUtil {
       fromCoinType,
       false
     )?.transactionArgument as TransactionArgument
-    let toCoin = TransactionUtil.moveCallCoinZero(tx, toCoinType) as TransactionArgument
+    let toCoin = TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, BigInt(0), toCoinType, false)
+      ?.transactionArgument as TransactionArgument
 
     const transferObjects: TransactionArgument[] = []
 

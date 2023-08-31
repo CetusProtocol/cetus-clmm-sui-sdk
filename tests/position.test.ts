@@ -37,7 +37,7 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('getSipmlePosition', async () => {
-    const res = await sdk.Position.getSipmlePosition(position_object_id)
+    const res = await sdk.Position.getSimplePosition(position_object_id)
     console.log('getSipmlePosition####', res)
   })
 
@@ -105,7 +105,7 @@ describe('Position add Liquidity Module', () => {
 
     const rewardCoinTypes = rewards.filter((item) => Number(item.amount_owed) > 0).map((item) => item.coin_address)
 
-    const closePositionTransactionPayload = sdk.Position.closePositionTransactionPayload({
+    const closePositionTransactionPayload = await sdk.Position.closePositionTransactionPayload({
       coinTypeA: pool.coinTypeA,
       coinTypeB: pool.coinTypeB,
       min_amount_a: tokenMaxA.toString(),
@@ -113,7 +113,7 @@ describe('Position add Liquidity Module', () => {
       rewarder_coin_types: [...rewardCoinTypes],
       pool_id: pool.poolAddress,
       pos_id: position_object_id,
-      collect_fee: false,
+      collect_fee: true,
     })
 
     printTransaction(closePositionTransactionPayload)
@@ -124,7 +124,7 @@ describe('Position add Liquidity Module', () => {
 
   test('collect_fee', async () => {
     const pool = await buildTestPool(sdk, pool_object_id)
-    const collectFeeTransactionPayload = sdk.Position.collectFeeTransactionPayload({
+    const collectFeeTransactionPayload = await sdk.Position.collectFeeTransactionPayload({
       coinTypeA: pool.coinTypeA,
       coinTypeB: pool.coinTypeB,
       pool_id: pool.poolAddress,

@@ -8,7 +8,7 @@
 <br />
 <div align="center">
   <a >
-    <img src="./docs/logo.png" alt="Logo" width="100" height="100">
+    <img src="https://archive.cetus.zone/assets/image/logo.png" alt="Logo" width="100" height="100">
   </a>
 
   <h3 align="center">Cetus-CLMM-SUI-SDK</h3>
@@ -16,7 +16,7 @@
   <p align="center">
     Integrating Cetus-CLMM-SUI-SDK: A Comprehensive Guide, Please see details in document.
     <br />
-    <a href="https://cetus-1.gitbook.io/cetus-docs/"><strong>Explore the document »</strong></a>
+    <a href="https://cetus-1.gitbook.io/cetus-developer-docs/developer/dev-overview"><strong>Explore the document »</strong></a>
 <br />
     <br />
     <a href="https://github.com/CetusProtocol/cetus-clmm-sui-sdk/tree/main/examples">View Demo</a>
@@ -28,7 +28,6 @@
 </div>
 
 <!-- TABLE OF CONTENTS -->
-- [Latest Package address and NPM version](#latest-package-address-and-npm-version)
 - [SDK configuration parameters](#sdk-configuration-parameters)
 - [Introduction](#introduction)
 - [Getting Started](#getting-started)
@@ -44,18 +43,6 @@
     - [Swap Pre-calculating Result Show](#swap-pre-calculating-result-show)
     - [Conversion between liquidity, tickIndex, sqrtPrice, and coinAmount.](#conversion-between-liquidity-tickindex-sqrtprice-and-coinamount)
 - [LICENSE](#license)
-
-## Latest Package address and NPM version
-
-**Mainnet**
-|  clmmpool published_at   | integrate publish_at  | cetus-sui-sdk version |
-|  ----  | ----  | ---- |
-| 0xc33c3e937e5aa2009cc0c3fdb3f345a0c3193d4ee663ffc601fe8b894fbc4ba6 | 0x12fc0b1791df55bf2c91921f12152659c4a897fa6867144b5b3939a3ea004c46 | 3.10.0 |
-
-**Testnet**
-|  clmmpool published_at   | integrate publish_at  | cetus-sui-sdk version |
-|  ----  | ----  | ---- |
-| 0x1c29d658882c40eeb39a8bb8fe58f71a216a918acb3e3eb3b47d24efd07257f2 | 0xc831ec758f8ddcb23781a4288a9f2ccaf3e17cf7443e8888cf74fd7c80e1f52d | 3.10.0 |
 
 ## SDK configuration parameters
 
@@ -148,13 +135,13 @@ export const mainnet = {
     published_at: '0x000000000000000000000000000000000000000000000000000000000000dee9'
   },
   deepbook_endpoint_v2: {
-    package_id: '0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7',
-    published_at: '0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7'
+    package_id: '0x92aee86c01c79146d23938a00c7fff725ee0688c389be36d1bcbe03761b466c6',
+    published_at: '0x92aee86c01c79146d23938a00c7fff725ee0688c389be36d1bcbe03761b466c6'
   },
-  aggregatorUrl: 'https://api-sui.cetus.zone/router
-  '
+  aggregatorUrl: 'https://api-sui.cetus.zone/router'
 }
 ```
+
 
 ## Introduction
 
@@ -163,23 +150,19 @@ Cetus-CLMM-SUI-SDK is the official software development kit (SDK) specifically d
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Getting Started
-
 To integrate our SDK into your local project, please follow the example steps provided below.
 Please see details in document.
-
 ### Prerequisites
-
 * npm
-
     ```sh
     npm i @cetusprotocol/cetus-sui-clmm-sdk
     ```
 
 ### Setting Up Configuration
-
 1. Initialize testnet (or mainnet) SdkOption
 
-    **NOTICE**
+
+    **NOTICE** 
     1. In this example, the contract address version may backward, please use the latest clmmpool and integrate address.
     2. `simulationAccount` should be add an account address with a small amount of assets, it used to do estimated or other query object from.
 
@@ -188,76 +171,32 @@ Please see details in document.
 Now, you can start using Cetus SDK.
 
 ### Features Available Right Now
+<a href="https://cetus-1.gitbook.io/cetus-developer-docs/developer/dev-overview"><strong> »»» See details in development document. </strong></a>
+<br />
 
-#### Query data
-
-- Retrieval clmm pools:
-  - Retrieve all pools: [example](/examples/fetch_clmm_pools.ts#L3)
-  - Batch retrieval of pools: [example](/examples/fetch_clmm_pools.ts#L12)
-  - Retrieval one pool: [example](/examples/fetch_clmm_pools.ts#L81)
-- Retrieval positions:
-  - Retrieval all positions of one pool by `ownerAddress`: [example](/examples/fetch_positions.ts#L3)
-  - Retrieval all positions of one pool: [example](/examples/fetch_positions.ts#L73)
-  - Retrieval one position: [example](/examples/fetch_positions.ts#L81)
-  - Batch retrieval position fee: [example](/examples/fetch_position.ts#L118)
-- Retrieval reward:
-  - Retrieval position reward list of one pool: [example](/examples/fetch_reward.ts#L3)
-  - Retrieval reward emission infos for one pool every day [example](/examples/fetch_reward.ts#L52)
-  - Retrieval reward of one position: [example](/examples/fetch_reward.ts#L77)
-- Retrieval ticks:
-  - Batch retrieval ticks by `poolID`: [example](/examples/fetch_ticks.ts#L3)
-  - Batch retrieval ticks by  `tickHandle`: [example](/examples/fetch_ticks.ts#L42)
-
-#### Pool and Position (Liquidity)
-
-- Pool:
-  - Create clmmpool: [doc](/docs/create-pool.md)
-    - create one pool
-    - create pools
-- Position
-  - Open position: [doc](/docs/open-position.md)
-    - only open position
-    - open position with add liquidity
-  - Add liquidity: [doc](/docs/add-liquidity.md)
-    - add liquidity with specified liquidity
-    - add liquidity with fixed coin amount
-  - Remove liquidity: [doc](/docs/remove-liquidity.md)
-  - Close position: [doc](/docs/close-position.md)
-  - Collect fee: [doc](/docs/collect-fee.md)
-  - Collect reward: [doc](/docs/collect-rewarder.md)
-
-#### Swap with Partner [doc](/docs/swap.md)
-
-- preswap in one pool
-- preswap in multi pools
-- swap after preswap
-
-#### Smart Router for Swap
-
-##### Smart Router V1
-
-- smart router swap: [doc](/docs/router.md)
-
-##### Smart Router V2
-
-- smart routerV2 swap: [doc](/docs/routerV2.md)
-
-#### Swap Pre-calculating Result Show [doc](/docs/mathematical.md)
-
-- price impact
-- minimun received
-- fee
-
-#### Conversion between liquidity, tickIndex, sqrtPrice, and coinAmount. [doc](/docs/mathematical.md)
-
-- liquidity to coinAmount
-- price to tickIndex
-- price from sqrt price
-
-#### Partner
-
-- check partner ref fee [doc](/docs/partner.md)
+1. Retrieve data
+1.1 Retrieve clmm pools
+1.2 Retrieve positions
+1.3 Retrieve reward
+1.4 Retrieve ticks
+2. Pools and postions
+2.1 Create clmm pool
+2.2 Open position
+2.3 Add liquidity
+2.4 Remove liquidity
+2.5 Close position
+2.6 Collect fees
+2.7 Collect rewards
+3. Swap
+3.1 Swap
+3.2 Partner swap
+3.3 Smart router v1 
+3.4 Smart router v2
+3.5 Price impact
+3.6 Minimum received & Maximum sold
+3.7 Fee
+4. Liquidity correlation calculation
+4.1 Liquidity correlation calculation
 
 ## LICENSE
-
 CETUS-SUI-SDK released under the Apache license. See the [LICENSE](./LICENSE) file for details.

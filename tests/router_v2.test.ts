@@ -45,7 +45,8 @@ describe('Router Module', () => {
     const coinMap = new Map()
     const poolMap = new Map()
 
-    const resp: any = await fetch('https://api-sui.cetus.zone/v2/sui/pools_info', { method: 'GET' })
+    // const resp: any = await fetch('https://api-sui.cetus.zone/v2/sui/pools_info', { method: 'GET' })
+    const resp: any = await fetch('https://api-sui.devcetus.com/v2/sui/pools_info', { method: 'GET' })
     const poolsInfo = await resp.json()
 
     if (poolsInfo.code === 200) {
@@ -90,12 +91,12 @@ describe('Router Module', () => {
     sdk.Router.loadGraph(coins, paths)
 
     const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-    const res = (await sdk.RouterV2.getBestRouter(SBOX, CETUS, 2987896547653, true, 0.5, '', '', undefined, false, false))
+    const res = (await sdk.RouterV2.getBestRouter(USDT, USDC, 100000000000, true, 0.0, '', '', undefined, true, true))
       .result as AggregatorResult
     printAggregatorResult(res)
 
-    const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, res, allCoinAsset, '', 0.5)
-    // printTransaction(payload, true)
+    const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, res, allCoinAsset, '', 0.0)
+    printTransaction(payload, true)
 
     const succeed = await execTx(sdk, true, payload, sendKeypair)
     assert(succeed, 'error')

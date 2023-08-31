@@ -132,7 +132,7 @@ describe('Swap Module', () => {
   test('swap', async () => {
     const a2b = true
     const byAmountIn = true
-    const amount = new BN('1664')
+    const amount = new BN('100')
     const slippage = Percentage.fromDecimal(d(0.1))
 
     const currentPool = await buildTestPool(sdk, pool_object_id)
@@ -140,8 +140,8 @@ describe('Swap Module', () => {
 
     const tickdatas = await sdk.Pool.fetchTicksByRpc(currentPool.ticks_handle)
 
-    const decimalsA = 8
-    const decimalsB = 9
+    const decimalsA = 6
+    const decimalsB = 6
     const calculateRatesParams = {
       decimalsA,
       decimalsB,
@@ -151,7 +151,7 @@ describe('Swap Module', () => {
       swapTicks: tickdatas,
       currentPool,
     }
-    const res = await sdk.Swap.calculateRates(calculateRatesParams)
+    const res = sdk.Swap.calculateRates(calculateRatesParams)
 
     console.log('calculateRates', {
       estimatedAmountIn: res.estimatedAmountIn.toString(),

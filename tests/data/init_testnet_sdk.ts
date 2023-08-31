@@ -51,11 +51,10 @@ export const clmm_testnet: SdkOptions = {
     published_at: '0x000000000000000000000000000000000000000000000000000000000000dee9',
   },
   deepbook_endpoint_v2: {
-    package_id: '0x56d90d0c055edb534b11e7548270bb458fd47c69b77bf40c14d5eb00e6e6cf64',
-    published_at: '0x56d90d0c055edb534b11e7548270bb458fd47c69b77bf40c14d5eb00e6e6cf64',
+    package_id: '0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6',
+    published_at: '0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6',
   },
   aggregatorUrl: 'https://api-sui.devcetus.com/router',
 }
-
 
 export const TestnetSDK = new CetusClmmSDK(clmm_testnet)

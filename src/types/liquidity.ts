@@ -28,6 +28,8 @@ export type LiquidityInput = {
    * The liquidity amount.
    */
   liquidityAmount: BN
+
+  fix_amount_a: boolean
 }
 
 /**

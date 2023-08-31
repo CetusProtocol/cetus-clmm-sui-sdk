@@ -1,3 +1,4 @@
+import { PaginatedCoins } from '@mysten/sui.js/dist/cjs/client/types/generated'
 import { PoolModule } from './modules/poolModule'
 import { PositionModule } from './modules/positionModule'
 import { RewarderModule } from './modules/rewarderModule'
@@ -5,8 +6,8 @@ import { RouterModule } from './modules/routerModule'
 import { SwapModule } from './modules/swapModule'
 import { TokenModule } from './modules/tokenModule'
 import { RouterModuleV2 } from './modules/routerModuleV2'
-import { extractStructTagFromType, patchFixSuiObjectId } from './utils'
-import { CetusConfigs, ClmmConfig, CoinAsset, Package, SuiAddressType, TokenConfig } from './types'
+import { CachedContent, cacheTime24h, extractStructTagFromType, getFutureTime, patchFixSuiObjectId } from './utils'
+import { CetusConfigs, ClmmConfig, CoinAsset, Package, SuiResource, SuiAddressType, TokenConfig } from './types'
 import { ConfigModule } from './modules'
 import { RpcModule } from './modules/rpcModule'
 
@@ -79,6 +80,8 @@ export type SdkOptions = {
  * The entry class of CetusClmmSDK, which is almost responsible for all interactions with CLMM.
  */
 export class CetusClmmSDK {
+  private readonly _cache: Record<string, CachedContent> = {}
+
   /**
    * RPC provider on the SUI chain
    */
@@ -255,9 +258,15 @@ export class CetusClmmSDK {
    * @param coinType The type of the coin.
    * @returns an array of coin assets.
    */
-  async getOwnerCoinAssets(suiAddress: string, coinType?: string | null): Promise<CoinAsset[]> {
+  async getOwnerCoinAssets(suiAddress: string, coinType?: string | null, forceRefresh = true): Promise<CoinAsset[]> {
     const allCoinAsset: CoinAsset[] = []
     let nextCursor: string | null | undefined = null
+
+    const cacheKey = `${this.sdkOptions.fullRpcUrl}_${suiAddress}_${coinType}_getOwnerCoinAssets`
+    const cacheData = this.getCache<CoinAsset[]>(cacheKey, forceRefresh)
+    if (cacheData) {
+      return cacheData
+    }
 
     while (true) {
       const allCoinObject: any = await (coinType
@@ -286,6 +295,44 @@ export class CetusClmmSDK {
         break
       }
     }
+    this.updateCache(cacheKey, allCoinAsset, 30 * 1000)
     return allCoinAsset
+  }
+
+  /**
+   * Updates the cache for the given key.
+   *
+   * @param key The key of the cache entry to update.
+   * @param data The data to store in the cache.
+   * @param time The time in minutes after which the cache entry should expire.
+   */
+  updateCache(key: string, data: SuiResource, time = cacheTime24h) {
+    let cacheData = this._cache[key]
+    if (cacheData) {
+      cacheData.overdueTime = getFutureTime(time)
+      cacheData.value = data
+    } else {
+      cacheData = new CachedContent(data, getFutureTime(time))
+    }
+    this._cache[key] = cacheData
+  }
+
+  /**
+   * Gets the cache entry for the given key.
+   *
+   * @param key The key of the cache entry to get.
+   * @param forceRefresh Whether to force a refresh of the cache entry.
+   * @returns The cache entry for the given key, or undefined if the cache entry does not exist or is expired.
+   */
+  getCache<T>(key: string, forceRefresh = false): T | undefined {
+    const cacheData = this._cache[key]
+    const isValid = cacheData?.isValid()
+    if (!forceRefresh && isValid) {
+      return cacheData.value as T
+    }
+    if (!isValid) {
+      delete this._cache[key]
+    }
+    return undefined
   }
 }

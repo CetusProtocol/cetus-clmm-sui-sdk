@@ -463,7 +463,6 @@ export class ClmmPoolUtil {
     }
   }
 
-
   /**
    * Estimate liquidity and token amount from one amounts
    * @param lowerTick - lower tick
@@ -527,6 +526,7 @@ export class ClmmPoolUtil {
       tokenMaxA: roundUp ? new BN(Decimal.ceil(tokenLimitA).toString()) : new BN(Decimal.floor(tokenLimitA).toString()),
       tokenMaxB: roundUp ? new BN(Decimal.ceil(tokenLimitB).toString()) : new BN(Decimal.floor(tokenLimitB).toString()),
       liquidityAmount: liquidity,
+      fix_amount_a: iscoinA,
     }
   }
 
@@ -587,8 +587,8 @@ export class ClmmPoolUtil {
   }
 
   static calculateDepositRatioFixTokenA(lowerTick: number, upperTick: number, curSqrtPrice: BN) {
-    const coinAmountA = new BN(1)
-    const { tokenMaxB: tokenLimitB } = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
+    const coinAmountA = new BN(100000000)
+    const { coinAmountB } = ClmmPoolUtil.estLiquidityAndcoinAmountFromOneAmounts(
       lowerTick,
       upperTick,
       coinAmountA,
@@ -597,12 +597,11 @@ export class ClmmPoolUtil {
       0,
       curSqrtPrice
     )
-
     const currPrice = TickMath.sqrtPriceX64ToPrice(curSqrtPrice, 0, 0)
     const transformAmountB = d(coinAmountA.toString()).mul(currPrice)
-    const totalAmount = transformAmountB.add(tokenLimitB.toString())
+    const totalAmount = transformAmountB.add(coinAmountB.toString())
     const ratioA = transformAmountB.div(totalAmount)
-    const ratioB = d(tokenLimitB.toString()).div(totalAmount)
+    const ratioB = d(coinAmountB.toString()).div(totalAmount)
 
     return { ratioA, ratioB }
   }

@@ -4,7 +4,7 @@ import { CoinProvider, OnePath, PreRouterSwapParams, SwapWithRouterParams } from
 import SDK, { CoinAsset, CoinAssist, DeepbookUtils, Pool, printTransaction, SwapUtils, TransactionUtil } from '../src'
 import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS } from '../src/types/sui'
 import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
-import { RawSigner } from '@mysten/sui.js/dist/cjs/signers/raw-signer'
+// import { RawSigner } from '@mysten/`sui.js/dist/cjs/signers/raw-signer'
 
 describe('Router Module', () => {
   const sdk = buildSdk()
@@ -27,9 +27,9 @@ describe('Router Module', () => {
     // const pool_address = '0x5deafda22b6b86127ea4299503362638bea0ca33bb212ea3a67b029356b8b955'
 
     // sui - usdc
-    const coin_a = '0x2::sui::SUI'
-    const coin_b = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS'
-    const pool_address = '0x1e501bbcc0b1bc6edcb85c6a208b5098d9fc2b0ced0eb9b4dba8548b4fc82315'
+    const coin_a = '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'
+    const coin_b = '0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN'
+    const pool_address = '0x7f526b1263c4b91b43c9e646419b5696f424de28dda3c1e6658cc0a54558baa7'
 
     // sui - usdc
     // const coin_a = '0x2::sui::SUI'
@@ -41,6 +41,20 @@ describe('Router Module', () => {
 
     const bids = await DeepbookUtils.getPoolBids(sdk, pool_address, coin_a, coin_b)
     console.log(bids)
+  })
+
+  test('test get all order of pools', async () => {
+    const pools = await DeepbookUtils.getPools(sdk)
+
+    for (const pool of pools) {
+      console.log('--------------------------------')
+      console.log('pool address:', pool.poolID)
+      const asks = await DeepbookUtils.getPoolAsks(sdk, pool.poolID, '0x' + pool.baseAsset, '0x' + pool.quoteAsset)
+      console.log(asks)
+
+      const bids = await DeepbookUtils.getPoolBids(sdk, pool.poolID, '0x' + pool.baseAsset, '0x' + pool.quoteAsset)
+      console.log(bids)
+    }
   })
 
   test('test get uesr account cap', async () => {
@@ -175,12 +189,12 @@ describe('Router Module', () => {
   })
 
   test('test simulate swap', async () => {
-    const USDT = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
-    const USDC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
-    const pool_address = '0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b'
+    const USDT = '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'
+    const USDC = '0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN'
+    const pool_address = '0x7f526b1263c4b91b43c9e646419b5696f424de28dda3c1e6658cc0a54558baa7'
 
-    const a2b = false
-    const amount = 10000000
+    const a2b = true
+    const amount = 1000000000
     // const res = await DeepbookUtils.simulateSwap(sdk, pool_address, USDT, USDC, a2b, amount)
     // console.log('simulate swap result', res)
 

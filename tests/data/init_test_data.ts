@@ -61,7 +61,7 @@ export async function buildTestPool(sdk: CetusClmmSDK, poolObjectId: string) {
 }
 
 export async function buildTestPosition(sdk: CetusClmmSDK, posObjectId: string) {
-  const position = await sdk.Position.getSipmlePosition(posObjectId)
+  const position = await sdk.Position.getSimplePosition(posObjectId)
   console.log('buildTestPosition: ', position)
   return position
 }

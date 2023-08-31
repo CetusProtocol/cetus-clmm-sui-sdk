@@ -89,7 +89,7 @@ describe('remove liquidity', () => {
       collect_fee: true,
     }
 
-    const payload = sdk.Position.removeLiquidityTransactionPayload(removeLiquidityParams)
+    const payload = await sdk.Position.removeLiquidityTransactionPayload(removeLiquidityParams)
 
     printTransaction(payload)
 
@@ -175,7 +175,7 @@ describe('remove liquidity', () => {
       collect_fee: true,
     }
 
-    const payload = sdk.Position.removeLiquidityTransactionPayload(removeLiquidityParams)
+    const payload = await sdk.Position.removeLiquidityTransactionPayload(removeLiquidityParams)
 
     printTransaction(payload)
 
@@ -184,6 +184,7 @@ describe('remove liquidity', () => {
   })
   test('remove liquidity for input liquidity', async () => {
     const poolObjectId = pool_object_id
+    sdk.senderAddress = "0xec3c976c7732437b50f8e1a2c6eb9f7df213013a480f3ff5bb57d8a5273b09db"
     const pool = await buildTestPool(sdk, poolObjectId)
     const position = (await buildTestPosition(sdk, position_object_id)) as Position
     console.log('position: ', position)
@@ -213,12 +214,12 @@ describe('remove liquidity', () => {
       collect_fee: true,
     }
 
-    const removeLiquidityTransactionPayload = sdk.Position.removeLiquidityTransactionPayload(removeLiquidityParams)
+    const removeLiquidityTransactionPayload = await sdk.Position.removeLiquidityTransactionPayload(removeLiquidityParams)
 
     printTransaction(removeLiquidityTransactionPayload)
 
-    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, removeLiquidityTransactionPayload)
-    console.log('removeLiquidity: ', transferTxn)
+    // const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, removeLiquidityTransactionPayload)
+    // console.log('removeLiquidity: ', transferTxn)
   })
 
 })

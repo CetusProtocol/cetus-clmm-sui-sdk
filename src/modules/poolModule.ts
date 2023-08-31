@@ -1,7 +1,7 @@
 import { DynamicFieldPage, SuiObjectResponse, SuiTransactionBlockResponse } from '@mysten/sui.js/dist/cjs/client'
 import { normalizeSuiAddress } from '@mysten/sui.js/utils'
 import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
-import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils'
+import { CachedContent, cacheTime24h, cacheTime5min, d, getFutureTime } from '../utils'
 import {
   CreatePoolAddLiquidityParams,
   CreatePoolParams,
@@ -22,6 +22,7 @@ import { TickData } from '../types/clmmpool'
 import {
   ClmmFetcherModule,
   ClmmIntegratePoolModule,
+  ClmmIntegratePoolV2Module,
   CLOCK_ADDRESS,
   DataPage,
   PaginationArgs,
@@ -56,17 +57,24 @@ export class PoolModule implements IModule {
   /**
    * Gets a list of positions for the given positionHandle.
    * @param {string} positionHandle The handle for the position.
-   * @returns {Promise<Position[]>} A promise that resolves to an array of Position objects.
+   * @returns {DataPage<Position>} A promise that resolves to an array of Position objects.
    */
-  async getPositionList(positionHandle: string): Promise<Position[]> {
-    const objects = await this._sdk.fullClient.getDynamicFieldsByPage(positionHandle)
+  async getPositionList(positionHandle: string, paginationArgs: PaginationArgs = 'all'): Promise<DataPage<Position>> {
+    const dataPage: DataPage<Position> = {
+      data: [],
+      hasNextPage: true,
+    }
+    const objects = await this._sdk.fullClient.getDynamicFieldsByPage(positionHandle, paginationArgs)
+    dataPage.hasNextPage = objects.hasNextPage
+    dataPage.nextCursor = objects.nextCursor
+
     const positionObjectIDs = objects.data.map((item: any) => {
       return item.name.value
     })
 
     const allPosition: Position[] = await this._sdk.Position.getSipmlePositionList(positionObjectIDs)
-
-    return allPosition
+    dataPage.data = allPosition
+    return dataPage
   }
 
   /**
@@ -428,50 +436,25 @@ export class PoolModule implements IModule {
     const poolsId = eventConfig.pools_id
     const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
 
-    const primaryCoinAInputsR: any = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
+    const primaryCoinAInputsR = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
       tx,
       !params.fix_amount_a,
       params.amount_a,
       params.slippage,
       params.coinTypeA,
-      allCoinAsset
+      allCoinAsset,
+      false
     )
 
-    const primaryCoinBInputsR: any = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
+    const primaryCoinBInputsR = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
       tx,
       params.fix_amount_a,
       params.amount_b,
       params.slippage,
       params.coinTypeB,
-      allCoinAsset
+      allCoinAsset,
+      false
     )
-
-    const primaryCoinAInputs = primaryCoinAInputsR as TransactionArgument
-    const primaryCoinBInputs = primaryCoinBInputsR as TransactionArgument
-
-    const primaryCoinInputs: {
-      coinInput: TransactionArgument
-      coinAmount: string
-    }[] = []
-    if (primaryCoinAInputs) {
-      primaryCoinInputs.push({
-        coinInput: primaryCoinAInputs,
-        coinAmount: params.amount_a.toString(),
-      })
-    }
-    if (primaryCoinBInputs) {
-      primaryCoinInputs.push({
-        coinInput: primaryCoinBInputs,
-        coinAmount: params.amount_b.toString(),
-      })
-    }
-
-    let addLiquidityName
-    if (primaryCoinInputs.length === 2) {
-      addLiquidityName = 'create_pool_with_liquidity_with_all'
-    } else {
-      addLiquidityName = primaryCoinAInputs !== undefined ? 'create_pool_with_liquidity_only_a' : 'create_pool_with_liquidity_only_b'
-    }
 
     const args = [
       tx.pure(globalPauseStatusObjectId),
@@ -479,24 +462,21 @@ export class PoolModule implements IModule {
       tx.pure(params.tick_spacing.toString()),
       tx.pure(params.initialize_sqrt_price),
       tx.pure(params.uri),
-      ...primaryCoinInputs.map((item) => item.coinInput),
+      primaryCoinAInputsR.transactionArgument,
+      primaryCoinBInputsR.transactionArgument,
       tx.pure(asUintN(BigInt(params.tick_lower)).toString()),
       tx.pure(asUintN(BigInt(params.tick_upper)).toString()),
-      ...primaryCoinInputs.map((item) => tx.pure(item.coinAmount)),
-      // tx.pure(params.fix_amount_a),
-      // tx.pure(CLOCK_ADDRESS),
+      tx.pure(params.amount_a),
+      tx.pure(params.amount_b),
+      tx.pure(params.fix_amount_a),
+      tx.pure(CLOCK_ADDRESS),
     ]
-    if (addLiquidityName === 'create_pool_with_liquidity_with_all') {
-      args.push(tx.pure(params.fix_amount_a))
-    }
-    args.push(tx.pure(CLOCK_ADDRESS))
 
     tx.moveCall({
-      target: `${integrate.published_at}::${ClmmIntegratePoolModule}::${addLiquidityName}`,
+      target: `${integrate.published_at}::${ClmmIntegratePoolV2Module}::create_pool_with_liquidity`,
       typeArguments: [params.coinTypeA, params.coinTypeB],
       arguments: args,
     })
-
     return tx
   }
 

@@ -47,8 +47,8 @@ export const clmm_mainnet: SdkOptions = {
     published_at: '0x000000000000000000000000000000000000000000000000000000000000dee9',
   },
   deepbook_endpoint_v2: {
-    package_id: '0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7',
-    published_at: '0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7',
+    package_id: '0x10b5eea7a286091241b69102a5e63ae444a27363ebe4ee7261fa6b688ae3daf5',
+    published_at: '0x10b5eea7a286091241b69102a5e63ae444a27363ebe4ee7261fa6b688ae3daf5',
   },
   aggregatorUrl: 'https://api-sui.cetus.zone/router',
 }

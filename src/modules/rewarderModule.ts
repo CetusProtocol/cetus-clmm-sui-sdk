@@ -1,7 +1,7 @@
 import BN from 'bn.js'
-import { TransactionBlock } from '@mysten/sui.js/transactions'
-import { extractStructTagFromType } from '../utils'
-import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS } from '../types/sui'
+import { TransactionBlock, TransactionArgument } from '@mysten/sui.js/transactions'
+import { extractStructTagFromType, TransactionUtil } from '../utils'
+import { ClmmFetcherModule, ClmmIntegratePoolV2Module, CLOCK_ADDRESS } from '../types/sui'
 import { getRewardInTickRange } from '../utils/tick'
 import { MathUtil, ONE, ZERO } from '../math/utils'
 import { TickData } from '../types/clmmpool'
@@ -455,41 +455,34 @@ export class RewarderModule implements IModule {
    * @param gasBudget
    * @returns
    */
-  collectRewarderTransactionPayload(params: CollectRewarderParams, tx?: TransactionBlock): TransactionBlock {
+  async collectRewarderTransactionPayload(params: CollectRewarderParams): Promise<TransactionBlock> {
+    const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress, null)
+    let tx = new TransactionBlock()
+
+    tx = TransactionUtil.createCollectRewarderAndFeeParams(this._sdk, tx, params, allCoinAsset)
+    return tx
+  }
+
+  createCollectRewarderPaylod(params: CollectRewarderParams, tx: TransactionBlock, primaryCoinInputs: TransactionArgument[]) {
     const { clmm_pool, integrate } = this.sdk.sdkOptions
-
-    const typeArguments = [params.coinTypeA, params.coinTypeB]
-
-    tx = tx === undefined ? new TransactionBlock() : tx
-
-    if (params.collect_fee) {
-      this._sdk.Position.collectFeeTransactionPayload(
-        {
-          pool_id: params.pool_id,
-          pos_id: params.pos_id,
-          coinTypeA: params.coinTypeA,
-          coinTypeB: params.coinTypeB,
-        },
-        tx
-      )
-    }
     const clmmConfigs = getPackagerConfigs(clmm_pool)
-    params.rewarder_coin_types.forEach((type) => {
+    const typeArguments = [params.coinTypeA, params.coinTypeB]
+    params.rewarder_coin_types.forEach((type, index) => {
       if (tx) {
         tx.moveCall({
-          target: `${integrate.published_at}::${ClmmIntegratePoolModule}::collect_reward`,
+          target: `${integrate.published_at}::${ClmmIntegratePoolV2Module}::collect_reward`,
           typeArguments: [...typeArguments, type],
           arguments: [
             tx.object(clmmConfigs.global_config_id),
             tx.object(params.pool_id),
             tx.object(params.pos_id),
             tx.object(clmmConfigs.global_vault_id),
+            primaryCoinInputs[index],
             tx.object(CLOCK_ADDRESS),
           ],
         })
       }
     })
-
     return tx
   }
 }

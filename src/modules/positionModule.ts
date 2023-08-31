@@ -1,5 +1,5 @@
 import BN from 'bn.js'
-import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
+import { TransactionBlock, TransactionArgument } from '@mysten/sui.js/transactions'
 import { isValidSuiObjectId } from '@mysten/sui.js/utils'
 import {
   AddLiquidityFixTokenParams,
@@ -23,7 +23,14 @@ import {
   getFutureTime,
 } from '../utils'
 import { findAdjustCoin, TransactionUtil } from '../utils/transaction-util'
-import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS, SuiObjectIdType, SuiResource } from '../types/sui'
+import {
+  ClmmFetcherModule,
+  ClmmIntegratePoolModule,
+  ClmmIntegratePoolV2Module,
+  CLOCK_ADDRESS,
+  SuiObjectIdType,
+  SuiResource,
+} from '../types/sui'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { getObjectFields } from '../utils/objects'
@@ -99,7 +106,7 @@ export class PositionModule implements IModule {
    * @returns {Promise<Position>} Position object.
    */
   async getPosition(positionHandle: string, positionID: string, calculateRewarder = true): Promise<Position> {
-    let position = await this.getSipmlePosition(positionID)
+    let position = await this.getSimplePosition(positionID)
     if (calculateRewarder) {
       position = await this.updatePositionRewarders(positionHandle, position)
     }
@@ -113,7 +120,7 @@ export class PositionModule implements IModule {
    * @returns {Promise<Position>} Position object.
    */
   async getPositionById(positionID: string, calculateRewarder = true): Promise<Position> {
-    const position = await this.getSipmlePosition(positionID)
+    const position = await this.getSimplePosition(positionID)
     if (calculateRewarder) {
       const pool = await this._sdk.Pool.getPool(position.pool, false)
       const result = await this.updatePositionRewarders(pool.position_manager.positions_handle, position)
@@ -127,10 +134,10 @@ export class PositionModule implements IModule {
    * @param {string} positionID The ID of the position to get.
    * @returns {Promise<Position>} Position object.
    */
-  async getSipmlePosition(positionID: string): Promise<Position> {
+  async getSimplePosition(positionID: string): Promise<Position> {
     const cacheKey = `${positionID}_getPositionList`
 
-    let position = this.getSipmlePositionByCache(positionID)
+    let position = this.getSimplePositionByCache(positionID)
 
     if (position === undefined) {
       const objectDataResponses = await this.sdk.fullClient.getObject({
@@ -149,7 +156,7 @@ export class PositionModule implements IModule {
    * @param {string} positionID Position object id
    * @returns {Position | undefined} Position object
    */
-  private getSipmlePositionByCache(positionID: string): Position | undefined {
+  private getSimplePositionByCache(positionID: string): Position | undefined {
     const cacheKey = `${positionID}_getPositionList`
     return this.getCache<Position>(cacheKey)
   }
@@ -164,7 +171,7 @@ export class PositionModule implements IModule {
     const notFoundIds: SuiObjectIdType[] = []
 
     positionIDs.forEach((id) => {
-      const position = this.getSipmlePositionByCache(id)
+      const position = this.getSimplePositionByCache(id)
       if (position) {
         positionList.push(position)
       } else {
@@ -354,99 +361,64 @@ export class PositionModule implements IModule {
     if (this._sdk.senderAddress.length === 0) {
       throw Error('this config sdk senderAddress is empty')
     }
-    const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
     const tick_lower = asUintN(BigInt(params.tick_lower)).toString()
     const tick_upper = asUintN(BigInt(params.tick_upper)).toString()
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
 
-    const tx = new TransactionBlock()
+    let tx = new TransactionBlock()
 
     const needOpenPosition = !isValidSuiObjectId(params.pos_id)
 
-    let positionNft: TransactionArgument[] = []
+    const max_amount_a = BigInt(params.max_amount_a)
+    const max_amount_b = BigInt(params.max_amount_b)
+
+    const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
+    const primaryCoinAInputs = TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, max_amount_a, params.coinTypeA, false)
+
+    const primaryCoinBInputs = TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, max_amount_b, params.coinTypeB, false)
 
     if (needOpenPosition) {
-      positionNft = tx.moveCall({
-        target: `${clmm_pool.published_at}::pool::open_position`,
+      tx.moveCall({
+        target: `${integrate.published_at}::${ClmmIntegratePoolV2Module}::open_position_with_liquidity`,
         typeArguments,
         arguments: [
           tx.object(getPackagerConfigs(clmm_pool).global_config_id),
           tx.object(params.pool_id),
           tx.pure(tick_lower),
           tx.pure(tick_upper),
+          primaryCoinAInputs.transactionArgument,
+          primaryCoinBInputs.transactionArgument,
+          tx.pure(params.max_amount_a),
+          tx.pure(params.max_amount_b),
+          tx.pure(params.delta_liquidity),
+          tx.object(CLOCK_ADDRESS),
         ],
       })
     } else {
-      this._sdk.Rewarder.collectRewarderTransactionPayload(
-        {
-          pool_id: params.pool_id,
-          pos_id: params.pos_id,
-          coinTypeA: params.coinTypeA,
-          coinTypeB: params.coinTypeB,
-          collect_fee: params.collect_fee,
-          rewarder_coin_types: params.rewarder_coin_types,
-        },
-        tx
+      tx = TransactionUtil.createCollectRewarderAndFeeParams(
+        this._sdk,
+        tx,
+        params,
+        allCoinAsset,
+        primaryCoinAInputs.remainCoins,
+        primaryCoinBInputs.remainCoins
       )
-    }
-
-    const max_amount_a = BigInt(params.max_amount_a)
-    const max_amount_b = BigInt(params.max_amount_b)
-
-    const warpInputs: {
-      coinInput: TransactionArgument
-      amount: string
-    }[] = []
-
-    let funName = ''
-
-    if (max_amount_a > 0) {
-      const primaryCoinAInputs: any = TransactionUtil.buildCoinInputForAmount(
-        tx,
-        allCoinAsset,
-        max_amount_a,
-        params.coinTypeA
-      )?.transactionArgument
-      warpInputs.push({
-        coinInput: primaryCoinAInputs,
-        amount: max_amount_a.toString(),
+      tx.moveCall({
+        target: `${integrate.published_at}::${ClmmIntegratePoolV2Module}::add_liquidity`,
+        typeArguments,
+        arguments: [
+          tx.object(getPackagerConfigs(clmm_pool).global_config_id),
+          tx.object(params.pool_id),
+          tx.object(params.pos_id),
+          primaryCoinAInputs.transactionArgument,
+          primaryCoinBInputs.transactionArgument,
+          tx.pure(params.max_amount_a),
+          tx.pure(params.max_amount_b),
+          tx.pure(params.delta_liquidity),
+          tx.object(CLOCK_ADDRESS),
+        ],
       })
-      funName = 'add_liquidity_only_a'
-    }
-    if (max_amount_b > 0) {
-      const primaryCoinBInputs: any = TransactionUtil.buildCoinInputForAmount(
-        tx,
-        allCoinAsset,
-        max_amount_b,
-        params.coinTypeB
-      )?.transactionArgument
-      warpInputs.push({
-        coinInput: primaryCoinBInputs,
-        amount: max_amount_b.toString(),
-      })
-      funName = 'add_liquidity_only_b'
-    }
-
-    if (max_amount_a > 0 && max_amount_b > 0) {
-      funName = 'add_liquidity_with_all'
-    }
-
-    tx.moveCall({
-      target: `${integrate.published_at}::${ClmmIntegratePoolModule}::${funName}`,
-      typeArguments,
-      arguments: [
-        tx.object(getPackagerConfigs(clmm_pool).global_config_id),
-        tx.object(params.pool_id),
-        needOpenPosition ? positionNft[0] : tx.object(params.pos_id),
-        ...warpInputs.map((item) => item.coinInput),
-        ...warpInputs.map((item) => tx.pure(item.amount)),
-        tx.pure(params.delta_liquidity),
-        tx.object(CLOCK_ADDRESS),
-      ],
-    })
-    if (needOpenPosition) {
-      tx.transferObjects([positionNft[0]], tx.object(this._sdk.senderAddress))
     }
     return tx
   }
@@ -456,26 +428,18 @@ export class PositionModule implements IModule {
    * @param {RemoveLiquidityParams} params
    * @returns {TransactionBlock}
    */
-  removeLiquidityTransactionPayload(params: RemoveLiquidityParams): TransactionBlock {
+  async removeLiquidityTransactionPayload(params: RemoveLiquidityParams): Promise<TransactionBlock> {
     const { clmm_pool, integrate } = this.sdk.sdkOptions
 
     const functionName = 'remove_liquidity'
 
-    const tx = new TransactionBlock()
+    let tx = new TransactionBlock()
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
 
-    this._sdk.Rewarder.collectRewarderTransactionPayload(
-      {
-        pool_id: params.pool_id,
-        pos_id: params.pos_id,
-        coinTypeA: params.coinTypeA,
-        coinTypeB: params.coinTypeB,
-        collect_fee: params.collect_fee,
-        rewarder_coin_types: params.rewarder_coin_types,
-      },
-      tx
-    )
+    const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
+
+    tx = TransactionUtil.createCollectRewarderAndFeeParams(this._sdk, tx, params, allCoinAsset)
 
     const args = [
       tx.object(getPackagerConfigs(clmm_pool).global_config_id),
@@ -501,24 +465,16 @@ export class PositionModule implements IModule {
    * @param {ClosePositionParams} params
    * @returns {TransactionBlock}
    */
-  closePositionTransactionPayload(params: ClosePositionParams): TransactionBlock {
+  async closePositionTransactionPayload(params: ClosePositionParams): Promise<TransactionBlock> {
     const { clmm_pool, integrate } = this.sdk.sdkOptions
 
-    const tx = new TransactionBlock()
+    let tx = new TransactionBlock()
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
 
-    this._sdk.Rewarder.collectRewarderTransactionPayload(
-      {
-        pool_id: params.pool_id,
-        pos_id: params.pos_id,
-        coinTypeA: params.coinTypeA,
-        coinTypeB: params.coinTypeB,
-        collect_fee: params.collect_fee,
-        rewarder_coin_types: params.rewarder_coin_types,
-      },
-      tx
-    )
+    const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
+
+    tx = TransactionUtil.createCollectRewarderAndFeeParams(this._sdk, tx, params, allCoinAsset)
 
     tx.moveCall({
       target: `${integrate.published_at}::${ClmmIntegratePoolModule}::close_position`,
@@ -571,20 +527,38 @@ export class PositionModule implements IModule {
    * @param {TransactionBlock} tx
    * @returns {TransactionBlock}
    */
-  collectFeeTransactionPayload(params: CollectFeeParams, tx?: TransactionBlock): TransactionBlock {
+  async collectFeeTransactionPayload(params: CollectFeeParams): Promise<TransactionBlock> {
+    const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress, null, true)
+    const tx = new TransactionBlock()
+
+    const primaryCoinAInput = TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, BigInt(0), params.coinTypeA, false)
+    const primaryCoinBInput = TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, BigInt(0), params.coinTypeB, false)
+
+    this.createCollectFeePaylod(params, tx, primaryCoinAInput.transactionArgument, primaryCoinBInput.transactionArgument)
+    return tx
+  }
+
+  createCollectFeePaylod(
+    params: CollectFeeParams,
+    tx: TransactionBlock,
+    primaryCoinAInput: TransactionArgument,
+    primaryCoinBInput: TransactionArgument
+  ) {
     const { clmm_pool, integrate } = this.sdk.sdkOptions
-
-    tx = tx === undefined ? new TransactionBlock() : tx
-
     const typeArguments = [params.coinTypeA, params.coinTypeB]
-    const args = [tx.object(getPackagerConfigs(clmm_pool).global_config_id), tx.object(params.pool_id), tx.object(params.pos_id)]
+    const args = [
+      tx.object(getPackagerConfigs(clmm_pool).global_config_id),
+      tx.object(params.pool_id),
+      tx.object(params.pos_id),
+      primaryCoinAInput,
+      primaryCoinBInput,
+    ]
 
     tx.moveCall({
-      target: `${integrate.published_at}::${ClmmIntegratePoolModule}::collect_fee`,
+      target: `${integrate.published_at}::${ClmmIntegratePoolV2Module}::collect_fee`,
       typeArguments,
       arguments: args,
     })
-
     return tx
   }
 
@@ -594,7 +568,7 @@ export class PositionModule implements IModule {
    * @returns
    */
   async calculateFee(params: CollectFeeParams) {
-    const paylod = this.collectFeeTransactionPayload(params, new TransactionBlock())
+    const paylod = await this.collectFeeTransactionPayload(params)
 
     const res = await this._sdk.fullClient.devInspectTransactionBlock({
       transactionBlock: paylod,

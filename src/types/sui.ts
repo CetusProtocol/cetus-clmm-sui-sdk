@@ -21,6 +21,7 @@ export const CLOCK_ADDRESS = '0x000000000000000000000000000000000000000000000000
  * Constants for different modules in the CLMM (Cryptocurrency Liquidity Mining Module).
  */
 export const ClmmIntegratePoolModule = 'pool_script'
+export const ClmmIntegratePoolV2Module = 'pool_script_v2'
 export const ClmmIntegrateRouterModule = 'router'
 export const ClmmIntegrateRouterWithPartnerModule = 'router_with_partner'
 export const ClmmFetcherModule = 'fetcher_script'
