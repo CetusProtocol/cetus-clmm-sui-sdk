@@ -1,6 +1,6 @@
 import { normalizeSuiObjectId } from '@mysten/sui.js/utils'
 import { SuiAddressType, SuiStructTag } from '../types/sui'
-import { CoinAssist } from '../math/CoinAssist'
+import { CoinAssist, GAS_TYPE_ARG, GAS_TYPE_ARG_LONG } from '../math/CoinAssist'
 import { removeHexPrefix } from './hex'
 
 const EQUAL = 0
@@ -79,9 +79,11 @@ export function extractStructTagFromType(type: string): SuiStructTag {
     }
     const parts = _type.split('::')
 
+    const isSuiCoin = _type === GAS_TYPE_ARG || _type === GAS_TYPE_ARG_LONG
+
     const structTag: SuiStructTag = {
       full_address: _type,
-      address: parts[2] === 'SUI' ? '0x2' : normalizeSuiObjectId(parts[0]),
+      address: isSuiCoin ? '0x2' : normalizeSuiObjectId(parts[0]),
       module: parts[1],
       name: parts[2],
       type_arguments: [],

@@ -52,15 +52,15 @@ export class RouterModuleV2 implements IModule {
     return this._sdk
   }
 
-  //
   private calculatePrice(currentSqrtPrice: BN, fromDecimals: number, toDecimals: number, a2b: boolean, label: string): Decimal {
+    const decimalA = a2b ? fromDecimals : toDecimals
+    const decimalB = a2b ? toDecimals : fromDecimals
     if (label === 'Cetus') {
-      const decimalA = a2b ? fromDecimals : toDecimals
-      const decimalB = a2b ? toDecimals : fromDecimals
       const price = TickMath.sqrtPriceX64ToPrice(currentSqrtPrice, decimalA, decimalB)
       return price
     }
-    const price = new Decimal(currentSqrtPrice.toString()).div(new Decimal(1000000000))
+
+    const price = new Decimal(currentSqrtPrice.toString()).div(new Decimal(10).pow(new Decimal(decimalB + 9 - decimalA)))
     return price
   }
 

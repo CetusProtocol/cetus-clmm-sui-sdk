@@ -22,6 +22,7 @@ import SDK, {
   d,
   DeepbookUtils,
   getPackagerConfigs,
+  normalizeCoinType,
   Percentage,
   Pool,
   SdkOptions,
@@ -92,11 +93,13 @@ export class TransactionUtil {
     if (allCoinAssetB === undefined) {
       allCoinAssetB = [...allCoinAsset]
     }
+    const coinTypeA = normalizeCoinType(params.coinTypeA)
+    const coinTypeB = normalizeCoinType(params.coinTypeB)
     if (params.collect_fee) {
-      const primaryCoinAInput = TransactionUtil.buildCoinInputForAmount(tx, allCoinAssetA, BigInt(0), params.coinTypeA, false)
+      const primaryCoinAInput = TransactionUtil.buildCoinInputForAmount(tx, allCoinAssetA, BigInt(0), coinTypeA, false)
       allCoinAssetA = primaryCoinAInput.remainCoins
 
-      const primaryCoinBInput = TransactionUtil.buildCoinInputForAmount(tx, allCoinAssetB, BigInt(0), params.coinTypeB, false)
+      const primaryCoinBInput = TransactionUtil.buildCoinInputForAmount(tx, allCoinAssetB, BigInt(0), coinTypeB, false)
       allCoinAssetB = primaryCoinBInput.remainCoins
 
       tx = sdk.Position.createCollectFeePaylod(
@@ -113,7 +116,7 @@ export class TransactionUtil {
     }
     const primaryCoinInputs: TransactionArgument[] = []
     params.rewarder_coin_types.forEach((type) => {
-      switch (type) {
+      switch (normalizeCoinType(type)) {
         case params.coinTypeA:
           primaryCoinInputs.push(TransactionUtil.buildCoinInputForAmount(tx, allCoinAssetA!, BigInt(0), type, false).transactionArgument)
           break

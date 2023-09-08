@@ -1,4 +1,4 @@
-import { PaginatedCoins } from '@mysten/sui.js/dist/cjs/client/types/generated'
+import { CoinBalance } from '@mysten/sui.js/dist/cjs/client/types/coins'
 import { PoolModule } from './modules/poolModule'
 import { PositionModule } from './modules/positionModule'
 import { RewarderModule } from './modules/rewarderModule'
@@ -297,6 +297,31 @@ export class CetusClmmSDK {
     }
     this.updateCache(cacheKey, allCoinAsset, 30 * 1000)
     return allCoinAsset
+  }
+
+  /**
+   * Gets all coin balances for the given owner and coin type.
+   *
+   * @param suiAddress The address of the owner.
+   * @param coinType The type of the coin.
+   * @returns an array of coin balances.
+   */
+  async getOwnerCoinBalances(suiAddress: string, coinType?: string | null): Promise<CoinBalance[]> {
+    let allCoinBalance: CoinBalance[] = []
+
+    if (coinType) {
+      const res = await this.fullClient.getBalance({
+        owner: suiAddress,
+        coinType,
+      })
+      allCoinBalance = [res]
+    } else {
+      const res = await this.fullClient.getAllBalances({
+        owner: suiAddress,
+      })
+      allCoinBalance = [...res]
+    }
+    return allCoinBalance
   }
 
   /**
