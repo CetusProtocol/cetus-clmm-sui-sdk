@@ -428,22 +428,28 @@ export class ClmmPoolUtil {
    * Get token amount fron liquidity.
    * @param liquidity - liquidity
    * @param curSqrtPrice - Pool current sqrt price
-   * @param lowerPrice - lower price
-   * @param upperPrice - upper price
+   * @param lowerSqrtPrice - position lower sqrt price
+   * @param upperSqrtPrice - position upper sqrt price
    * @param roundUp - is round up
    * @returns
    */
-  static getCoinAmountFromLiquidity(liquidity: BN, curSqrtPrice: BN, lowerPrice: BN, upperPrice: BN, roundUp: boolean): CoinAmounts {
+  static getCoinAmountFromLiquidity(
+    liquidity: BN,
+    curSqrtPrice: BN,
+    lowerSqrtPrice: BN,
+    upperSqrtPrice: BN,
+    roundUp: boolean
+  ): CoinAmounts {
     const liq = new Decimal(liquidity.toString())
     const curSqrtPriceStr = new Decimal(curSqrtPrice.toString())
-    const lowerPriceStr = new Decimal(lowerPrice.toString())
-    const upperPriceStr = new Decimal(upperPrice.toString())
+    const lowerPriceStr = new Decimal(lowerSqrtPrice.toString())
+    const upperPriceStr = new Decimal(upperSqrtPrice.toString())
     let coinA
     let coinB
-    if (curSqrtPrice.lt(lowerPrice)) {
+    if (curSqrtPrice.lt(lowerSqrtPrice)) {
       coinA = MathUtil.toX64_Decimal(liq).mul(upperPriceStr.sub(lowerPriceStr)).div(lowerPriceStr.mul(upperPriceStr))
       coinB = new Decimal(0)
-    } else if (curSqrtPrice.lt(upperPrice)) {
+    } else if (curSqrtPrice.lt(upperSqrtPrice)) {
       coinA = MathUtil.toX64_Decimal(liq).mul(upperPriceStr.sub(curSqrtPriceStr)).div(curSqrtPriceStr.mul(upperPriceStr))
 
       coinB = MathUtil.fromX64_Decimal(liq.mul(curSqrtPriceStr.sub(lowerPriceStr)))
