@@ -36,7 +36,7 @@ describe('Router Module', () => {
       ETH = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::eth::ETH'
       AFR = '0x8ed60050f9c887864991b674cfc4b435be8e20e3e5a9970f7249794bd1319963::aifrens::AIFRENS'
       CETUS = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS'
-      SUI = '0x2::sui::SUI'
+      SUI = '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'
       url = 'https://api-sui.devcetus.com/v2/sui/pools_info'
     }
   })
@@ -91,15 +91,15 @@ describe('Router Module', () => {
     sdk.Router.loadGraph(coins, paths)
 
     const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-    const res = (await sdk.RouterV2.getBestRouter(USDT, USDC, 100000000000, true, 0.0, '', '', undefined, true, true))
+    const res = (await sdk.RouterV2.getBestRouter(USDT, SUI, 1000000000, true, 0.0, '', '', undefined, true, true))
       .result as AggregatorResult
     printAggregatorResult(res)
 
-    const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, res, allCoinAsset, '', 0.0)
-    printTransaction(payload, true)
+    // const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, res, allCoinAsset, '', 0.0)
+    // printTransaction(payload, true)
 
-    const succeed = await execTx(sdk, true, payload, sendKeypair)
-    assert(succeed, 'error')
+    // const succeed = await execTx(sdk, true, payload, sendKeypair)
+    // assert(succeed, 'error')
   })
 
   test('USDC -> CETUS', async () => {

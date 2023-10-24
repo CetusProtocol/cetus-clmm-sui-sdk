@@ -98,6 +98,12 @@ export type PriceResult = {
   createTxParams: SwapWithRouterParams | undefined
 }
 
+// return the pool with tvl info by statistics API
+type PoolWithTvl = {
+  poolAddress: string
+  tvl: number
+}
+
 /**
  * build pair symbol
  * @param base base coin
@@ -147,6 +153,7 @@ export class RouterModule implements IModule {
     this.addPathProvider = this.addPathProvider.bind(this)
     this.preRouterSwapA2B2C = this.preRouterSwapA2B2C.bind(this)
     this.price = this.price.bind(this)
+    this.getPoolWithTVL = this.getPoolWithTVL.bind(this)
   }
 
   get sdk() {
@@ -299,8 +306,8 @@ export class RouterModule implements IModule {
     return 0
   }
 
-  // get the best price from router graph
   /**
+   * Get the best price from router graph.
    *
    * @param {string} from from coin type
    * @param {string} to to coin type
@@ -327,11 +334,11 @@ export class RouterModule implements IModule {
       throw new Error('From/To coin is undefined')
     }
 
-    const sourceVertex = this.graph.getVertexByKey(fromCoin.address)
-    const targetVertex = this.graph.getVertexByKey(toCoin.address)
+    const fromVertex = this.graph.getVertexByKey(fromCoin.address)
+    const toVertex = this.graph.getVertexByKey(toCoin.address)
 
-    const pathIter = this.graph.findAllPath(sourceVertex, targetVertex)
-    const allPaths = Array.from(pathIter)
+    const pathIters = this.graph.findAllPath(fromVertex, toVertex)
+    const allPaths = Array.from(pathIters)
 
     if (allPaths.length === 0) {
       throw new Error('No find valid path in coin graph')
@@ -411,6 +418,37 @@ export class RouterModule implements IModule {
     // add one limit, must calculated two steps path.
     const stepNumsOne = preRouterSwapParams.filter((item) => item.stepNums === 1)
     const notStepNumsOne = preRouterSwapParams.filter((item) => item.stepNums !== 1)
+
+    let poolWithTvls: PoolWithTvl[] = []
+    try {
+      poolWithTvls = await this.getPoolWithTVL()
+    } catch (err) {
+      poolWithTvls = []
+    }
+
+    if (poolWithTvls.length > 0) {
+      const poolWithTvlsMap = new Map(poolWithTvls.map((item) => [item.poolAddress, item]))
+
+      // sort notStepNumbsOne by tvl
+      notStepNumsOne.sort((a, b) => {
+        let aTvlMinimum = 0
+        let bTvlMinimum = 0
+
+        if (poolWithTvlsMap.has(a.poolAB) && poolWithTvlsMap.has(a.poolBC!)) {
+          const aPoolAB = poolWithTvlsMap.get(a.poolAB)!
+          const aPoolBC = poolWithTvlsMap.get(a.poolBC!)!
+          aTvlMinimum = Math.min(aPoolAB.tvl, aPoolBC.tvl)
+        }
+
+        if (poolWithTvlsMap.has(b.poolAB) && poolWithTvlsMap.has(b.poolBC!)) {
+          const bPoolAB = poolWithTvlsMap.get(b.poolAB)!
+          const bPoolBC = poolWithTvlsMap.get(b.poolBC!)!
+          bTvlMinimum = Math.min(bPoolAB.tvl, bPoolBC.tvl)
+        }
+        return bTvlMinimum - aTvlMinimum
+      })
+    }
+
     preRouterSwapParams = [...stepNumsOne, ...notStepNumsOne]
 
     if (preRouterSwapParams.length === 0) {
@@ -453,7 +491,7 @@ export class RouterModule implements IModule {
       throw new Error('No parameters available for service downgrade')
     }
 
-    const preSwapResult = await this.preRouterSwapA2B2C(preRouterSwapParams.slice(0, 64))
+    const preSwapResult = await this.preRouterSwapA2B2C(preRouterSwapParams.slice(0, 16))
     if (preSwapResult == null) {
       if (swapWithMultiPoolParams != null) {
         const preSwapResult = await this.sdk.Swap.preSwapWithMultiPool(swapWithMultiPoolParams)
@@ -682,6 +720,35 @@ export class RouterModule implements IModule {
       isExceed: valueData[tempIndex].parsedJson.data.is_exceed,
       stepNum: params[tempIndex].stepNums,
     }
+    return result
+  }
+
+  async getPoolWithTVL(): Promise<PoolWithTvl[]> {
+    const result: PoolWithTvl[] = []
+
+    const { swapCountUrl } = this._sdk.sdkOptions
+
+    let response
+    try {
+      response = await fetch(swapCountUrl)
+    } catch (e) {
+      throw new Error(`Failed to get pool list with liquidity from ${swapCountUrl}.`)
+    }
+
+    const json = await response.json()
+    if (json.code !== 200) {
+      throw new Error(`Failed to get pool list from ${swapCountUrl}. Statu code is ${json.code}.`)
+    }
+
+    const { pools } = json.data
+
+    for (const pool of pools) {
+      result.push({
+        poolAddress: pool.swap_account,
+        tvl: Number(pool.tvl_in_usd),
+      })
+    }
+
     return result
   }
 }

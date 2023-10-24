@@ -20,7 +20,7 @@
 <br />
 <div align="center">
   <a >
-    <img src="./docs/logo.png" alt="Logo" width="100" height="100">
+    <img src="https://archive.cetus.zone/assets/image/logo.png" alt="Logo" width="100" height="100">
   </a>
 
   <h3 align="center">Cetus-CLMM-SUI-SDK</h3>
@@ -28,7 +28,7 @@
   <p align="center">
     Integrating Cetus-CLMM-SUI-SDK: A Comprehensive Guide, Please see details in document.
     <br />
-    <a href="https://cetus-1.gitbook.io/cetus-docs/"><strong>Explore the document »</strong></a>
+    <a href="https://cetus-1.gitbook.io/cetus-developer-docs/developer/dev-overview"><strong>Explore the document »</strong></a>
 <br />
     <br />
     <a href="https://github.com/CetusProtocol/cetus-clmm-sui-sdk/tree/main/examples">View Demo</a>
@@ -41,61 +41,34 @@
 
 <!-- TABLE OF CONTENTS -->
 <ul>
+<li><a href="#sdk-configuration-parameters">SDK configuration parameters</a></li>
 <li><a href="#introduction">Introduction</a></li>
 <li><a href="#getting-started">Getting Started</a><ul>
 <li><a href="#prerequisites">Prerequisites</a></li>
-<li><a href="#setting-up-configuration">Setting up configuration</a></li>
-<li><a href="#features-available-right-now">Features available right now</a><ul>
+<li><a href="#setting-up-configuration">Setting Up Configuration</a></li>
+<li><a href="#features-available-right-now">Features Available Right Now</a><ul>
 <li><a href="#query-data">Query data</a></li>
 <li><a href="#pool-and-position-liquidity">Pool and Position (Liquidity)</a></li>
-<li><a href="#swap-with-partner">Swap with partner</a></li>
-<li><a href="#smart-router-for-swap">Smart router for Swap</a><ul>
-<li><a href="#smart-router-v1">smart router v1</a></li>
-<li><a href="#smart-router-v2">smart router v2</a></li>
+<li><a href="#swap-with-partner">Swap with Partner</a></li>
+<li><a href="#smart-router-for-swap">Smart Router for Swap</a><ul>
+<li><a href="#smart-router-v1">Smart Router V1</a></li>
+<li><a href="#smart-router-v2">Smart Router V2</a></li>
 </ul>
 </li>
+<li><a href="#swap-pre-calculating-result-show">Swap Pre-calculating Result Show</a></li>
+<li><a href="#conversion-between-liquidity-tickindex-sqrtprice-and-coinamount">Conversion between liquidity, tickIndex, sqrtPrice, and coinAmount.</a></li>
 </ul>
 </li>
 </ul>
 </li>
 <li><a href="#license">LICENSE</a></li>
 </ul>
-<a id="md:latest-package-address-and-npm-version" class="tsd-anchor"></a><h2><a href="#md:latest-package-address-and-npm-version">Latest Package address and NPM version</a></h2><p><strong>Mainnet</strong></p>
-<table>
-<thead>
-<tr>
-<th>clmmpool published_at</th>
-<th>integrate publish_at</th>
-<th>cetus-sui-sdk version</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>0xc33c3e937e5aa2009cc0c3fdb3f345a0c3193d4ee663ffc601fe8b894fbc4ba6</td>
-<td>0x91ed08cb870f3c0be3649f9a3e688cf89b0f1c298f597679cf66df6aa6af1a23</td>
-<td>3.9.1</td>
-</tr>
-</tbody></table>
-<p><strong>Testnet</strong></p>
-<table>
-<thead>
-<tr>
-<th>clmmpool published_at</th>
-<th>integrate publish_at</th>
-<th>cetus-sui-sdk version</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>0x1c29d658882c40eeb39a8bb8fe58f71a216a918acb3e3eb3b47d24efd07257f2</td>
-<td>0xf4a633d040116a7215d7a1f0bf243d9873c18762fc35e60699aca3aa7e07fca2</td>
-<td>3.9.1</td>
-</tr>
-</tbody></table>
 <a id="md:sdk-configuration-parameters" class="tsd-anchor"></a><h2><a href="#md:sdk-configuration-parameters">SDK configuration parameters</a></h2><ul>
 <li>The contract address available for reference <a href="https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/tests/data/config.ts">config.ts</a>.</li>
 <li><code>simulationAccount</code> Used to simulate trades and obtain tick data.</li>
 <li><em>Notes: Please exercise caution when using a mainnet network account with assets as your <code>simulationAccount</code>.</em></li>
 </ul>
-<pre><code class="language-bash"><span class="hl-0">export</span><span class="hl-1"> </span><span class="hl-2">const</span><span class="hl-1"> </span><span class="hl-2">testnet</span><span class="hl-1"> </span><span class="hl-2">=</span><span class="hl-1">  </span><span class="hl-2">{</span><br/><span class="hl-1">      </span><span class="hl-3">fullRpcUrl:</span><span class="hl-1"> </span><span class="hl-2">&#39;https://fullnode.testnet.sui.io&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">simulationAccount:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">        </span><span class="hl-3">address:</span><span class="hl-1"> </span><span class="hl-2">&#39;&#39;</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-3">cetus_config:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">        </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xf5ff7d5ba73b581bca6b4b9fa0049cd320360abd154b809f8700a8fd3cfaf7ca&#39;,</span><br/><span class="hl-1">        </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xf5ff7d5ba73b581bca6b4b9fa0049cd320360abd154b809f8700a8fd3cfaf7ca&#39;,</span><br/><span class="hl-1">        </span><span class="hl-3">config:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">          </span><span class="hl-3">coin_list_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x257eb2ba592a5480bba0a97d05338fab17cc3283f8df6998a0e12e4ab9b84478&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">launchpad_pools_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xdc3a7bd66a6dcff73c77c866e87d73826e446e9171f34e1c1b656377314f94da&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">clmm_pools_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x26c85500f5dd2983bf35123918a144de24e18936d0b234ef2b49fbb2d3d6307d&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">admin_cap_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x1a496f6c67668eb2c27c99e07e1d61754715c1acf86dac45020c886ac601edb8&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">global_config_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xe1f3db327e75f7ec30585fa52241edf66f7e359ef550b533f89aa1528dd1be52&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">coin_list_handle:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x3204350fc603609c91675e07b8f9ac0999b9607d83845086321fca7f469de235&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">launchpad_pools_handle:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xae67ff87c34aceea4d28107f9c6c62e297a111e9f8e70b9abbc2f4c9f5ec20fd&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">clmm_pools_handle:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xd28736923703342b4752f5ed8c2f2a5c0cb2336c30e1fed42b387234ce8408ec&#39;</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-3">clmm_pool:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">        </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x0868b71c0cba55bf0faf6c40df8c179c67a4d0ba0e79965b68b3d72d7dfbf666&#39;,</span><br/><span class="hl-1">        </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x1c29d658882c40eeb39a8bb8fe58f71a216a918acb3e3eb3b47d24efd07257f2&#39;,</span><br/><span class="hl-1">        </span><span class="hl-3">config:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">          </span><span class="hl-3">pools_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xc090b101978bd6370def2666b7a31d7d07704f84e833e108a969eda86150e8cf&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">global_config_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x6f4149091a5aea0e818e7243a13adcfb403842d670b9a2089de058512620687a&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">global_vault_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xf3114a74d54cbe56b3e68f9306661c043ede8c6615f0351b0c3a93ce895e1699&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">admin_cap_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xa456f86a53fc31e1243f065738ff1fc93f5a62cc080ff894a0fb3747556a799b&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">partners_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xb1cefb6de411213a1cfe94d24213af2518eff3d51267fb95e35d11aa77fc9b5f&#39;</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-3">integrate:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">        </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x8627c5cdcd8b63bc3daa09a6ab7ed81a829a90cafce6003ae13372d611fbb1a9&#39;,</span><br/><span class="hl-1">        </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xf4a633d040116a7215d7a1f0bf243d9873c18762fc35e60699aca3aa7e07fca2&#39;</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-3">deepbook:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">        </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x000000000000000000000000000000000000000000000000000000000000dee9&#39;,</span><br/><span class="hl-1">        </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x000000000000000000000000000000000000000000000000000000000000dee9&#39;</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-3">deepbook_endpoint_v2:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">        </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6&#39;,</span><br/><span class="hl-1">        </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6&#39;</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-3">aggregatorUrl:</span><span class="hl-1"> </span><span class="hl-2">&#39;https://api-sui.devcetus.com/router&#39;</span><br/><span class="hl-1">    }</span><br/><br/><span class="hl-0">export</span><span class="hl-1"> </span><span class="hl-2">const</span><span class="hl-1"> </span><span class="hl-2">mainnet</span><span class="hl-1"> </span><span class="hl-2">=</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">      </span><span class="hl-3">fullRpcUrl:</span><span class="hl-1"> </span><span class="hl-2">&#39;https://sui-mainnet-endpoint.blockvision.org/&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">simulationAccount:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">        </span><span class="hl-3">address:</span><span class="hl-1"> </span><span class="hl-2">&#39;&#39;</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-3">cetus_config:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">        </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x95b8d278b876cae22206131fb9724f701c9444515813042f54f0a426c9a3bc2f&#39;,</span><br/><span class="hl-1">        </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x95b8d278b876cae22206131fb9724f701c9444515813042f54f0a426c9a3bc2f&#39;,</span><br/><span class="hl-1">        </span><span class="hl-3">config:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">          </span><span class="hl-3">coin_list_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x8cbc11d9e10140db3d230f50b4d30e9b721201c0083615441707ffec1ef77b23&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">launchpad_pools_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x1098fac992eab3a0ab7acf15bb654fc1cf29b5a6142c4ef1058e6c408dd15115&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">clmm_pools_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x15b6a27dd9ae03eb455aba03b39e29aad74abd3757b8e18c0755651b2ae5b71e&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">admin_cap_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x39d78781750e193ce35c45ff32c6c0c3f2941fa3ddaf8595c90c555589ddb113&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">global_config_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x0408fa4e4a4c03cc0de8f23d0c2bbfe8913d178713c9a271ed4080973fe42d8f&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">coin_list_handle:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x49136005e90e28c4695419ed4194cc240603f1ea8eb84e62275eaff088a71063&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">launchpad_pools_handle:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x5e194a8efcf653830daf85a85b52e3ae8f65dc39481d54b2382acda25068375c&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">clmm_pools_handle:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x37f60eb2d9d227949b95da8fea810db3c32d1e1fa8ed87434fc51664f87d83cb&#39;</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-3">clmm_pool:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">        </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb&#39;,</span><br/><span class="hl-1">        </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xc33c3e937e5aa2009cc0c3fdb3f345a0c3193d4ee663ffc601fe8b894fbc4ba6&#39;,</span><br/><span class="hl-1">        </span><span class="hl-3">config:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">          </span><span class="hl-3">pools_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xf699e7f2276f5c9a75944b37a0c5b5d9ddfd2471bf6242483b03ab2887d198d0&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">global_config_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xdaa46292632c3c4d8f31f23ea0f9b36a28ff3677e9684980e4438403a67a3d8f&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">global_vault_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xce7bceef26d3ad1f6d9b6f13a953f053e6ed3ca77907516481ce99ae8e588f2b&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">admin_cap_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x89c1a321291d15ddae5a086c9abc533dff697fde3d89e0ca836c41af73e36a75&#39;,</span><br/><span class="hl-1">          </span><span class="hl-3">partners_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xac30897fa61ab442f6bff518c5923faa1123c94b36bd4558910e9c783adfa204&#39;</span><br/><span class="hl-1">        }</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-3">integrate:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">        </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x996c4d9480708fb8b92aa7acf819fb0497b5ec8e65ba06601cae2fb6db3312c3&#39;,</span><br/><span class="hl-1">        </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x91ed08cb870f3c0be3649f9a3e688cf89b0f1c298f597679cf66df6aa6af1a23&#39;</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-3">deepbook:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">        </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x000000000000000000000000000000000000000000000000000000000000dee9&#39;,</span><br/><span class="hl-1">        </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x000000000000000000000000000000000000000000000000000000000000dee9&#39;</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-3">deepbook_endpoint_v2:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">        </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7&#39;,</span><br/><span class="hl-1">        </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7&#39;</span><br/><span class="hl-1">      },</span><br/><span class="hl-1">      </span><span class="hl-3">aggregatorUrl:</span><span class="hl-1"> </span><span class="hl-2">&#39;https://api-sui.cetus.zone/router1&#39;</span><br/><span class="hl-1">    }</span>
+<pre><code class="language-bash"><span class="hl-0">export</span><span class="hl-1"> </span><span class="hl-2">const</span><span class="hl-1"> </span><span class="hl-2">testnet</span><span class="hl-1"> </span><span class="hl-2">=</span><span class="hl-1">  </span><span class="hl-2">{</span><br/><span class="hl-1">  </span><span class="hl-3">fullRpcUrl:</span><span class="hl-1"> </span><span class="hl-2">&#39;https://fullnode.testnet.sui.io&#39;,</span><br/><span class="hl-1">  </span><span class="hl-3">simulationAccount:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">    </span><span class="hl-3">address:</span><span class="hl-1"> </span><span class="hl-2">&#39;&#39;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-3">cetus_config:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">    </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xf5ff7d5ba73b581bca6b4b9fa0049cd320360abd154b809f8700a8fd3cfaf7ca&#39;,</span><br/><span class="hl-1">    </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xf5ff7d5ba73b581bca6b4b9fa0049cd320360abd154b809f8700a8fd3cfaf7ca&#39;,</span><br/><span class="hl-1">    </span><span class="hl-3">config:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">      </span><span class="hl-3">coin_list_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x257eb2ba592a5480bba0a97d05338fab17cc3283f8df6998a0e12e4ab9b84478&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">launchpad_pools_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xdc3a7bd66a6dcff73c77c866e87d73826e446e9171f34e1c1b656377314f94da&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">clmm_pools_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x26c85500f5dd2983bf35123918a144de24e18936d0b234ef2b49fbb2d3d6307d&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">admin_cap_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x1a496f6c67668eb2c27c99e07e1d61754715c1acf86dac45020c886ac601edb8&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">global_config_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xe1f3db327e75f7ec30585fa52241edf66f7e359ef550b533f89aa1528dd1be52&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">coin_list_handle:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x3204350fc603609c91675e07b8f9ac0999b9607d83845086321fca7f469de235&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">launchpad_pools_handle:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xae67ff87c34aceea4d28107f9c6c62e297a111e9f8e70b9abbc2f4c9f5ec20fd&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">clmm_pools_handle:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xd28736923703342b4752f5ed8c2f2a5c0cb2336c30e1fed42b387234ce8408ec&#39;</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-3">clmm_pool:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">    </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x0868b71c0cba55bf0faf6c40df8c179c67a4d0ba0e79965b68b3d72d7dfbf666&#39;,</span><br/><span class="hl-1">    </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x1c29d658882c40eeb39a8bb8fe58f71a216a918acb3e3eb3b47d24efd07257f2&#39;,</span><br/><span class="hl-1">    </span><span class="hl-3">config:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">      </span><span class="hl-3">pools_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xc090b101978bd6370def2666b7a31d7d07704f84e833e108a969eda86150e8cf&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">global_config_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x6f4149091a5aea0e818e7243a13adcfb403842d670b9a2089de058512620687a&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">global_vault_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xf3114a74d54cbe56b3e68f9306661c043ede8c6615f0351b0c3a93ce895e1699&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">admin_cap_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xa456f86a53fc31e1243f065738ff1fc93f5a62cc080ff894a0fb3747556a799b&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">partners_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xb1cefb6de411213a1cfe94d24213af2518eff3d51267fb95e35d11aa77fc9b5f&#39;</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-3">integrate:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">    </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x8627c5cdcd8b63bc3daa09a6ab7ed81a829a90cafce6003ae13372d611fbb1a9&#39;,</span><br/><span class="hl-1">    </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xc831ec758f8ddcb23781a4288a9f2ccaf3e17cf7443e8888cf74fd7c80e1f52d&#39;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-3">deepbook:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">    </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x000000000000000000000000000000000000000000000000000000000000dee9&#39;,</span><br/><span class="hl-1">    </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x000000000000000000000000000000000000000000000000000000000000dee9&#39;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-3">deepbook_endpoint_v2:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">    </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6&#39;,</span><br/><span class="hl-1">    </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6&#39;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-3">aggregatorUrl:</span><span class="hl-1"> </span><span class="hl-2">&#39;https://api-sui.devcetus.com/router&#39;</span><br/><span class="hl-1">}</span><br/><br/><span class="hl-0">export</span><span class="hl-1"> </span><span class="hl-2">const</span><span class="hl-1"> </span><span class="hl-2">mainnet</span><span class="hl-1"> </span><span class="hl-2">=</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">  </span><span class="hl-3">fullRpcUrl:</span><span class="hl-1"> </span><span class="hl-2">&#39;https://sui-mainnet-rpc.allthatnode.com&#39;,</span><br/><span class="hl-1">  </span><span class="hl-3">simulationAccount:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">    </span><span class="hl-3">address:</span><span class="hl-1"> </span><span class="hl-2">&#39;&#39;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-3">cetus_config:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">    </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x95b8d278b876cae22206131fb9724f701c9444515813042f54f0a426c9a3bc2f&#39;,</span><br/><span class="hl-1">    </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x95b8d278b876cae22206131fb9724f701c9444515813042f54f0a426c9a3bc2f&#39;,</span><br/><span class="hl-1">    </span><span class="hl-3">config:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">      </span><span class="hl-3">coin_list_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x8cbc11d9e10140db3d230f50b4d30e9b721201c0083615441707ffec1ef77b23&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">launchpad_pools_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x1098fac992eab3a0ab7acf15bb654fc1cf29b5a6142c4ef1058e6c408dd15115&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">clmm_pools_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x15b6a27dd9ae03eb455aba03b39e29aad74abd3757b8e18c0755651b2ae5b71e&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">admin_cap_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x39d78781750e193ce35c45ff32c6c0c3f2941fa3ddaf8595c90c555589ddb113&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">global_config_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x0408fa4e4a4c03cc0de8f23d0c2bbfe8913d178713c9a271ed4080973fe42d8f&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">coin_list_handle:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x49136005e90e28c4695419ed4194cc240603f1ea8eb84e62275eaff088a71063&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">launchpad_pools_handle:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x5e194a8efcf653830daf85a85b52e3ae8f65dc39481d54b2382acda25068375c&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">clmm_pools_handle:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x37f60eb2d9d227949b95da8fea810db3c32d1e1fa8ed87434fc51664f87d83cb&#39;</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-3">clmm_pool:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">    </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb&#39;,</span><br/><span class="hl-1">    </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xc33c3e937e5aa2009cc0c3fdb3f345a0c3193d4ee663ffc601fe8b894fbc4ba6&#39;,</span><br/><span class="hl-1">    </span><span class="hl-3">config:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">      </span><span class="hl-3">pools_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xf699e7f2276f5c9a75944b37a0c5b5d9ddfd2471bf6242483b03ab2887d198d0&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">global_config_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xdaa46292632c3c4d8f31f23ea0f9b36a28ff3677e9684980e4438403a67a3d8f&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">global_vault_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xce7bceef26d3ad1f6d9b6f13a953f053e6ed3ca77907516481ce99ae8e588f2b&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">admin_cap_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x89c1a321291d15ddae5a086c9abc533dff697fde3d89e0ca836c41af73e36a75&#39;,</span><br/><span class="hl-1">      </span><span class="hl-3">partners_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0xac30897fa61ab442f6bff518c5923faa1123c94b36bd4558910e9c783adfa204&#39;</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-3">integrate:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">    </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x996c4d9480708fb8b92aa7acf819fb0497b5ec8e65ba06601cae2fb6db3312c3&#39;,</span><br/><span class="hl-1">    </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x12fc0b1791df55bf2c91921f12152659c4a897fa6867144b5b3939a3ea004c46&#39;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-3">deepbook:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">    </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x000000000000000000000000000000000000000000000000000000000000dee9&#39;,</span><br/><span class="hl-1">    </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x000000000000000000000000000000000000000000000000000000000000dee9&#39;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-3">deepbook_endpoint_v2:</span><span class="hl-1"> </span><span class="hl-2">{</span><br/><span class="hl-1">    </span><span class="hl-3">package_id:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x92aee86c01c79146d23938a00c7fff725ee0688c389be36d1bcbe03761b466c6&#39;,</span><br/><span class="hl-1">    </span><span class="hl-3">published_at:</span><span class="hl-1"> </span><span class="hl-2">&#39;0x92aee86c01c79146d23938a00c7fff725ee0688c389be36d1bcbe03761b466c6&#39;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-3">aggregatorUrl:</span><span class="hl-1"> </span><span class="hl-2">&#39;https://api-sui.cetus.zone/router&#39;</span><br/><span class="hl-1">}</span>
 </code><button>Copy</button></pre>
 <a id="md:introduction" class="tsd-anchor"></a><h2><a href="#md:introduction">Introduction</a></h2><p>Cetus-CLMM-SUI-SDK is the official software development kit (SDK) specifically designed for seamless integration with Cetus-CLMM. It provides developers with the necessary tools and resources to easily connect and interact with Cetus-CLMM, enabling the development of robust and efficient applications.</p>
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -119,83 +92,33 @@ Please see details in document.</p>
 </li>
 </ol>
 <p>Now, you can start using Cetus SDK.</p>
-<a id="md:features-available-right-now" class="tsd-anchor"></a><h3><a href="#md:features-available-right-now">Features Available Right Now</a></h3><a id="md:query-data" class="tsd-anchor"></a><h4><a href="#md:query-data">Query data</a></h4><ul>
-<li>Retrieval clmm pools:<ul>
-<li>Retrieve all pools</li>
-<li>Batch retrieval of pools</li>
-<li>Retrieval one pool</li>
-</ul>
-</li>
-<li>Retrieval positions:<ul>
-<li>Retrieval all positions of one pool by <code>ownerAddress</code></li>
-<li>Retrieval all positions of one pool</li>
-<li>Retrieval one position</li>
-<li>Batch retrieval position fee</li>
-</ul>
-</li>
-<li>Retrieval reward:<ul>
-<li>Retrieval position reward list of one pool</li>
-<li>Retrieval reward emission infos for one pool every day </li>
-<li>Retrieval reward of one position</li>
-</ul>
-</li>
-<li>Retrieval ticks:<ul>
-<li>Batch retrieval ticks by <code>poolID</code></li>
-<li>Batch retrieval ticks by  <code>tickHandle</code></li>
-</ul>
-</li>
-</ul>
-<a id="md:pool-and-position-liquidity" class="tsd-anchor"></a><h4><a href="#md:pool-and-position-liquidity">Pool and Position (Liquidity)</a></h4><ul>
-<li>Pool:<ul>
-<li>Create clmmpool<ul>
-<li>create one pool</li>
-<li>create pools</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>Position<ul>
-<li>Open position<ul>
-<li>only open position</li>
-<li>open position with add liquidity</li>
-</ul>
-</li>
-<li>Add liquidity<ul>
-<li>add liquidity with specified liquidity</li>
-<li>add liquidity with fixed coin amount</li>
-</ul>
-</li>
-<li>Remove liquidity</li>
-<li>Close position</li>
-<li>Collect fee</li>
-<li>Collect reward</li>
-</ul>
-</li>
-</ul>
-<a id="md:swap-with-partner" class="tsd-anchor"></a><h4><a href="#md:swap-with-partner">Swap with Partner</a></h4><ul>
-<li>Swap<ul>
-<li>preswap in one pool</li>
-<li>preswap in multi pools</li>
-<li>swap after preswap</li>
-</ul>
-</li>
-</ul>
-<a id="md:smart-router-for-swap" class="tsd-anchor"></a><h4><a href="#md:smart-router-for-swap">Smart Router for Swap</a></h4><a id="md:smart-router-v1" class="tsd-anchor"></a><h5><a href="#md:smart-router-v1">Smart Router V1</a></h5><ul>
-<li>smart router swap</li>
-</ul>
-<a id="md:smart-router-v2" class="tsd-anchor"></a><h5><a href="#md:smart-router-v2">Smart Router V2</a></h5><ul>
-<li>smart routerV2 swap</li>
-</ul>
-<a id="md:swap-pre-calculating-result-show" class="tsd-anchor"></a><h4><a href="#md:swap-pre-calculating-result-show">Swap Pre-calculating Result Show</a></h4><ul>
-<li>price impact</li>
-<li>minimun received</li>
-<li>fee</li>
-</ul>
-<a id="md:conversion-between-liquidity-tickindex-sqrtprice-and-coinamount" class="tsd-anchor"></a><h4><a href="#md:conversion-between-liquidity-tickindex-sqrtprice-and-coinamount">Conversion between liquidity, tickIndex, sqrtPrice, and coinAmount.</a></h4><ul>
-<li>liquidity to coinAmount</li>
-<li>price to tickIndex</li>
-<li>price from sqrt price</li>
-</ul>
+<a id="md:features-available-right-now" class="tsd-anchor"></a><h3><a href="#md:features-available-right-now">Features Available Right Now</a></h3><p><a href="https://cetus-1.gitbook.io/cetus-developer-docs/developer/dev-overview"><strong> »»» See details in development document. </strong></a>
+<br /></p>
+<ol>
+<li>Retrieve data
+1.1 Retrieve clmm pools
+1.2 Retrieve positions
+1.3 Retrieve reward
+1.4 Retrieve ticks</li>
+<li>Pools and postions
+2.1 Create clmm pool
+2.2 Open position
+2.3 Add liquidity
+2.4 Remove liquidity
+2.5 Close position
+2.6 Collect fees
+2.7 Collect rewards</li>
+<li>Swap
+3.1 Swap
+3.2 Partner swap
+3.3 Smart router v1 
+3.4 Smart router v2
+3.5 Price impact
+3.6 Minimum received &amp; Maximum sold
+3.7 Fee</li>
+<li>Liquidity correlation calculation
+4.1 Liquidity correlation calculation</li>
+</ol>
 <a id="md:license" class="tsd-anchor"></a><h2><a href="#md:license">LICENSE</a></h2><p>CETUS-SUI-SDK released under the Apache license. See the <a href="./LICENSE">LICENSE</a> file for details.</p>
 </div></div>
 <div class="col-sidebar">
@@ -219,29 +142,16 @@ Please see details in document.</p>
 <ul>
 <li>
 <ul>
-<li><a href="#md:latest-package-address-and-npm-version"><span>Latest <wbr/>Package address and NPM version</span></a></li>
+<li><a href="#md:sdk-configuration-parameters"><span>SDK configuration parameters</span></a></li>
 <li>
 <ul>
-<li><a href="#md:sdk-configuration-parameters"><span>SDK configuration parameters</span></a></li>
 <li><a href="#md:introduction"><span>Introduction</span></a></li>
 <li><a href="#md:getting-started"><span>Getting <wbr/>Started</span></a></li>
 <li>
 <ul>
 <li><a href="#md:prerequisites"><span>Prerequisites</span></a></li>
 <li><a href="#md:setting-up-configuration"><span>Setting <wbr/>Up <wbr/>Configuration</span></a></li>
-<li><a href="#md:features-available-right-now"><span>Features <wbr/>Available <wbr/>Right <wbr/>Now</span></a></li>
-<li>
-<ul>
-<li><a href="#md:query-data"><span>Query data</span></a></li>
-<li><a href="#md:pool-and-position-liquidity"><span>Pool and <wbr/>Position (<wbr/>Liquidity)</span></a></li>
-<li><a href="#md:swap-with-partner"><span>Swap with <wbr/>Partner</span></a></li>
-<li><a href="#md:smart-router-for-swap"><span>Smart <wbr/>Router for <wbr/>Swap</span></a></li>
-<li>
-<ul>
-<li><a href="#md:smart-router-v1"><span>Smart <wbr/>Router <wbr/>V1</span></a></li>
-<li><a href="#md:smart-router-v2"><span>Smart <wbr/>Router <wbr/>V2</span></a></li></ul></li>
-<li><a href="#md:swap-pre-calculating-result-show"><span>Swap <wbr/>Pre-<wbr/>calculating <wbr/>Result <wbr/>Show</span></a></li>
-<li><a href="#md:conversion-between-liquidity-tickindex-sqrtprice-and-coinamount"><span>Conversion between liquidity, tick<wbr/>Index, sqrt<wbr/>Price, and coin<wbr/>Amount.</span></a></li></ul></li></ul></li>
+<li><a href="#md:features-available-right-now"><span>Features <wbr/>Available <wbr/>Right <wbr/>Now</span></a></li></ul></li>
 <li><a href="#md:license"><span>LICENSE</span></a></li></ul></li></ul></li></ul></div></details></div>
 <div class="site-menu">
 <nav class="tsd-navigation"><a href="modules.html" class="current"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-4"><rect fill="var(--color-icon-background)" stroke="var(--color-ts-namespace)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6"></rect><path d="M9.33 16V7.24H10.77L13.446 14.74C13.43 14.54 13.41 14.296 13.386 14.008C13.37 13.712 13.354 13.404 13.338 13.084C13.33 12.756 13.326 12.448 13.326 12.16V7.24H14.37V16H12.93L10.266 8.5C10.282 8.692 10.298 8.936 10.314 9.232C10.33 9.52 10.342 9.828 10.35 10.156C10.366 10.476 10.374 10.784 10.374 11.08V16H9.33Z" fill="var(--color-text)"></path></g></svg><span>@cetusprotocol/cetus-<wbr/>sui-<wbr/>clmm-<wbr/>sdk</span></a>
@@ -251,6 +161,7 @@ Please see details in document.</p>
 <li><a href="enums/ClmmPositionStatus.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-8"></use></svg><span>Clmm<wbr/>Position<wbr/>Status</span></a></li>
 <li><a href="enums/PositionStatus.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-8"></use></svg><span>Position<wbr/>Status</span></a></li>
 <li><a href="enums/SplitUnit.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-8"></use></svg><span>Split<wbr/>Unit</span></a></li>
+<li><a href="enums/SwapDirection.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-8"></use></svg><span>Swap<wbr/>Direction</span></a></li>
 <li><a href="classes/CachedContent.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-128"><rect fill="var(--color-icon-background)" stroke="var(--color-ts-class)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6"></rect><path d="M11.898 16.1201C11.098 16.1201 10.466 15.8961 10.002 15.4481C9.53803 15.0001 9.30603 14.3841 9.30603 13.6001V9.64012C9.30603 8.85612 9.53803 8.24012 10.002 7.79212C10.466 7.34412 11.098 7.12012 11.898 7.12012C12.682 7.12012 13.306 7.34812 13.77 7.80412C14.234 8.25212 14.466 8.86412 14.466 9.64012H13.386C13.386 9.14412 13.254 8.76412 12.99 8.50012C12.734 8.22812 12.37 8.09212 11.898 8.09212C11.426 8.09212 11.054 8.22412 10.782 8.48812C10.518 8.75212 10.386 9.13212 10.386 9.62812V13.6001C10.386 14.0961 10.518 14.4801 10.782 14.7521C11.054 15.0161 11.426 15.1481 11.898 15.1481C12.37 15.1481 12.734 15.0161 12.99 14.7521C13.254 14.4801 13.386 14.0961 13.386 13.6001H14.466C14.466 14.3761 14.234 14.9921 13.77 15.4481C13.306 15.8961 12.682 16.1201 11.898 16.1201Z" fill="var(--color-text)"></path></g></svg><span>Cached<wbr/>Content</span></a></li>
 <li><a href="classes/CetusClmmSDK.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-128"></use></svg><span>Cetus<wbr/>ClmmSDK</span></a></li>
 <li><a href="classes/ClmmPoolUtil.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-128"></use></svg><span>Clmm<wbr/>Pool<wbr/>Util</span></a></li>
@@ -311,6 +222,7 @@ Please see details in document.</p>
 <li><a href="types/FaucetCoin.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Faucet<wbr/>Coin</span></a></li>
 <li><a href="types/FetchParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Fetch<wbr/>Params</span></a></li>
 <li><a href="types/LaunchpadPoolConfig.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Launchpad<wbr/>Pool<wbr/>Config</span></a></li>
+<li><a href="types/LiquidityInput.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Liquidity<wbr/>Input</span></a></li>
 <li><a href="types/NFT.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>NFT</span></a></li>
 <li><a href="types/OnePath.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>One<wbr/>Path</span></a></li>
 <li><a href="types/OpenPositionParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Open<wbr/>Position<wbr/>Params</span></a></li>
@@ -358,6 +270,7 @@ Please see details in document.</p>
 <li><a href="variables/ClmmExpectSwapModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Expect<wbr/>Swap<wbr/>Module</span></a></li>
 <li><a href="variables/ClmmFetcherModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Fetcher<wbr/>Module</span></a></li>
 <li><a href="variables/ClmmIntegratePoolModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Pool<wbr/>Module</span></a></li>
+<li><a href="variables/ClmmIntegratePoolV2Module.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Pool<wbr/>V2<wbr/>Module</span></a></li>
 <li><a href="variables/ClmmIntegrateRouterModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Router<wbr/>Module</span></a></li>
 <li><a href="variables/ClmmIntegrateRouterWithPartnerModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Router<wbr/>With<wbr/>Partner<wbr/>Module</span></a></li>
 <li><a href="variables/ClmmIntegrateUtilsModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Utils<wbr/>Module</span></a></li>
@@ -375,6 +288,7 @@ Please see details in document.</p>
 <li><a href="variables/FEE_RATE_DENOMINATOR.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>FEE_<wbr/>RATE_<wbr/>DENOMINATOR</span></a></li>
 <li><a href="variables/GAS_SYMBOL.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>GAS_<wbr/>SYMBOL</span></a></li>
 <li><a href="variables/GAS_TYPE_ARG.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>GAS_<wbr/>TYPE_<wbr/>ARG</span></a></li>
+<li><a href="variables/GAS_TYPE_ARG_LONG.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>GAS_<wbr/>TYPE_<wbr/>ARG_<wbr/>LONG</span></a></li>
 <li><a href="variables/MAX_SQRT_PRICE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>MAX_<wbr/>SQRT_<wbr/>PRICE</span></a></li>
 <li><a href="variables/MAX_TICK_INDEX.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>MAX_<wbr/>TICK_<wbr/>INDEX</span></a></li>
 <li><a href="variables/MIN_SQRT_PRICE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>MIN_<wbr/>SQRT_<wbr/>PRICE</span></a></li>

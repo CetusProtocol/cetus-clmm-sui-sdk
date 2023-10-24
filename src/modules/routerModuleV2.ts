@@ -126,7 +126,7 @@ export class RouterModuleV2 implements IModule {
 
   private async fetchAndParseData(apiUrl: string): Promise<AggregatorResult | null> {
     try {
-      const timeoutDuration = 3000
+      const timeoutDuration = 1500
 
       const response: any = await this.fetchWithTimeout(apiUrl, {}, timeoutDuration)
 

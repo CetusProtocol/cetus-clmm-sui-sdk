@@ -1,4 +1,4 @@
-<!DOCTYPE html><html class="default" lang="en"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>getLowerSqrtPriceFromCoinB | @cetusprotocol/cetus-sui-clmm-sdk</title><meta name="description" content="Documentation for @cetusprotocol/cetus-sui-clmm-sdk"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/search.js" id="tsd-search-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os"</script><header class="tsd-page-toolbar">
+<!DOCTYPE html><html class="default" lang="en"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>ClmmIntegratePoolV2Module | @cetusprotocol/cetus-sui-clmm-sdk</title><meta name="description" content="Documentation for @cetusprotocol/cetus-sui-clmm-sdk"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/search.js" id="tsd-search-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os"</script><header class="tsd-page-toolbar">
 <div class="tsd-toolbar-contents container">
 <div class="table-cell" id="tsd-search" data-base="..">
 <div class="field"><label for="tsd-search-field" class="tsd-widget tsd-toolbar-icon search no-caption"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M15.7824 13.833L12.6666 10.7177C12.5259 10.5771 12.3353 10.499 12.1353 10.499H11.6259C12.4884 9.39596 13.001 8.00859 13.001 6.49937C13.001 2.90909 10.0914 0 6.50048 0C2.90959 0 0 2.90909 0 6.49937C0 10.0896 2.90959 12.9987 6.50048 12.9987C8.00996 12.9987 9.39756 12.4863 10.5008 11.6239V12.1332C10.5008 12.3332 10.5789 12.5238 10.7195 12.6644L13.8354 15.7797C14.1292 16.0734 14.6042 16.0734 14.8948 15.7797L15.7793 14.8954C16.0731 14.6017 16.0731 14.1267 15.7824 13.833ZM6.50048 10.499C4.29094 10.499 2.50018 8.71165 2.50018 6.49937C2.50018 4.29021 4.28781 2.49976 6.50048 2.49976C8.71001 2.49976 10.5008 4.28708 10.5008 6.49937C10.5008 8.70852 8.71314 10.499 6.50048 10.499Z" fill="var(--color-text)"></path></svg></label><input type="text" id="tsd-search-field" aria-label="Search"/></div>
@@ -13,37 +13,11 @@
 <div class="tsd-page-title">
 <ul class="tsd-breadcrumb">
 <li><a href="../modules.html">@cetusprotocol/cetus-sui-clmm-sdk</a></li>
-<li><a href="getLowerSqrtPriceFromCoinB.html">getLowerSqrtPriceFromCoinB</a></li></ul>
-<h1>Function getLowerSqrtPriceFromCoinB</h1></div>
-<section class="tsd-panel">
-<ul class="tsd-signatures">
-<li class="tsd-signature tsd-anchor-link" id="getLowerSqrtPriceFromCoinB"><span class="tsd-kind-call-signature">get<wbr/>Lower<wbr/>Sqrt<wbr/>Price<wbr/>From<wbr/>CoinB</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">amount</span>, <span class="tsd-kind-parameter">liquidity</span>, <span class="tsd-kind-parameter">sqrtPriceX64</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type ">BN</span><a href="#getLowerSqrtPriceFromCoinB" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" id="icon-anchor"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></li>
-<li class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Get lower sqrt price from coin B.</p>
-</div>
-<div class="tsd-parameters">
-<h4 class="tsd-parameters-title">Parameters</h4>
-<ul class="tsd-parameter-list">
-<li>
-<h5><span class="tsd-kind-parameter">amount</span>: <span class="tsd-signature-type ">BN</span></h5>
-<div class="tsd-comment tsd-typography"><p>The amount of coins the user wanted to swap from.</p>
-</div>
-<div class="tsd-comment tsd-typography"></div></li>
-<li>
-<h5><span class="tsd-kind-parameter">liquidity</span>: <span class="tsd-signature-type ">BN</span></h5>
-<div class="tsd-comment tsd-typography"><p>The liquidity of the pool.</p>
-</div>
-<div class="tsd-comment tsd-typography"></div></li>
-<li>
-<h5><span class="tsd-kind-parameter">sqrtPriceX64</span>: <span class="tsd-signature-type ">BN</span></h5>
-<div class="tsd-comment tsd-typography"><p>The sqrt price of the pool.</p>
-</div>
-<div class="tsd-comment tsd-typography"></div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type ">BN</span></h4><p>LowesqrtPriceX64</p>
-
-<div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
+<li><a href="ClmmIntegratePoolV2Module.html">ClmmIntegratePoolV2Module</a></li></ul>
+<h1>Variable ClmmIntegratePoolV2Module<code class="tsd-tag ts-flagConst">Const</code> </h1></div>
+<div class="tsd-signature"><span class="tsd-kind-variable">Clmm<wbr/>Integrate<wbr/>Pool<wbr/>V2<wbr/>Module</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;pool_script_v2&quot;</span><span class="tsd-signature-symbol"> = &#39;pool_script_v2&#39;</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/ecec0b0/src/math/swap.ts#L67">src/math/swap.ts:67</a></li></ul></aside></li></ul></section></div>
+<li>Defined in <a href="https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/ecec0b0/src/types/sui.ts#L24">src/types/sui.ts:24</a></li></ul></aside></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -171,135 +145,135 @@
 <li><a href="../types/TransPreSwapWithMultiPoolParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Trans<wbr/>Pre<wbr/>Swap<wbr/>With<wbr/>Multi<wbr/>Pool<wbr/>Params</span></a></li>
 <li><a href="../types/createTestTransferTxPayloadParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>create<wbr/>Test<wbr/>Transfer<wbr/>Tx<wbr/>Payload<wbr/>Params</span></a></li>
 <li><a href="../types/estPosAPRResult.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>est<wbr/>PosAPRResult</span></a></li>
-<li><a href="../variables/AMM_SWAP_MODULE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-32"><rect fill="var(--color-icon-background)" stroke="var(--color-ts-variable)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6"></rect><path d="M11.106 16L8.85 7.24H9.966L11.454 13.192C11.558 13.608 11.646 13.996 11.718 14.356C11.79 14.708 11.842 14.976 11.874 15.16C11.906 14.976 11.954 14.708 12.018 14.356C12.09 13.996 12.178 13.608 12.282 13.192L13.758 7.24H14.85L12.582 16H11.106Z" fill="var(--color-text)"></path></g></svg><span>AMM_<wbr/>SWAP_<wbr/>MODULE</span></a></li>
-<li><a href="../variables/CLOCK_ADDRESS.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>CLOCK_<wbr/>ADDRESS</span></a></li>
-<li><a href="../variables/ClmmExpectSwapModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Expect<wbr/>Swap<wbr/>Module</span></a></li>
-<li><a href="../variables/ClmmFetcherModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Fetcher<wbr/>Module</span></a></li>
-<li><a href="../variables/ClmmIntegratePoolModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Pool<wbr/>Module</span></a></li>
-<li><a href="../variables/ClmmIntegratePoolV2Module.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Pool<wbr/>V2<wbr/>Module</span></a></li>
-<li><a href="../variables/ClmmIntegrateRouterModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Router<wbr/>Module</span></a></li>
-<li><a href="../variables/ClmmIntegrateRouterWithPartnerModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Router<wbr/>With<wbr/>Partner<wbr/>Module</span></a></li>
-<li><a href="../variables/ClmmIntegrateUtilsModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Utils<wbr/>Module</span></a></li>
-<li><a href="../variables/CoinInfoAddress.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Coin<wbr/>Info<wbr/>Address</span></a></li>
-<li><a href="../variables/CoinStoreAddress.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Coin<wbr/>Store<wbr/>Address</span></a></li>
-<li><a href="../variables/DEFAULT_GAS_BUDGET_FOR_MERGE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>DEFAULT_<wbr/>GAS_<wbr/>BUDGET_<wbr/>FOR_<wbr/>MERGE</span></a></li>
-<li><a href="../variables/DEFAULT_GAS_BUDGET_FOR_SPLIT.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>DEFAULT_<wbr/>GAS_<wbr/>BUDGET_<wbr/>FOR_<wbr/>SPLIT</span></a></li>
-<li><a href="../variables/DEFAULT_GAS_BUDGET_FOR_STAKE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>DEFAULT_<wbr/>GAS_<wbr/>BUDGET_<wbr/>FOR_<wbr/>STAKE</span></a></li>
-<li><a href="../variables/DEFAULT_GAS_BUDGET_FOR_TRANSFER.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>DEFAULT_<wbr/>GAS_<wbr/>BUDGET_<wbr/>FOR_<wbr/>TRANSFER</span></a></li>
-<li><a href="../variables/DEFAULT_GAS_BUDGET_FOR_TRANSFER_SUI.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>DEFAULT_<wbr/>GAS_<wbr/>BUDGET_<wbr/>FOR_<wbr/>TRANSFER_<wbr/>SUI</span></a></li>
-<li><a href="../variables/DEFAULT_NFT_TRANSFER_GAS_FEE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>DEFAULT_<wbr/>NFT_<wbr/>TRANSFER_<wbr/>GAS_<wbr/>FEE</span></a></li>
-<li><a href="../variables/DeepbookClobV2Moudle.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Deepbook<wbr/>Clob<wbr/>V2<wbr/>Moudle</span></a></li>
-<li><a href="../variables/DeepbookCustodianV2Moudle.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Deepbook<wbr/>Custodian<wbr/>V2<wbr/>Moudle</span></a></li>
-<li><a href="../variables/DeepbookEndpointsV2Moudle.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Deepbook<wbr/>Endpoints<wbr/>V2<wbr/>Moudle</span></a></li>
-<li><a href="../variables/FEE_RATE_DENOMINATOR.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>FEE_<wbr/>RATE_<wbr/>DENOMINATOR</span></a></li>
-<li><a href="../variables/GAS_SYMBOL.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>GAS_<wbr/>SYMBOL</span></a></li>
-<li><a href="../variables/GAS_TYPE_ARG.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>GAS_<wbr/>TYPE_<wbr/>ARG</span></a></li>
-<li><a href="../variables/GAS_TYPE_ARG_LONG.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>GAS_<wbr/>TYPE_<wbr/>ARG_<wbr/>LONG</span></a></li>
-<li><a href="../variables/MAX_SQRT_PRICE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>MAX_<wbr/>SQRT_<wbr/>PRICE</span></a></li>
-<li><a href="../variables/MAX_TICK_INDEX.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>MAX_<wbr/>TICK_<wbr/>INDEX</span></a></li>
-<li><a href="../variables/MIN_SQRT_PRICE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>MIN_<wbr/>SQRT_<wbr/>PRICE</span></a></li>
-<li><a href="../variables/MIN_TICK_INDEX.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>MIN_<wbr/>TICK_<wbr/>INDEX</span></a></li>
-<li><a href="../variables/ONE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>ONE</span></a></li>
-<li><a href="../variables/POOL_STRUCT.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>POOL_<wbr/>STRUCT</span></a></li>
-<li><a href="../variables/SUI_SYSTEM_STATE_OBJECT_ID.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>SUI_<wbr/>SYSTEM_<wbr/>STATE_<wbr/>OBJECT_<wbr/>ID</span></a></li>
-<li><a href="../variables/TICK_ARRAY_SIZE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>TICK_<wbr/>ARRAY_<wbr/>SIZE</span></a></li>
-<li><a href="../variables/TWO.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>TWO</span></a></li>
-<li><a href="../variables/U128.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>U128</span></a></li>
-<li><a href="../variables/U128_MAX.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>U128_<wbr/>MAX</span></a></li>
-<li><a href="../variables/U64_MAX.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>U64_<wbr/>MAX</span></a></li>
-<li><a href="../variables/ZERO.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>ZERO</span></a></li>
-<li><a href="../variables/cacheTime24h.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>cache<wbr/>Time24h</span></a></li>
-<li><a href="../variables/cacheTime5min.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>cache<wbr/>Time5min</span></a></li>
-<li><a href="addHexPrefix.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-64"><rect fill="var(--color-icon-background)" stroke="var(--color-ts-function)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6"></rect><path d="M9.39 16V7.24H14.55V8.224H10.446V11.128H14.238V12.112H10.47V16H9.39Z" fill="var(--color-text)"></path></g></svg><span>add<wbr/>Hex<wbr/>Prefix</span></a></li>
-<li><a href="adjustForCoinSlippage.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>adjust<wbr/>For<wbr/>Coin<wbr/>Slippage</span></a></li>
-<li><a href="adjustForSlippage.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>adjust<wbr/>For<wbr/>Slippage</span></a></li>
-<li><a href="asIntN.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>as<wbr/>IntN</span></a></li>
-<li><a href="asUintN.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>as<wbr/>UintN</span></a></li>
-<li><a href="bufferToHex.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>buffer<wbr/>To<wbr/>Hex</span></a></li>
-<li><a href="buildNFT.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>buildNFT</span></a></li>
-<li><a href="buildPool.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>build<wbr/>Pool</span></a></li>
-<li><a href="buildPosition.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>build<wbr/>Position</span></a></li>
-<li><a href="buildPositionReward.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>build<wbr/>Position<wbr/>Reward</span></a></li>
-<li><a href="buildTickData.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>build<wbr/>Tick<wbr/>Data</span></a></li>
-<li><a href="buildTickDataByEvent.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>build<wbr/>Tick<wbr/>Data<wbr/>By<wbr/>Event</span></a></li>
-<li><a href="checkAddress.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>check<wbr/>Address</span></a></li>
-<li><a href="collectFeesQuote-1.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>collect<wbr/>Fees<wbr/>Quote</span></a></li>
-<li><a href="composeType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>compose<wbr/>Type</span></a></li>
-<li><a href="computeSwap.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>compute<wbr/>Swap</span></a></li>
-<li><a href="computeSwapStep.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>compute<wbr/>Swap<wbr/>Step</span></a></li>
-<li><a href="createSplitAmountArray.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>create<wbr/>Split<wbr/>Amount<wbr/>Array</span></a></li>
-<li><a href="createSplitArray.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>create<wbr/>Split<wbr/>Array</span></a></li>
-<li><a href="d.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>d</span></a></li>
-<li><a href="decimalsMultiplier.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>decimals<wbr/>Multiplier</span></a></li>
-<li><a href="estPoolAPR.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>est<wbr/>PoolAPR</span></a></li>
-<li><a href="estPositionAPRWithDeltaMethod.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>est<wbr/>PositionAPRWith<wbr/>Delta<wbr/>Method</span></a></li>
-<li><a href="estPositionAPRWithMultiMethod.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>est<wbr/>PositionAPRWith<wbr/>Multi<wbr/>Method</span></a></li>
-<li><a href="estimateLiquidityForCoinA.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>estimate<wbr/>Liquidity<wbr/>For<wbr/>CoinA</span></a></li>
-<li><a href="estimateLiquidityForCoinB.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>estimate<wbr/>Liquidity<wbr/>For<wbr/>CoinB</span></a></li>
-<li><a href="extractAddressFromType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>extract<wbr/>Address<wbr/>From<wbr/>Type</span></a></li>
-<li><a href="extractStructTagFromType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>extract<wbr/>Struct<wbr/>Tag<wbr/>From<wbr/>Type</span></a></li>
-<li><a href="findAdjustCoin.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>find<wbr/>Adjust<wbr/>Coin</span></a></li>
-<li><a href="fixCoinType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>fix<wbr/>Coin<wbr/>Type</span></a></li>
-<li><a href="fixSuiObjectId.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>fix<wbr/>Sui<wbr/>Object<wbr/>Id</span></a></li>
-<li><a href="fromDecimalsAmount.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>from<wbr/>Decimals<wbr/>Amount</span></a></li>
-<li><a href="getAmountFixedDelta.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Amount<wbr/>Fixed<wbr/>Delta</span></a></li>
-<li><a href="getAmountUnfixedDelta.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Amount<wbr/>Unfixed<wbr/>Delta</span></a></li>
-<li><a href="getCoinAFromLiquidity.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>CoinAFrom<wbr/>Liquidity</span></a></li>
-<li><a href="getCoinBFromLiquidity.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>CoinBFrom<wbr/>Liquidity</span></a></li>
-<li><a href="getDefaultSuiInputType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Default<wbr/>Sui<wbr/>Input<wbr/>Type</span></a></li>
-<li><a href="getDeltaA.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>DeltaA</span></a></li>
-<li><a href="getDeltaB.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>DeltaB</span></a></li>
-<li><a href="getDeltaDownFromOutput.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Delta<wbr/>Down<wbr/>From<wbr/>Output</span></a></li>
-<li><a href="getDeltaUpFromInput.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Delta<wbr/>Up<wbr/>From<wbr/>Input</span></a></li>
-<li><a href="getFutureTime.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Future<wbr/>Time</span></a></li>
-<li><a href="getLiquidityFromCoinA.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Liquidity<wbr/>From<wbr/>CoinA</span></a></li>
-<li><a href="getLiquidityFromCoinB.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Liquidity<wbr/>From<wbr/>CoinB</span></a></li>
-<li><a href="getLowerSqrtPriceFromCoinA.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Lower<wbr/>Sqrt<wbr/>Price<wbr/>From<wbr/>CoinA</span></a></li>
-<li><a href="getLowerSqrtPriceFromCoinB.html" class="current"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Lower<wbr/>Sqrt<wbr/>Price<wbr/>From<wbr/>CoinB</span></a></li>
-<li><a href="getMoveObject.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Move<wbr/>Object</span></a></li>
-<li><a href="getMoveObjectType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Move<wbr/>Object<wbr/>Type</span></a></li>
-<li><a href="getMovePackageContent.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Move<wbr/>Package<wbr/>Content</span></a></li>
-<li><a href="getNearestTickByTick.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Nearest<wbr/>Tick<wbr/>By<wbr/>Tick</span></a></li>
-<li><a href="getNextSqrtPriceAUp.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Next<wbr/>Sqrt<wbr/>PriceAUp</span></a></li>
-<li><a href="getNextSqrtPriceBDown.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Next<wbr/>Sqrt<wbr/>PriceBDown</span></a></li>
-<li><a href="getNextSqrtPriceFromInput.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Next<wbr/>Sqrt<wbr/>Price<wbr/>From<wbr/>Input</span></a></li>
-<li><a href="getNextSqrtPriceFromOutput.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Next<wbr/>Sqrt<wbr/>Price<wbr/>From<wbr/>Output</span></a></li>
-<li><a href="getObjectDeletedResponse.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Deleted<wbr/>Response</span></a></li>
-<li><a href="getObjectDisplay.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Display</span></a></li>
-<li><a href="getObjectFields.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Fields</span></a></li>
-<li><a href="getObjectId.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Id</span></a></li>
-<li><a href="getObjectNotExistsResponse.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Not<wbr/>Exists<wbr/>Response</span></a></li>
-<li><a href="getObjectOwner.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Owner</span></a></li>
-<li><a href="getObjectPreviousTransactionDigest.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Previous<wbr/>Transaction<wbr/>Digest</span></a></li>
-<li><a href="getObjectReference.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Reference</span></a></li>
-<li><a href="getObjectType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Type</span></a></li>
-<li><a href="getObjectVersion.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Version</span></a></li>
-<li><a href="getPackagerConfigs.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Packager<wbr/>Configs</span></a></li>
-<li><a href="getRewardInTickRange.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Reward<wbr/>In<wbr/>Tick<wbr/>Range</span></a></li>
-<li><a href="getSuiObjectData.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Sui<wbr/>Object<wbr/>Data</span></a></li>
-<li><a href="getTickDataFromUrlData.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Tick<wbr/>Data<wbr/>From<wbr/>Url<wbr/>Data</span></a></li>
-<li><a href="getUpperSqrtPriceFromCoinA.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Upper<wbr/>Sqrt<wbr/>Price<wbr/>From<wbr/>CoinA</span></a></li>
-<li><a href="getUpperSqrtPriceFromCoinB.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Upper<wbr/>Sqrt<wbr/>Price<wbr/>From<wbr/>CoinB</span></a></li>
-<li><a href="hasPublicTransfer.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>has<wbr/>Public<wbr/>Transfer</span></a></li>
-<li><a href="hexToNumber.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>hex<wbr/>To<wbr/>Number</span></a></li>
-<li><a href="hexToString.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>hex<wbr/>To<wbr/>String</span></a></li>
-<li><a href="isSortedSymbols.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>is<wbr/>Sorted<wbr/>Symbols</span></a></li>
-<li><a href="isSuiObjectResponse.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>is<wbr/>Sui<wbr/>Object<wbr/>Response</span></a></li>
-<li><a href="newBits.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>new<wbr/>Bits</span></a></li>
-<li><a href="normalizeCoinType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>normalize<wbr/>Coin<wbr/>Type</span></a></li>
-<li><a href="patchFixSuiObjectId.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>patch<wbr/>Fix<wbr/>Sui<wbr/>Object<wbr/>Id</span></a></li>
-<li><a href="printTransaction.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>print<wbr/>Transaction</span></a></li>
-<li><a href="removeHexPrefix.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>remove<wbr/>Hex<wbr/>Prefix</span></a></li>
-<li><a href="secretKeyToEd25519Keypair.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>secret<wbr/>Key<wbr/>To<wbr/>Ed25519<wbr/>Keypair</span></a></li>
-<li><a href="secretKeyToSecp256k1Keypair.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>secret<wbr/>Key<wbr/>To<wbr/>Secp256k1<wbr/>Keypair</span></a></li>
-<li><a href="shortAddress.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>short<wbr/>Address</span></a></li>
-<li><a href="shortString.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>short<wbr/>String</span></a></li>
-<li><a href="tickScore.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>tick<wbr/>Score</span></a></li>
-<li><a href="toBuffer.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>to<wbr/>Buffer</span></a></li>
-<li><a href="toCoinAmount.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>to<wbr/>Coin<wbr/>Amount</span></a></li>
-<li><a href="toDecimalsAmount.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>to<wbr/>Decimals<wbr/>Amount</span></a></li>
-<li><a href="transClmmpoolDataWithoutTicks.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>trans<wbr/>Clmmpool<wbr/>Data<wbr/>Without<wbr/>Ticks</span></a></li>
-<li><a href="utf8to16.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>utf8to16</span></a></li></ul></nav></div></div></div>
+<li><a href="AMM_SWAP_MODULE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-32"><rect fill="var(--color-icon-background)" stroke="var(--color-ts-variable)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6"></rect><path d="M11.106 16L8.85 7.24H9.966L11.454 13.192C11.558 13.608 11.646 13.996 11.718 14.356C11.79 14.708 11.842 14.976 11.874 15.16C11.906 14.976 11.954 14.708 12.018 14.356C12.09 13.996 12.178 13.608 12.282 13.192L13.758 7.24H14.85L12.582 16H11.106Z" fill="var(--color-text)"></path></g></svg><span>AMM_<wbr/>SWAP_<wbr/>MODULE</span></a></li>
+<li><a href="CLOCK_ADDRESS.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>CLOCK_<wbr/>ADDRESS</span></a></li>
+<li><a href="ClmmExpectSwapModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Expect<wbr/>Swap<wbr/>Module</span></a></li>
+<li><a href="ClmmFetcherModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Fetcher<wbr/>Module</span></a></li>
+<li><a href="ClmmIntegratePoolModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Pool<wbr/>Module</span></a></li>
+<li><a href="ClmmIntegratePoolV2Module.html" class="current"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Pool<wbr/>V2<wbr/>Module</span></a></li>
+<li><a href="ClmmIntegrateRouterModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Router<wbr/>Module</span></a></li>
+<li><a href="ClmmIntegrateRouterWithPartnerModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Router<wbr/>With<wbr/>Partner<wbr/>Module</span></a></li>
+<li><a href="ClmmIntegrateUtilsModule.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Clmm<wbr/>Integrate<wbr/>Utils<wbr/>Module</span></a></li>
+<li><a href="CoinInfoAddress.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Coin<wbr/>Info<wbr/>Address</span></a></li>
+<li><a href="CoinStoreAddress.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Coin<wbr/>Store<wbr/>Address</span></a></li>
+<li><a href="DEFAULT_GAS_BUDGET_FOR_MERGE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>DEFAULT_<wbr/>GAS_<wbr/>BUDGET_<wbr/>FOR_<wbr/>MERGE</span></a></li>
+<li><a href="DEFAULT_GAS_BUDGET_FOR_SPLIT.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>DEFAULT_<wbr/>GAS_<wbr/>BUDGET_<wbr/>FOR_<wbr/>SPLIT</span></a></li>
+<li><a href="DEFAULT_GAS_BUDGET_FOR_STAKE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>DEFAULT_<wbr/>GAS_<wbr/>BUDGET_<wbr/>FOR_<wbr/>STAKE</span></a></li>
+<li><a href="DEFAULT_GAS_BUDGET_FOR_TRANSFER.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>DEFAULT_<wbr/>GAS_<wbr/>BUDGET_<wbr/>FOR_<wbr/>TRANSFER</span></a></li>
+<li><a href="DEFAULT_GAS_BUDGET_FOR_TRANSFER_SUI.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>DEFAULT_<wbr/>GAS_<wbr/>BUDGET_<wbr/>FOR_<wbr/>TRANSFER_<wbr/>SUI</span></a></li>
+<li><a href="DEFAULT_NFT_TRANSFER_GAS_FEE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>DEFAULT_<wbr/>NFT_<wbr/>TRANSFER_<wbr/>GAS_<wbr/>FEE</span></a></li>
+<li><a href="DeepbookClobV2Moudle.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Deepbook<wbr/>Clob<wbr/>V2<wbr/>Moudle</span></a></li>
+<li><a href="DeepbookCustodianV2Moudle.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Deepbook<wbr/>Custodian<wbr/>V2<wbr/>Moudle</span></a></li>
+<li><a href="DeepbookEndpointsV2Moudle.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>Deepbook<wbr/>Endpoints<wbr/>V2<wbr/>Moudle</span></a></li>
+<li><a href="FEE_RATE_DENOMINATOR.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>FEE_<wbr/>RATE_<wbr/>DENOMINATOR</span></a></li>
+<li><a href="GAS_SYMBOL.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>GAS_<wbr/>SYMBOL</span></a></li>
+<li><a href="GAS_TYPE_ARG.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>GAS_<wbr/>TYPE_<wbr/>ARG</span></a></li>
+<li><a href="GAS_TYPE_ARG_LONG.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>GAS_<wbr/>TYPE_<wbr/>ARG_<wbr/>LONG</span></a></li>
+<li><a href="MAX_SQRT_PRICE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>MAX_<wbr/>SQRT_<wbr/>PRICE</span></a></li>
+<li><a href="MAX_TICK_INDEX.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>MAX_<wbr/>TICK_<wbr/>INDEX</span></a></li>
+<li><a href="MIN_SQRT_PRICE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>MIN_<wbr/>SQRT_<wbr/>PRICE</span></a></li>
+<li><a href="MIN_TICK_INDEX.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>MIN_<wbr/>TICK_<wbr/>INDEX</span></a></li>
+<li><a href="ONE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>ONE</span></a></li>
+<li><a href="POOL_STRUCT.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>POOL_<wbr/>STRUCT</span></a></li>
+<li><a href="SUI_SYSTEM_STATE_OBJECT_ID.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>SUI_<wbr/>SYSTEM_<wbr/>STATE_<wbr/>OBJECT_<wbr/>ID</span></a></li>
+<li><a href="TICK_ARRAY_SIZE.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>TICK_<wbr/>ARRAY_<wbr/>SIZE</span></a></li>
+<li><a href="TWO.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>TWO</span></a></li>
+<li><a href="U128.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>U128</span></a></li>
+<li><a href="U128_MAX.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>U128_<wbr/>MAX</span></a></li>
+<li><a href="U64_MAX.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>U64_<wbr/>MAX</span></a></li>
+<li><a href="ZERO.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>ZERO</span></a></li>
+<li><a href="cacheTime24h.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>cache<wbr/>Time24h</span></a></li>
+<li><a href="cacheTime5min.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-32"></use></svg><span>cache<wbr/>Time5min</span></a></li>
+<li><a href="../functions/addHexPrefix.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-64"><rect fill="var(--color-icon-background)" stroke="var(--color-ts-function)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6"></rect><path d="M9.39 16V7.24H14.55V8.224H10.446V11.128H14.238V12.112H10.47V16H9.39Z" fill="var(--color-text)"></path></g></svg><span>add<wbr/>Hex<wbr/>Prefix</span></a></li>
+<li><a href="../functions/adjustForCoinSlippage.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>adjust<wbr/>For<wbr/>Coin<wbr/>Slippage</span></a></li>
+<li><a href="../functions/adjustForSlippage.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>adjust<wbr/>For<wbr/>Slippage</span></a></li>
+<li><a href="../functions/asIntN.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>as<wbr/>IntN</span></a></li>
+<li><a href="../functions/asUintN.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>as<wbr/>UintN</span></a></li>
+<li><a href="../functions/bufferToHex.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>buffer<wbr/>To<wbr/>Hex</span></a></li>
+<li><a href="../functions/buildNFT.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>buildNFT</span></a></li>
+<li><a href="../functions/buildPool.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>build<wbr/>Pool</span></a></li>
+<li><a href="../functions/buildPosition.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>build<wbr/>Position</span></a></li>
+<li><a href="../functions/buildPositionReward.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>build<wbr/>Position<wbr/>Reward</span></a></li>
+<li><a href="../functions/buildTickData.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>build<wbr/>Tick<wbr/>Data</span></a></li>
+<li><a href="../functions/buildTickDataByEvent.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>build<wbr/>Tick<wbr/>Data<wbr/>By<wbr/>Event</span></a></li>
+<li><a href="../functions/checkAddress.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>check<wbr/>Address</span></a></li>
+<li><a href="../functions/collectFeesQuote-1.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>collect<wbr/>Fees<wbr/>Quote</span></a></li>
+<li><a href="../functions/composeType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>compose<wbr/>Type</span></a></li>
+<li><a href="../functions/computeSwap.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>compute<wbr/>Swap</span></a></li>
+<li><a href="../functions/computeSwapStep.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>compute<wbr/>Swap<wbr/>Step</span></a></li>
+<li><a href="../functions/createSplitAmountArray.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>create<wbr/>Split<wbr/>Amount<wbr/>Array</span></a></li>
+<li><a href="../functions/createSplitArray.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>create<wbr/>Split<wbr/>Array</span></a></li>
+<li><a href="../functions/d.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>d</span></a></li>
+<li><a href="../functions/decimalsMultiplier.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>decimals<wbr/>Multiplier</span></a></li>
+<li><a href="../functions/estPoolAPR.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>est<wbr/>PoolAPR</span></a></li>
+<li><a href="../functions/estPositionAPRWithDeltaMethod.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>est<wbr/>PositionAPRWith<wbr/>Delta<wbr/>Method</span></a></li>
+<li><a href="../functions/estPositionAPRWithMultiMethod.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>est<wbr/>PositionAPRWith<wbr/>Multi<wbr/>Method</span></a></li>
+<li><a href="../functions/estimateLiquidityForCoinA.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>estimate<wbr/>Liquidity<wbr/>For<wbr/>CoinA</span></a></li>
+<li><a href="../functions/estimateLiquidityForCoinB.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>estimate<wbr/>Liquidity<wbr/>For<wbr/>CoinB</span></a></li>
+<li><a href="../functions/extractAddressFromType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>extract<wbr/>Address<wbr/>From<wbr/>Type</span></a></li>
+<li><a href="../functions/extractStructTagFromType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>extract<wbr/>Struct<wbr/>Tag<wbr/>From<wbr/>Type</span></a></li>
+<li><a href="../functions/findAdjustCoin.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>find<wbr/>Adjust<wbr/>Coin</span></a></li>
+<li><a href="../functions/fixCoinType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>fix<wbr/>Coin<wbr/>Type</span></a></li>
+<li><a href="../functions/fixSuiObjectId.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>fix<wbr/>Sui<wbr/>Object<wbr/>Id</span></a></li>
+<li><a href="../functions/fromDecimalsAmount.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>from<wbr/>Decimals<wbr/>Amount</span></a></li>
+<li><a href="../functions/getAmountFixedDelta.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Amount<wbr/>Fixed<wbr/>Delta</span></a></li>
+<li><a href="../functions/getAmountUnfixedDelta.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Amount<wbr/>Unfixed<wbr/>Delta</span></a></li>
+<li><a href="../functions/getCoinAFromLiquidity.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>CoinAFrom<wbr/>Liquidity</span></a></li>
+<li><a href="../functions/getCoinBFromLiquidity.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>CoinBFrom<wbr/>Liquidity</span></a></li>
+<li><a href="../functions/getDefaultSuiInputType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Default<wbr/>Sui<wbr/>Input<wbr/>Type</span></a></li>
+<li><a href="../functions/getDeltaA.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>DeltaA</span></a></li>
+<li><a href="../functions/getDeltaB.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>DeltaB</span></a></li>
+<li><a href="../functions/getDeltaDownFromOutput.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Delta<wbr/>Down<wbr/>From<wbr/>Output</span></a></li>
+<li><a href="../functions/getDeltaUpFromInput.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Delta<wbr/>Up<wbr/>From<wbr/>Input</span></a></li>
+<li><a href="../functions/getFutureTime.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Future<wbr/>Time</span></a></li>
+<li><a href="../functions/getLiquidityFromCoinA.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Liquidity<wbr/>From<wbr/>CoinA</span></a></li>
+<li><a href="../functions/getLiquidityFromCoinB.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Liquidity<wbr/>From<wbr/>CoinB</span></a></li>
+<li><a href="../functions/getLowerSqrtPriceFromCoinA.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Lower<wbr/>Sqrt<wbr/>Price<wbr/>From<wbr/>CoinA</span></a></li>
+<li><a href="../functions/getLowerSqrtPriceFromCoinB.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Lower<wbr/>Sqrt<wbr/>Price<wbr/>From<wbr/>CoinB</span></a></li>
+<li><a href="../functions/getMoveObject.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Move<wbr/>Object</span></a></li>
+<li><a href="../functions/getMoveObjectType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Move<wbr/>Object<wbr/>Type</span></a></li>
+<li><a href="../functions/getMovePackageContent.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Move<wbr/>Package<wbr/>Content</span></a></li>
+<li><a href="../functions/getNearestTickByTick.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Nearest<wbr/>Tick<wbr/>By<wbr/>Tick</span></a></li>
+<li><a href="../functions/getNextSqrtPriceAUp.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Next<wbr/>Sqrt<wbr/>PriceAUp</span></a></li>
+<li><a href="../functions/getNextSqrtPriceBDown.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Next<wbr/>Sqrt<wbr/>PriceBDown</span></a></li>
+<li><a href="../functions/getNextSqrtPriceFromInput.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Next<wbr/>Sqrt<wbr/>Price<wbr/>From<wbr/>Input</span></a></li>
+<li><a href="../functions/getNextSqrtPriceFromOutput.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Next<wbr/>Sqrt<wbr/>Price<wbr/>From<wbr/>Output</span></a></li>
+<li><a href="../functions/getObjectDeletedResponse.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Deleted<wbr/>Response</span></a></li>
+<li><a href="../functions/getObjectDisplay.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Display</span></a></li>
+<li><a href="../functions/getObjectFields.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Fields</span></a></li>
+<li><a href="../functions/getObjectId.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Id</span></a></li>
+<li><a href="../functions/getObjectNotExistsResponse.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Not<wbr/>Exists<wbr/>Response</span></a></li>
+<li><a href="../functions/getObjectOwner.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Owner</span></a></li>
+<li><a href="../functions/getObjectPreviousTransactionDigest.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Previous<wbr/>Transaction<wbr/>Digest</span></a></li>
+<li><a href="../functions/getObjectReference.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Reference</span></a></li>
+<li><a href="../functions/getObjectType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Type</span></a></li>
+<li><a href="../functions/getObjectVersion.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Object<wbr/>Version</span></a></li>
+<li><a href="../functions/getPackagerConfigs.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Packager<wbr/>Configs</span></a></li>
+<li><a href="../functions/getRewardInTickRange.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Reward<wbr/>In<wbr/>Tick<wbr/>Range</span></a></li>
+<li><a href="../functions/getSuiObjectData.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Sui<wbr/>Object<wbr/>Data</span></a></li>
+<li><a href="../functions/getTickDataFromUrlData.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Tick<wbr/>Data<wbr/>From<wbr/>Url<wbr/>Data</span></a></li>
+<li><a href="../functions/getUpperSqrtPriceFromCoinA.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Upper<wbr/>Sqrt<wbr/>Price<wbr/>From<wbr/>CoinA</span></a></li>
+<li><a href="../functions/getUpperSqrtPriceFromCoinB.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Upper<wbr/>Sqrt<wbr/>Price<wbr/>From<wbr/>CoinB</span></a></li>
+<li><a href="../functions/hasPublicTransfer.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>has<wbr/>Public<wbr/>Transfer</span></a></li>
+<li><a href="../functions/hexToNumber.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>hex<wbr/>To<wbr/>Number</span></a></li>
+<li><a href="../functions/hexToString.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>hex<wbr/>To<wbr/>String</span></a></li>
+<li><a href="../functions/isSortedSymbols.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>is<wbr/>Sorted<wbr/>Symbols</span></a></li>
+<li><a href="../functions/isSuiObjectResponse.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>is<wbr/>Sui<wbr/>Object<wbr/>Response</span></a></li>
+<li><a href="../functions/newBits.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>new<wbr/>Bits</span></a></li>
+<li><a href="../functions/normalizeCoinType.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>normalize<wbr/>Coin<wbr/>Type</span></a></li>
+<li><a href="../functions/patchFixSuiObjectId.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>patch<wbr/>Fix<wbr/>Sui<wbr/>Object<wbr/>Id</span></a></li>
+<li><a href="../functions/printTransaction.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>print<wbr/>Transaction</span></a></li>
+<li><a href="../functions/removeHexPrefix.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>remove<wbr/>Hex<wbr/>Prefix</span></a></li>
+<li><a href="../functions/secretKeyToEd25519Keypair.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>secret<wbr/>Key<wbr/>To<wbr/>Ed25519<wbr/>Keypair</span></a></li>
+<li><a href="../functions/secretKeyToSecp256k1Keypair.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>secret<wbr/>Key<wbr/>To<wbr/>Secp256k1<wbr/>Keypair</span></a></li>
+<li><a href="../functions/shortAddress.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>short<wbr/>Address</span></a></li>
+<li><a href="../functions/shortString.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>short<wbr/>String</span></a></li>
+<li><a href="../functions/tickScore.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>tick<wbr/>Score</span></a></li>
+<li><a href="../functions/toBuffer.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>to<wbr/>Buffer</span></a></li>
+<li><a href="../functions/toCoinAmount.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>to<wbr/>Coin<wbr/>Amount</span></a></li>
+<li><a href="../functions/toDecimalsAmount.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>to<wbr/>Decimals<wbr/>Amount</span></a></li>
+<li><a href="../functions/transClmmpoolDataWithoutTicks.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>trans<wbr/>Clmmpool<wbr/>Data<wbr/>Without<wbr/>Ticks</span></a></li>
+<li><a href="../functions/utf8to16.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>utf8to16</span></a></li></ul></nav></div></div></div>
 <div class="tsd-generator">
 <p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></div>
 <div class="overlay"></div></body></html>

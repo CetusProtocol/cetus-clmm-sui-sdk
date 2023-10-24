@@ -74,6 +74,11 @@ export type SdkOptions = {
    * The URL for the aggregator service.
    */
   aggregatorUrl: string
+
+  /**
+   * The URL for the swap count
+   */
+  swapCountUrl: string
 }
 
 /**
