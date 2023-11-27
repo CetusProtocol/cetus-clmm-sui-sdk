@@ -24,7 +24,7 @@ export const clmm_mainnet: SdkOptions = {
   // fullRpcUrl: 'https://cetus-mainnet-rpc.blockvision.org/2R8NDfQ1v3UAqVAY8PwWQdB4FIb',
   // fullRpcUrl: 'https://sui-mainnet-endpoint.blockvision.org/',
   simulationAccount: {
-    address: '0x...',
+    address: '0x326ce9894f08dcaa337fa232641cc34db957aec9ff6614c1186bc9a7508df0bb',
   },
   cetus_config: {
     package_id: '0x95b8d278b876cae22206131fb9724f701c9444515813042f54f0a426c9a3bc2f',

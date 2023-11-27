@@ -830,7 +830,35 @@ export type PreSwapWithMultiPoolParams = {
    */
   amount: string
 } & CoinPairType
+/**
+ * If changes in liquidity are required before the swap, then this parameter should be passed.
+ */
+export type PreSwapLpChangeParams = {
+  /**
+   * Unique identifier for the liquidity pool involved in the transaction.
+   */
+  pool_id: string
 
+  /**
+   * Lower bound of the liquidity range. In AMM models, like Uniswap V3, liquidity is provided within specific price ranges. This represents the lower limit of that range.
+   */
+  tick_lower: number
+
+  /**
+   * Upper bound of the liquidity range, corresponding to the lower bound. This defines the upper limit of the range where liquidity is provided.
+   */
+  tick_upper: number
+
+  /**
+   * The change in liquidity, which can be a large number and is thus represented as a string. It can be positive or negative, indicating an increase or decrease in liquidity.
+   */
+  delta_liquidity: number
+
+  /**
+   * A boolean value indicating whether the 'delta_liquidity' represents an increase (true) or decrease (false) in liquidity.
+   */
+  is_increase: boolean
+}
 /**
  * Represents parameters for a transitional pre-swap operation with multiple pools.
  */

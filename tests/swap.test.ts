@@ -1,5 +1,5 @@
 import BN from 'bn.js'
-import { buildSdk, buildTestAccount, buildTestPool, pool_object_id } from './data/init_test_data'
+import { TestnetCoin, buildSdk, buildTestAccount, buildTestPool, pool_object_id } from './data/init_test_data'
 import 'isomorphic-fetch'
 import { printTransaction } from '../src/utils/transaction-util'
 import { adjustForSlippage, d, Percentage, TickMath } from '../src'
@@ -10,42 +10,12 @@ let sendKeypair: Ed25519Keypair
 describe('Swap calculate Module', () => {
   const sdk = buildSdk()
 
-  test('calculateRates', async () => {
-    const a2b = true
-    const byAmountIn = true
-    const amount = new BN('1000')
-
-    const currentPool = await buildTestPool(sdk, pool_object_id)
-
-    const tickdatas = await sdk.Pool.fetchTicksByRpc(currentPool.ticks_handle)
-    console.log('ticksHandle', currentPool.ticks_handle)
-    console.log(tickdatas)
-    // const res = await sdk.Swap.calculateRates({
-    //   decimalsA: 6,
-    //   decimalsB: 6,
-    //   a2b,
-    //   byAmountIn,
-    //   amount,
-    //   swapTicks: tickdatas,
-    //   currentPool,
-    // })
-
-    // console.log('calculateRates', {
-    //   estimatedAmountIn: res.estimatedAmountIn.toString(),
-    //   estimatedAmountOut: res.estimatedAmountOut.toString(),
-    //   estimatedEndSqrtprice: res.estimatedEndSqrtPrice.toString(),
-    //   estimatedFeeAmount: res.estimatedFeeAmount.toString(),
-    //   isExceed: res.isExceed,
-    //   a2b,
-    //   byAmountIn,
-    // })
-  })
 
   test('fetchTicksByContract', async () => {
     const tickdatas = await sdk.Pool.fetchTicks({
       pool_id: pool_object_id,
-      coinTypeA: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
-      coinTypeB: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
+      coinTypeA: TestnetCoin.USDT,
+      coinTypeB: TestnetCoin.USDC,
     })
     console.log('fetchTicks: ', tickdatas)
   })
@@ -132,28 +102,27 @@ describe('Swap Module', () => {
   test('swap', async () => {
     const a2b = true
     const byAmountIn = true
-    const amount = new BN('100')
+    const amount = "100"
     const slippage = Percentage.fromDecimal(d(0.1))
 
     const currentPool = await buildTestPool(sdk, pool_object_id)
     console.log('currentPool: ', currentPool)
 
-    const tickdatas = await sdk.Pool.fetchTicksByRpc(currentPool.ticks_handle)
-
     const decimalsA = 6
     const decimalsB = 6
-    const calculateRatesParams = {
+    const res: any = await sdk.Swap.preswap({
+      pool: currentPool,
+      currentSqrtPrice: currentPool.current_sqrt_price,
+      coinTypeA: currentPool.coinTypeA,
+      coinTypeB: currentPool.coinTypeB,
       decimalsA,
       decimalsB,
       a2b,
-      byAmountIn,
+      byAmountIn: byAmountIn,
       amount,
-      swapTicks: tickdatas,
-      currentPool,
-    }
-    const res = sdk.Swap.calculateRates(calculateRatesParams)
+    })
 
-    console.log('calculateRates', {
+    console.log('res', {
       estimatedAmountIn: res.estimatedAmountIn.toString(),
       estimatedAmountOut: res.estimatedAmountOut.toString(),
       estimatedEndSqrtprice: res.estimatedEndSqrtPrice.toString(),

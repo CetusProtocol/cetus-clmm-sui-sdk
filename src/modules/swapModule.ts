@@ -267,11 +267,10 @@ export class SwapModule implements IModule {
 
   /**
    * Calculates the rates for a swap.
-   *
    * @param {CalculateRatesParams} params The parameters for the calculation.
    * @returns {CalculateRatesResult} The results of the calculation.
+   * @deprecated This method is deprecated and may be removed in future versions. Use `sdk.Swap.preswap()` instead.
    */
-  // eslint-disable-next-line class-methods-use-this
   calculateRates(params: CalculateRatesParams): CalculateRatesResult {
     const { currentPool } = params
     const poolData = transClmmpoolDataWithoutTicks(currentPool)

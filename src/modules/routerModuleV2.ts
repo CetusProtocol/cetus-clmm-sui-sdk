@@ -3,8 +3,8 @@ import Decimal from 'decimal.js'
 import { v4 as uuidv4 } from 'uuid'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
-import { PreSwapWithMultiPoolParams } from '../types'
-import { TickMath } from '../math'
+import { PreSwapLpChangeParams, PreSwapWithMultiPoolParams } from '../types'
+import { TickMath, ZERO } from '../math'
 
 export type BasePath = {
   direction: boolean
@@ -89,6 +89,7 @@ export class RouterModuleV2 implements IModule {
               inputAmount: basePath.input_amount,
               feeRate: basePath.fee_rate,
               currentSqrtPrice: new BN(basePath.current_sqrt_price.toString()),
+              afterSqrtPrice: basePath.label === 'Cetus' ? new BN(basePath.after_sqrt_price.toString()) : ZERO,
               fromDecimal: basePath.from_decimal,
               toDecimal: basePath.to_decimal,
               currentPrice: this.calculatePrice(
@@ -115,6 +116,7 @@ export class RouterModuleV2 implements IModule {
 
     try {
       const response = await fetch(url, {
+        ..._options,
         signal: controller.signal,
       })
       clearTimeout(timeoutId)
@@ -124,15 +126,16 @@ export class RouterModuleV2 implements IModule {
     }
   }
 
-  private async fetchAndParseData(apiUrl: string): Promise<AggregatorResult | null> {
+  private async fetchAndParseData(apiUrl: string, _options: RequestInit): Promise<AggregatorResult | null> {
     try {
       const timeoutDuration = 1500
 
-      const response: any = await this.fetchWithTimeout(apiUrl, {}, timeoutDuration)
+      const response: any = await this.fetchWithTimeout(apiUrl, _options, timeoutDuration)
 
       if (response.status === 200) {
         return this.parseJsonResult(await response.json())
       }
+
       return null
     } catch (error) {
       return null
@@ -164,19 +167,47 @@ export class RouterModuleV2 implements IModule {
     _senderAddress?: string,
     swapWithMultiPoolParams?: PreSwapWithMultiPoolParams,
     orderSplit = false,
-    externalRouter = false
+    externalRouter = false,
+    lpChanges: PreSwapLpChangeParams[] = []
   ) {
     let result = null
     let version = 'v2'
+    let options: RequestInit = {}
+    let apiUrl = this.sdk.sdkOptions.aggregatorUrl
+    if (lpChanges.length > 0) {
+      const url = new URL(apiUrl)
+      apiUrl = `${url.protocol}//${url.hostname}/router_with_lp_changes`
+      options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from,
+          to,
+          amount,
+          by_amount_in: byAmountIn,
+          order_split: orderSplit,
+          external_router: externalRouter,
+          sender_address: 'None',
+          request_id: encodeURIComponent(uuidv4()),
+          lp_changes: lpChanges,
+        }),
+      }
+    } else {
+      apiUrl = `
+      ${apiUrl}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&amount=${encodeURIComponent(
+        amount
+      )}&by_amount_in=${encodeURIComponent(byAmountIn)}&order_split=${encodeURIComponent(orderSplit)}&external_router=${encodeURIComponent(
+        externalRouter
+      )}&sender_address=''&request_id=${encodeURIComponent(uuidv4())}
+      `
+    }
+    console.log({ apiUrl, options })
 
-    const apiUrl = `
-    ${this.sdk.sdkOptions.aggregatorUrl}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&amount=${encodeURIComponent(
-      amount
-    )}&by_amount_in=${encodeURIComponent(byAmountIn)}&order_split=${encodeURIComponent(orderSplit)}&external_router=${encodeURIComponent(
-      externalRouter
-    )}&sender_address=''&request_id=${encodeURIComponent(uuidv4())}
-    `
-    result = await this.fetchAndParseData(apiUrl)
+    result = await this.fetchAndParseData(apiUrl, options)
+
+    console.log({ result })
 
     if (result?.isTimeout || result == null) {
       const priceResult: any = await this.sdk.Router.price(

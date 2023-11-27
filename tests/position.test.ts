@@ -32,7 +32,7 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('getPositionById', async () => {
-    const res = await sdk.Position.getPositionById('0xac12f1a37cdbe6b7cd24d107d735152d9f82c33079f55e117c13d971b5248ff5')
+    const res = await sdk.Position.getPositionById('0x7cea8359f50318d88026d702462df7ce9d96a5b12f3efe9dce6d6450fba779a0')
     console.log('getPositionById###', res)
   })
 
@@ -85,7 +85,6 @@ describe('Position add Liquidity Module', () => {
     const poolObjectId = pool_object_id
     const pool = await buildTestPool(sdk, poolObjectId)
     const position = (await buildTestPosition(sdk, position_object_id)) as Position
-    console.log('position: ', position)
 
     const lowerTick = Number(position.tick_lower_index)
     const upperTick = Number(position.tick_upper_index)

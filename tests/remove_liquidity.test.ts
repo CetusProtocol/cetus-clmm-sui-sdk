@@ -184,10 +184,8 @@ describe('remove liquidity', () => {
   })
   test('remove liquidity for input liquidity', async () => {
     const poolObjectId = pool_object_id
-    sdk.senderAddress = "0xec3c976c7732437b50f8e1a2c6eb9f7df213013a480f3ff5bb57d8a5273b09db"
     const pool = await buildTestPool(sdk, poolObjectId)
     const position = (await buildTestPosition(sdk, position_object_id)) as Position
-    console.log('position: ', position)
 
     const lowerTick = Number(position.tick_lower_index)
     const upperTick = Number(position.tick_upper_index)
@@ -202,6 +200,11 @@ describe('remove liquidity', () => {
     const coinAmounts = ClmmPoolUtil.getCoinAmountFromLiquidity(liquidity, curSqrtPrice, lowerSqrtPrice, upperSqrtPrice, false)
     const { tokenMaxA, tokenMaxB } = adjustForCoinSlippage(coinAmounts, slippageTolerance, false)
 
+    const rewards: any[] = await sdk.Rewarder.posRewardersAmount(poolObjectId, pool.position_manager.positions_handle, position_object_id)
+    console.log('rewards: ', rewards)
+
+    const rewardCoinTypes = rewards.filter((item) => Number(item.amount_owed) >= 0).map((item) => item.coin_address)
+
     const removeLiquidityParams: RemoveLiquidityParams = {
       coinTypeA: pool.coinTypeA,
       coinTypeB: pool.coinTypeB,
@@ -210,7 +213,7 @@ describe('remove liquidity', () => {
       min_amount_b: tokenMaxB.toString(),
       pool_id: pool.poolAddress,
       pos_id: position.pos_object_id,
-      rewarder_coin_types: [],
+      rewarder_coin_types: [...rewardCoinTypes],
       collect_fee: true,
     }
 
@@ -218,8 +221,8 @@ describe('remove liquidity', () => {
 
     printTransaction(removeLiquidityTransactionPayload)
 
-    // const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, removeLiquidityTransactionPayload)
-    // console.log('removeLiquidity: ', transferTxn)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, removeLiquidityTransactionPayload)
+    console.log('removeLiquidity: ', transferTxn)
   })
 
 })

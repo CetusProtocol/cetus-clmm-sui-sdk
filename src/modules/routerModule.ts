@@ -52,7 +52,7 @@ export type AddressAndDirection = {
 export type SwapWithRouterParams = {
   paths: OnePath[]
   partner: string
-  priceSplitPoint: number
+  priceSlippagePoint: number
 }
 
 // use to do pre router swap param by sdk
@@ -98,9 +98,10 @@ export type PriceResult = {
   createTxParams: SwapWithRouterParams | undefined
 }
 
+
 // return the pool with tvl info by statistics API
 type PoolWithTvl = {
-  poolAddress: string
+  poolAddress: String
   tvl: number
 }
 
@@ -297,7 +298,6 @@ export class RouterModule implements IModule {
     if (addressMapRev != null) {
       // get value by key from map
       for (const [key, value] of addressMapRev.entries()) {
-        console.log({ key, value })
         if (value === address) {
           return key * 100
         }
@@ -308,7 +308,7 @@ export class RouterModule implements IModule {
 
   /**
    * Get the best price from router graph.
-   *
+   * 
    * @param {string} from from coin type
    * @param {string} to to coin type
    * @param {BN} amount coin amount
@@ -417,7 +417,7 @@ export class RouterModule implements IModule {
 
     // add one limit, must calculated two steps path.
     const stepNumsOne = preRouterSwapParams.filter((item) => item.stepNums === 1)
-    const notStepNumsOne = preRouterSwapParams.filter((item) => item.stepNums !== 1)
+    let notStepNumsOne = preRouterSwapParams.filter((item) => item.stepNums !== 1)
 
     let poolWithTvls: PoolWithTvl[] = []
     try {
@@ -468,7 +468,7 @@ export class RouterModule implements IModule {
         const swapWithRouterParams = {
           paths: [onePath],
           partner,
-          priceSplitPoint: priceSlippagePoint,
+          priceSlippagePoint,
         }
 
         const result: PriceResult = {
@@ -509,7 +509,7 @@ export class RouterModule implements IModule {
         const swapWithRouterParams = {
           paths: [onePath],
           partner,
-          priceSplitPoint: priceSlippagePoint,
+          priceSlippagePoint,
         }
 
         const result: PriceResult = {
@@ -585,7 +585,7 @@ export class RouterModule implements IModule {
     const swapWithRouterParams = {
       paths: [onePath],
       partner,
-      priceSplitPoint: priceSlippagePoint,
+      priceSlippagePoint,
     }
 
     const result: PriceResult = {
@@ -727,6 +727,9 @@ export class RouterModule implements IModule {
     const result: PoolWithTvl[] = []
 
     const { swapCountUrl } = this._sdk.sdkOptions
+    if (!swapCountUrl) {
+      return result
+    }
 
     let response
     try {
@@ -735,12 +738,20 @@ export class RouterModule implements IModule {
       throw new Error(`Failed to get pool list with liquidity from ${swapCountUrl}.`)
     }
 
-    const json = await response.json()
-    if (json.code !== 200) {
-      throw new Error(`Failed to get pool list from ${swapCountUrl}. Statu code is ${json.code}.`)
+    let json
+    try {
+      json = await response.json()
+    } catch (e) {
+      throw new Error(`Failed tp [arse response from ${swapCountUrl}].`)
     }
 
-    const { pools } = json.data
+    if (json.code !== 200) {
+      throw new Error(
+        `Failed to get pool list from ${swapCountUrl}. Statu code is ${json.code}.`
+      )
+    }
+
+    const pools = json.data.pools
 
     for (const pool of pools) {
       result.push({

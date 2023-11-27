@@ -433,13 +433,7 @@ export class ClmmPoolUtil {
    * @param roundUp - is round up
    * @returns
    */
-  static getCoinAmountFromLiquidity(
-    liquidity: BN,
-    curSqrtPrice: BN,
-    lowerSqrtPrice: BN,
-    upperSqrtPrice: BN,
-    roundUp: boolean
-  ): CoinAmounts {
+  static getCoinAmountFromLiquidity(liquidity: BN, curSqrtPrice: BN, lowerSqrtPrice: BN, upperSqrtPrice: BN, roundUp: boolean): CoinAmounts {
     const liq = new Decimal(liquidity.toString())
     const curSqrtPriceStr = new Decimal(curSqrtPrice.toString())
     const lowerPriceStr = new Decimal(lowerSqrtPrice.toString())
@@ -512,19 +506,19 @@ export class ClmmPoolUtil {
     const coinAmounts = ClmmPoolUtil.getCoinAmountFromLiquidity(liquidity, curSqrtPrice, lowerSqrtPrice, upperSqrtPrice, roundUp)
     const tokenLimitA = roundUp
       ? d(coinAmounts.coinA.toString())
-          .mul(1 + slippage)
-          .toString()
+        .mul(1 + slippage)
+        .toString()
       : d(coinAmounts.coinA.toString())
-          .mul(1 - slippage)
-          .toString()
+        .mul(1 - slippage)
+        .toString()
 
     const tokenLimitB = roundUp
       ? d(coinAmounts.coinB.toString())
-          .mul(1 + slippage)
-          .toString()
+        .mul(1 + slippage)
+        .toString()
       : d(coinAmounts.coinB.toString())
-          .mul(1 - slippage)
-          .toString()
+        .mul(1 - slippage)
+        .toString()
 
     return {
       coinAmountA: coinAmounts.coinA,

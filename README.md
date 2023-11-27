@@ -142,7 +142,6 @@ export const mainnet = {
 }
 ```
 
-
 ## Introduction
 
 Cetus-CLMM-SUI-SDK is the official software development kit (SDK) specifically designed for seamless integration with Cetus-CLMM. It provides developers with the necessary tools and resources to easily connect and interact with Cetus-CLMM, enabling the development of robust and efficient applications.
@@ -150,19 +149,23 @@ Cetus-CLMM-SUI-SDK is the official software development kit (SDK) specifically d
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Getting Started
+
 To integrate our SDK into your local project, please follow the example steps provided below.
 Please see details in document.
+
 ### Prerequisites
+
 * npm
+
     ```sh
     npm i @cetusprotocol/cetus-sui-clmm-sdk
     ```
 
 ### Setting Up Configuration
+
 1. Initialize testnet (or mainnet) SdkOption
 
-
-    **NOTICE** 
+    **NOTICE**
     1. In this example, the contract address version may backward, please use the latest clmmpool and integrate address.
     2. `simulationAccount` should be add an account address with a small amount of assets, it used to do estimated or other query object from.
 
@@ -171,6 +174,7 @@ Please see details in document.
 Now, you can start using Cetus SDK.
 
 ### Features Available Right Now
+
 <a href="https://cetus-1.gitbook.io/cetus-developer-docs/developer/dev-overview"><strong> »»» See details in development document. </strong></a>
 <br />
 
@@ -190,7 +194,7 @@ Now, you can start using Cetus SDK.
 3. Swap
 3.1 Swap
 3.2 Partner swap
-3.3 Smart router v1 
+3.3 Smart router v1
 3.4 Smart router v2
 3.5 Price impact
 3.6 Minimum received & Maximum sold
@@ -199,4 +203,5 @@ Now, you can start using Cetus SDK.
 4.1 Liquidity correlation calculation
 
 ## LICENSE
+
 CETUS-SUI-SDK released under the Apache license. See the [LICENSE](./LICENSE) file for details.

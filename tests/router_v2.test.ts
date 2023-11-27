@@ -1,52 +1,26 @@
-import CetusClmmSDK, { TransactionUtil, printTransaction } from '../src'
+import CetusClmmSDK, { CoinAsset, CoinAssist, TransactionUtil } from '../src'
 import { AggregatorResult, CoinProvider, PathProvider } from '../src/modules'
-import { buildSdk, buildTestAccount, currSdkEnv } from './data/init_test_data'
+import { SdkEnv, TestnetCoin, buildSdk, buildTestAccount } from './data/init_test_data'
 import { assert } from 'console'
 import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
 import { Secp256k1Keypair } from '@mysten/sui.js/keypairs/secp256k1'
 import { TransactionBlock } from '@mysten/sui.js'
+import { verifyBalanceEnough } from './router_v1.test'
 
-describe('Router Module', () => {
-  const sdk = buildSdk()
+describe('Test Router V2 Module', () => {
+  const sdk = buildSdk(SdkEnv.testnet)
   const sendKeypair = buildTestAccount()
   sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()
-  let USDC: string
-  let USDT: string
-  let ETH: string
-  let AFR: string
-  let SUI: string
-  let BTC: string
-  let CETUS: string
-  let url: string
-  let SBOX: string
+
+  const coinList = Object.values(TestnetCoin)
+  let allCoinAsset: CoinAsset[] = []
 
   beforeAll(async () => {
-    if (currSdkEnv === 'mainnet') {
-      USDC = '0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf::coin::COIN'
-      USDT = '0xc060006111016b8a020ad5b33834984a437aaa7d3c74c18e09a95d48aceab08c::coin::COIN'
-      ETH = '0xaf8cd5edc19c4512f4259f0bee101a40d41ebed738ade5874359610ef8eeced5::coin::COIN'
-      SUI = '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'
-      BTC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::btc::BTC'
-      url = 'https://api-sui.cetus.zone/v2/sui/pools_info'
-      SBOX = '0xbff8dc60d3f714f678cd4490ff08cabbea95d308c6de47a150c79cc875e0c7c6::sbox::SBOX'
-      CETUS = '0x06864a6f921804860930db6ddbe2e16acdf8504495ea7481637a1c8b9a8fe54b::cetus::CETUS'
-    } else {
-      USDC = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
-      USDT = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
-      ETH = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::eth::ETH'
-      AFR = '0x8ed60050f9c887864991b674cfc4b435be8e20e3e5a9970f7249794bd1319963::aifrens::AIFRENS'
-      CETUS = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS'
-      SUI = '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'
-      url = 'https://api-sui.devcetus.com/v2/sui/pools_info'
-    }
-  })
-
-  test('router v2 module', async () => {
+    // load router graph
     const coinMap = new Map()
     const poolMap = new Map()
 
-    // const resp: any = await fetch('https://api-sui.cetus.zone/v2/sui/pools_info', { method: 'GET' })
-    const resp: any = await fetch('https://api-sui.devcetus.com/v2/sui/pools_info', { method: 'GET' })
+    const resp: any = await fetch(sdk.sdkOptions.swapCountUrl!, { method: 'GET' })
     const poolsInfo = await resp.json()
 
     if (poolsInfo.code === 200) {
@@ -90,139 +64,285 @@ describe('Router Module', () => {
 
     sdk.Router.loadGraph(coins, paths)
 
-    const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-    const res = (await sdk.RouterV2.getBestRouter(USDT, SUI, 1000000000, true, 0.0, '', '', undefined, true, true))
-      .result as AggregatorResult
-    printAggregatorResult(res)
-
-    // const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, res, allCoinAsset, '', 0.0)
-    // printTransaction(payload, true)
-
-    // const succeed = await execTx(sdk, true, payload, sendKeypair)
-    // assert(succeed, 'error')
+    // prepare all coin asset
+    allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
   })
 
-  test('USDC -> CETUS', async () => {
-    const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-    const res = (await sdk.RouterV2.getBestRouter(SBOX, CETUS, 1000000000000, true, 0.5, '', '', undefined, false, false))
-      .result as AggregatorResult
-    // printAggregatorResult(res)
-
-    const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, res, allCoinAsset, '', 0.5)
-    // printTransaction(payload, true)
-
-    const succeed = await execTx(sdk, true, payload, sendKeypair)
-    assert(succeed, 'error')
+  test('Test detection router path', async () => {
+    const byAmountIn = true
+    for (let i = 0; i < coinList.length; i++) {
+      for (let j = 0; j < coinList.length; j++) {
+        if (j === i) { continue }
+        console.log(`Swap from ${coinList[i]} to ${coinList[j]}`)
+        const amount = 10000000
+        for (const orderSplit of [true, false]) {
+          for (const externalRouter of [true, false]) {
+            const result = await (await sdk.RouterV2.getBestRouter(coinList[i], coinList[j], amount, byAmountIn, 0, '', undefined, undefined, orderSplit, externalRouter)).result
+            assert(result.outputAmount > 0, "detection all router path success")
+          }
+        }
+      }
+    }
   })
 
-  test('USDT -> USDC', async () => {
-    const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-    const res = (
-      await sdk.RouterV2.getBestRouter(
-        USDT,
-        USDC,
-        3100000,
-        false,
-        0.5,
-        '0x8e0b7668a79592f70fbfb1ae0aebaf9e2019a7049783b9a4b6fe7c6ae038b528',
-        '',
-        undefined,
-        true,
-        false
-      )
-    ).result as AggregatorResult
-    // printAggregatorResult(res)
+  test('Test split path will batter than one path', async () => {
+    let split = false
+    const byAmountIn = true
+    for (let i = 0; i < coinList.length; i++) {
+      for (let j = 0; j < coinList.length; j++) {
+        if (j === i) { continue }
+        console.log(`Swap from ${coinList[i]} to ${coinList[j]}`)
+        const amount = 10000000
+        const externalRouter = false
 
-    const payload = await TransactionUtil.buildAggregatorSwapTransaction(
-      sdk,
-      res,
-      allCoinAsset,
-      '0x8e0b7668a79592f70fbfb1ae0aebaf9e2019a7049783b9a4b6fe7c6ae038b528',
-      0.5
-    )
-    // printTransaction(payload, true)
+        const splitResult = await (await sdk.RouterV2.getBestRouter(coinList[i], coinList[j], amount, byAmountIn, 0, '', undefined, undefined, true, externalRouter)).result
+        const noSplitResult = await (await sdk.RouterV2.getBestRouter(coinList[i], coinList[j], amount, byAmountIn, 0, '', undefined, undefined, false, externalRouter)).result
 
-    const succeed = await execTx(sdk, true, payload, sendKeypair)
-    assert(succeed, 'error')
+        if (splitResult.splitPaths.length > 1) {
+          split = true
+          assert(splitResult.outputAmount > noSplitResult.outputAmount, "split path will the same as one path")
+        } else {
+          assert(splitResult.outputAmount === noSplitResult.outputAmount, "split path will batter than one path")
+        }
+      }
+    }
+    assert(split === true, "There is splited router result")
   })
 
-  test('USDC -> USDT', async () => {
-    const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-    const res = (
-      await sdk.RouterV2.getBestRouter(
-        USDC,
-        USDT,
-        100123145,
-        false,
-        0.5,
-        '0x8e0b7668a79592f70fbfb1ae0aebaf9e2019a7049783b9a4b6fe7c6ae038b528',
-        '',
-        undefined,
-        true,
-        false
-      )
-    ).result as AggregatorResult
-    // printAggregatorResult(res)
+  test('Test all swap condition in router server, byAmountIn = true', async () => {
+    const byAmountIn = true
+    for (let i = 0; i < coinList.length; i++) {
+      for (let j = 0; j < coinList.length; j++) {
+        if (j === i) { continue }
+        console.log(`Swap from ${coinList[i]} to ${coinList[j]}`)
+        const coinIBalance = Number(CoinAssist.totalBalance(allCoinAsset, coinList[i]).toString())
+        const amountList = [0, 1, Math.floor(coinIBalance / 2), coinIBalance, coinIBalance + 1]
+        for (let a = 0; a < amountList.length; a++) {
+          const amount = amountList[a]
+          for (const orderSplit of [true, false]) {
+            for (const externalRouter of [true, false]) {
+              const result = await (await sdk.RouterV2.getBestRouter(coinList[i], coinList[j], amount, byAmountIn, 0, '', undefined, undefined, orderSplit, externalRouter)).result
+              console.log(`Fix ${amount} as input amount, orderSplit: ${orderSplit}, externalRouter: ${externalRouter}`)
 
-    const payload = await TransactionUtil.buildAggregatorSwapTransaction(
-      sdk,
-      res,
-      allCoinAsset,
-      '0x8e0b7668a79592f70fbfb1ae0aebaf9e2019a7049783b9a4b6fe7c6ae038b528',
-      5
-    )
-    // printTransaction(payload, true)
+              if (a === 3 && coinList[i] === TestnetCoin.SUI || a === 4) {
+                assert(!verifyBalanceEnough(allCoinAsset, coinList[i], amount.toString()), "Use total balance of sui test failed.")
+                continue
+              }
 
-    const succeed = await execTx(sdk, false, payload, sendKeypair)
-    assert(succeed, 'error')
+              if (a === 0) {
+                assert(result.outputAmount === 0, "Input amount equals 0 test failed.")
+                continue
+              }
+
+              if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coinList[i], amount.toString())) {
+                const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, result, allCoinAsset, '', 0)
+                const simulateRes = await execTx(sdk, true, payload, sendKeypair)!
+                if (result?.outputAmount === 0) {
+                  assert(simulateRes.effects!.status.status === "failure", "Amount out equals 0 should failed.")
+                  console.log("Router swap when amount out equals 0 test passed.")
+                } else {
+                  assert(simulateRes.effects!.status.status === "success", "Common router swap test failed.")
+                  console.log("Common rotuer swap test passed.")
+                }
+              } else {
+                assert(result.isExceed, "Result should be exceed.")
+                console.log(`result exceed`)
+              }
+            }
+          }
+        }
+      }
+    }
   })
 
-  test('USDC -> USDT', async () => {
-    const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-    const res = (
-      await sdk.RouterV2.getBestRouter(
-        USDC,
-        USDT,
-        10231124,
-        true,
-        0.5,
-        '0x8e0b7668a79592f70fbfb1ae0aebaf9e2019a7049783b9a4b6fe7c6ae038b528',
-        '',
-        undefined,
-        true,
-        false
-      )
-    ).result as AggregatorResult
-    // printAggregatorResult(res)
+  test('Test all swap condition in router server, byAmountIn = false', async () => {
+    const byAmountIn = false
+    for (let i = 4; i < coinList.length; i++) {
+      for (let j = 0; j < coinList.length; j++) {
+        if (j === i) { continue }
+        console.log(`Swap from ${coinList[i]} to ${coinList[j]}`)
+        const amountList = [0, 1, 1000000, 1000000000000, 10000000000000000]
+        for (let a = 0; a < amountList.length; a++) {
+          const amount = amountList[a]
+          for (const orderSplit of [true, false]) {
+            for (const externalRouter of [true, false]) {
+              const result = await (await sdk.RouterV2.getBestRouter(coinList[i], coinList[j], amount, byAmountIn, 0, '', undefined, undefined, orderSplit, externalRouter)).result
+              console.log(`Fix ${amount} as output amount, orderSplit: ${orderSplit}, externalRouter: ${externalRouter}`)
 
-    const payload = await TransactionUtil.buildAggregatorSwapTransaction(
-      sdk,
-      res,
-      allCoinAsset,
-      '0x8e0b7668a79592f70fbfb1ae0aebaf9e2019a7049783b9a4b6fe7c6ae038b528',
-      5
-    )
-    // printTransaction(payload, true)
+              if (a === 0) {
+                assert(result.inputAmount === 0, "Output amount equals 0 test failed.")
+                continue
+              }
 
-    const succeed = await execTx(sdk, false, payload, sendKeypair)
-    assert(succeed, 'error')
+              if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coinList[i], result.inputAmount.toString())) {
+                const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, result, allCoinAsset, '', 0)
+                const simulateRes = await execTx(sdk, true, payload, sendKeypair)!
+                assert(simulateRes.effects!.status.status === "success", "Common router swap test failed.")
+                console.log("Common rotuer swap test passed.")
+              } else {
+                console.log(`${result?.isExceed ? 'result exceed' : !verifyBalanceEnough(allCoinAsset, coinList[i], result.inputAmount.toString()) ? 'balance insufficient' : 'unknown error'}`)
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+
+  test('Test specific router swap', async () => {
+    const coin_a = TestnetCoin.CETUS
+    const coin_b = TestnetCoin.USDC
+    const amount = 1
+    const byAmountIn = false
+    const slippage = 0
+
+    const result = await (await sdk.RouterV2.getBestRouter(coin_a, coin_b, amount, byAmountIn, slippage, '', undefined, undefined, false, true)).result
+    if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coin_a, result.inputAmount.toString())) {
+      const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, result, allCoinAsset, '', 0.01)
+      const simulateRes = await execTx(sdk, true, payload, sendKeypair)!
+      if (result?.outputAmount === 0) {
+        assert(simulateRes.effects!.status.status === "failure", "Amount out equals 0 should failed.")
+        console.log("Router swap when amount out equals 0 test passed.")
+      } else {
+        assert(simulateRes.effects!.status.status === "success", "Common router swap test failed.")
+        console.log("Common rotuer swap test passed.")
+      }
+    } else {
+      console.log(`${result?.isExceed ? 'result exceed' : !verifyBalanceEnough(allCoinAsset, coin_a, result.inputAmount.toString()) ? 'balance insufficient' : 'unknown error'}`)
+    }
+  })
+
+  test('Test lp change for specific router swap', async () => {
+    const coin_a = TestnetCoin.SUI
+    const coin_b = TestnetCoin.HASUI
+    const amount = 15000000000
+    const byAmountIn = true
+    const slippage = 0.001
+
+    const result = await (await sdk.RouterV2.getBestRouter(coin_a, coin_b, amount, byAmountIn, slippage, '', undefined, undefined, false, true,[
+      {
+        "pool_id": "0x473ab0306ff8952d473b10bb4c3516c632edeb0725f6bb3cda6c474d0ffc883f",
+        "tick_lower": -2,
+        "tick_upper": 1824,
+        "delta_liquidity": 2536563403949,
+        "is_increase": false
+      }
+    ])).result
+    console.log("结果： " , result);
+
+    if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coin_a, result.inputAmount.toString())) {
+      const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, result, allCoinAsset, '', 0.01)
+      const simulateRes = await execTx(sdk, true, payload, sendKeypair)!
+      if (result?.outputAmount === 0) {
+        assert(simulateRes.effects!.status.status === "failure", "Amount out equals 0 should failed.")
+        console.log("Router swap when amount out equals 0 test passed.")
+      } else {
+        assert(simulateRes.effects!.status.status === "success", "Common router swap test failed.")
+        console.log("Common rotuer swap test passed.")
+      }
+    } else {
+      console.log(`${result?.isExceed ? 'result exceed' : !verifyBalanceEnough(allCoinAsset, coin_a, result.inputAmount.toString()) ? 'balance insufficient' : 'unknown error'}`)
+    }
+  })
+
+
+  test('Test router swap with partner', async () => {
+    const coin_a = TestnetCoin.CETUS
+    const coin_b = TestnetCoin.USDC
+    const amount = 1000000000000
+    const byAmountIn = true
+    const slippage = 0.1
+    const partner = '0x5349919fa007fe7153f7e0957994de730cafc7038e0441f9991977fc598153cd'
+
+    const result = await (await sdk.RouterV2.getBestRouter(coin_a, coin_b, amount, byAmountIn, slippage, '', '', undefined)).result
+    if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coin_a, amount.toString())) {
+      const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, result, allCoinAsset, partner, 0)
+      const simulateRes = await execTx(sdk, true, payload, sendKeypair)!
+      if (result?.outputAmount === 0) {
+        assert(simulateRes.effects!.status.status === "failure", "Amount out equals 0 should failed.")
+        console.log("Router swap when amount out equals 0 test passed.")
+      } else {
+        assert(simulateRes.effects!.status.status === "success", "Common router swap test failed.")
+        console.log("Common rotuer swap test passed.")
+      }
+    } else {
+      console.log(`${result?.isExceed ? 'result exceed' : !verifyBalanceEnough(allCoinAsset, coin_a, amount.toString()) ? 'balance insufficient' : 'unknown error'}`)
+    }
+  })
+
+  test('Test not create new coin after swap', async () => {
+    const coin_a = TestnetCoin.USDT
+    const coin_b = TestnetCoin.USDC
+    const amount = 1000000
+    const byAmountIn = true
+    const slippage = 0.1
+    const partner = '0x5349919fa007fe7153f7e0957994de730cafc7038e0441f9991977fc598153cd'
+
+    const result = await (await sdk.RouterV2.getBestRouter(coin_a, coin_b, amount, byAmountIn, slippage, partner, '', undefined)).result
+
+    const fromCoinNumsBeforeSwap = CoinAssist.getCoinAssets(coin_a, allCoinAsset).length
+    const toCoinNumsBeforeSwap = CoinAssist.getCoinAssets(coin_b, allCoinAsset).length
+
+    if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coin_a, amount.toString())) {
+      const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, result, allCoinAsset, partner, 0)
+      const execRes = await execTx(sdk, false, payload, sendKeypair)!
+      assert(execRes.effects?.status.status! === 'success', "Swap failed");
+
+      const newCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
+      const fromCoinNumsAfterSwap = CoinAssist.getCoinAssets(TestnetCoin.USDT, newCoinAsset).length
+      const toCoinNumsAfterSwap = CoinAssist.getCoinAssets(TestnetCoin.USDC, newCoinAsset).length
+
+      assert(fromCoinNumsAfterSwap <= fromCoinNumsBeforeSwap, "From coin create new coin. 555")
+      console.log(`from coin nums before swap: ${fromCoinNumsBeforeSwap}, after swap: ${fromCoinNumsAfterSwap}`)
+      if (toCoinNumsBeforeSwap === 0) {
+        assert(toCoinNumsAfterSwap === 1, "")
+      } else {
+        assert(toCoinNumsAfterSwap >= toCoinNumsBeforeSwap, "To coin create new coin. 555")
+      }
+      console.log(`to coin nums before swap: ${toCoinNumsBeforeSwap}, after swap: ${toCoinNumsAfterSwap}`)
+    }
+  })
+
+  test('Test router swap downgraded', async () => {
+    sdk.sdkOptions.aggregatorUrl = ''
+    const coin_a = TestnetCoin.CETUS
+    const coin_b = TestnetCoin.USDC
+    const amount = 1000000000000
+    const byAmountIn = true
+    const slippage = 0.1
+    const partner = '0x5349919fa007fe7153f7e0957994de730cafc7038e0441f9991977fc598153cd'
+
+    const result = await (await sdk.RouterV2.getBestRouter(coin_a, coin_b, amount, byAmountIn, slippage, '', '', undefined)).result
+    if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coin_a, amount.toString())) {
+      const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, result, allCoinAsset, partner, 0)
+      const simulateRes = await execTx(sdk, true, payload, sendKeypair)!
+      if (result?.outputAmount === 0) {
+        assert(simulateRes.effects!.status.status === "failure", "Amount out equals 0 should failed.")
+        console.log("Router swap when amount out equals 0 test passed.")
+      } else {
+        assert(simulateRes.effects!.status.status === "success", "Common router swap test failed.")
+        console.log("Common rotuer swap test passed.")
+      }
+    } else {
+      console.log(`${result?.isExceed ? 'result exceed' : !verifyBalanceEnough(allCoinAsset, coin_a, amount.toString()) ? 'balance insufficient' : 'unknown error'}`)
+    }
   })
 })
 
-async function execTx(sdk: CetusClmmSDK, simulate: boolean, payload: TransactionBlock, sendKeypair: Ed25519Keypair | Secp256k1Keypair) {
+export async function execTx(sdk: CetusClmmSDK, simulate: boolean, payload: TransactionBlock, sendKeypair: Ed25519Keypair | Secp256k1Keypair) {
   if (simulate) {
     const { simulationAccount } = sdk.sdkOptions
     const simulateRes = await sdk.fullClient.devInspectTransactionBlock({
       transactionBlock: payload,
       sender: simulationAccount.address,
     })
-    console.log('simulateRes', simulateRes)
+    // console.log('simulateRes', simulateRes)
 
-    return simulateRes.effects.status.status === 'success'
+    return simulateRes
   } else {
     const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, payload)
     console.log('router: ', transferTxn)
-    return transferTxn!.effects!.status.status === 'success'
+    return transferTxn!
   }
 }
 

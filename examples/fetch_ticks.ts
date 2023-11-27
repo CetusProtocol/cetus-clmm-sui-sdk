@@ -3,7 +3,7 @@ import { TestnetSDK } from './init_testnet_sdk'
 async function betchRetrievalTicksByPoolID() {
   const tickdatas = await TestnetSDK.Pool.fetchTicks({
     pool_id: '0xbed3136f15b0ea649fb94bcdf9d3728fb82ba1c3e189bf6062d78ff547850054',
-    coinTypeA: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
+    coinTypeA: TestnetCoin.USDT,
     coinTypeB: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS',
   })
   console.log('fetchTicks: ', tickdatas)

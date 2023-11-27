@@ -374,9 +374,9 @@ export class PositionModule implements IModule {
     const max_amount_b = BigInt(params.max_amount_b)
 
     const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
-    const primaryCoinAInputs = TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, max_amount_a, params.coinTypeA, false)
+    const primaryCoinAInputs = TransactionUtil.buildCoinForAmount(tx, allCoinAsset, max_amount_a, params.coinTypeA, false)
 
-    const primaryCoinBInputs = TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, max_amount_b, params.coinTypeB, false)
+    const primaryCoinBInputs = TransactionUtil.buildCoinForAmount(tx, allCoinAsset, max_amount_b, params.coinTypeB, false)
 
     if (needOpenPosition) {
       tx.moveCall({
@@ -387,8 +387,8 @@ export class PositionModule implements IModule {
           tx.object(params.pool_id),
           tx.pure(tick_lower),
           tx.pure(tick_upper),
-          primaryCoinAInputs.transactionArgument,
-          primaryCoinBInputs.transactionArgument,
+          primaryCoinAInputs.targetCoin,
+          primaryCoinBInputs.targetCoin,
           tx.pure(params.max_amount_a),
           tx.pure(params.max_amount_b),
           tx.pure(params.delta_liquidity),
@@ -411,8 +411,8 @@ export class PositionModule implements IModule {
           tx.object(getPackagerConfigs(clmm_pool).global_config_id),
           tx.object(params.pool_id),
           tx.object(params.pos_id),
-          primaryCoinAInputs.transactionArgument,
-          primaryCoinBInputs.transactionArgument,
+          primaryCoinAInputs.targetCoin,
+          primaryCoinBInputs.targetCoin,
           tx.pure(params.max_amount_a),
           tx.pure(params.max_amount_b),
           tx.pure(params.delta_liquidity),
@@ -531,10 +531,10 @@ export class PositionModule implements IModule {
     const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress, null, true)
     const tx = new TransactionBlock()
 
-    const primaryCoinAInput = TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, BigInt(0), params.coinTypeA, false)
-    const primaryCoinBInput = TransactionUtil.buildCoinInputForAmount(tx, allCoinAsset, BigInt(0), params.coinTypeB, false)
+    const primaryCoinAInput = TransactionUtil.buildCoinForAmount(tx, allCoinAsset, BigInt(0), params.coinTypeA, false)
+    const primaryCoinBInput = TransactionUtil.buildCoinForAmount(tx, allCoinAsset, BigInt(0), params.coinTypeB, false)
 
-    this.createCollectFeePaylod(params, tx, primaryCoinAInput.transactionArgument, primaryCoinBInput.transactionArgument)
+    this.createCollectFeePaylod(params, tx, primaryCoinAInput.targetCoin, primaryCoinBInput.targetCoin)
     return tx
   }
 

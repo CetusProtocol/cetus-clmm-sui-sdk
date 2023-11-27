@@ -23,7 +23,7 @@ export const clmm_testnet: SdkOptions = {
   // fullRpcUrl: 'https://fullnode.testnet.sui.io',
   fullRpcUrl: 'https://testnet.artifact.systems/sui',
   simulationAccount: {
-    address: '0x....',
+    address: '0xcd0247d0b67e53dde69b285e7a748e3dc390e8a5244eb9dd9c5c53d95e4cf0aa',
   },
   faucet: {
     package_id: '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc',
@@ -54,8 +54,8 @@ export const clmm_testnet: SdkOptions = {
     package_id: '0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6',
     published_at: '0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6',
   },
-  aggregatorUrl: 'https://api-sui.devcetus.com/router11',
-  swapCountUrl: '',
+  aggregatorUrl: 'https://api-sui.devcetus.com/router',
+  swapCountUrl: 'https://api-sui.devcetus.com/v2/sui/pools_info',
 }
 
 export const TestnetSDK = new CetusClmmSDK(clmm_testnet)

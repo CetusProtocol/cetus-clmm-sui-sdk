@@ -1,4 +1,4 @@
-<!DOCTYPE html><html class="default" lang="en"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>BuildCoinInputResult | @cetusprotocol/cetus-sui-clmm-sdk</title><meta name="description" content="Documentation for @cetusprotocol/cetus-sui-clmm-sdk"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/search.js" id="tsd-search-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os"</script><header class="tsd-page-toolbar">
+<!DOCTYPE html><html class="default" lang="en"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>BuildCoinResult | @cetusprotocol/cetus-sui-clmm-sdk</title><meta name="description" content="Documentation for @cetusprotocol/cetus-sui-clmm-sdk"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/search.js" id="tsd-search-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os"</script><header class="tsd-page-toolbar">
 <div class="tsd-toolbar-contents container">
 <div class="table-cell" id="tsd-search" data-base="..">
 <div class="field"><label for="tsd-search-field" class="tsd-widget tsd-toolbar-icon search no-caption"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M15.7824 13.833L12.6666 10.7177C12.5259 10.5771 12.3353 10.499 12.1353 10.499H11.6259C12.4884 9.39596 13.001 8.00859 13.001 6.49937C13.001 2.90909 10.0914 0 6.50048 0C2.90959 0 0 2.90909 0 6.49937C0 10.0896 2.90959 12.9987 6.50048 12.9987C8.00996 12.9987 9.39756 12.4863 10.5008 11.6239V12.1332C10.5008 12.3332 10.5789 12.5238 10.7195 12.6644L13.8354 15.7797C14.1292 16.0734 14.6042 16.0734 14.8948 15.7797L15.7793 14.8954C16.0731 14.6017 16.0731 14.1267 15.7824 13.833ZM6.50048 10.499C4.29094 10.499 2.50018 8.71165 2.50018 6.49937C2.50018 4.29021 4.28781 2.49976 6.50048 2.49976C8.71001 2.49976 10.5008 4.28708 10.5008 6.49937C10.5008 8.70852 8.71314 10.499 6.50048 10.499Z" fill="var(--color-text)"></path></svg></label><input type="text" id="tsd-search-field" aria-label="Search"/></div>
@@ -13,20 +13,24 @@
 <div class="tsd-page-title">
 <ul class="tsd-breadcrumb">
 <li><a href="../modules.html">@cetusprotocol/cetus-sui-clmm-sdk</a></li>
-<li><a href="BuildCoinInputResult.html">BuildCoinInputResult</a></li></ul>
-<h1>Type alias BuildCoinInputResult</h1></div>
-<div class="tsd-signature"><span class="tsd-kind-type-alias">Build<wbr/>Coin<wbr/>Input<wbr/>Result</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-kind-property">isMintCoin</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">remainCoins</span><span class="tsd-signature-symbol">: </span><a href="CoinAsset.html" class="tsd-signature-type tsd-kind-type-alias">CoinAsset</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">transactionArgument</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type ">TransactionArgument</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></div>
+<li><a href="BuildCoinResult.html">BuildCoinResult</a></li></ul>
+<h1>Type alias BuildCoinResult</h1></div>
+<div class="tsd-signature"><span class="tsd-kind-type-alias">Build<wbr/>Coin<wbr/>Result</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-kind-property">isMintZeroCoin</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">originalSplitedCoin</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type ">TransactionArgument</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">remainCoins</span><span class="tsd-signature-symbol">: </span><a href="CoinAsset.html" class="tsd-signature-type tsd-kind-type-alias">CoinAsset</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">targetCoin</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type ">TransactionArgument</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">tragetCoinAmount</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></div>
 <div class="tsd-type-declaration">
 <h4>Type declaration</h4>
 <ul class="tsd-parameters">
 <li class="tsd-parameter">
-<h5><code class="tsd-tag ts-flagOptional">Optional</code> <span class="tsd-kind-property">is<wbr/>Mint<wbr/>Coin</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">boolean</span></h5></li>
+<h5><span class="tsd-kind-property">is<wbr/>Mint<wbr/>Zero<wbr/>Coin</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span></h5></li>
+<li class="tsd-parameter">
+<h5><code class="tsd-tag ts-flagOptional">Optional</code> <span class="tsd-kind-property">original<wbr/>Splited<wbr/>Coin</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type ">TransactionArgument</span></h5></li>
 <li class="tsd-parameter">
 <h5><span class="tsd-kind-property">remain<wbr/>Coins</span><span class="tsd-signature-symbol">: </span><a href="CoinAsset.html" class="tsd-signature-type tsd-kind-type-alias">CoinAsset</a><span class="tsd-signature-symbol">[]</span></h5></li>
 <li class="tsd-parameter">
-<h5><span class="tsd-kind-property">transaction<wbr/>Argument</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type ">TransactionArgument</span></h5></li></ul></div><aside class="tsd-sources">
+<h5><span class="tsd-kind-property">target<wbr/>Coin</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type ">TransactionArgument</span></h5></li>
+<li class="tsd-parameter">
+<h5><span class="tsd-kind-property">traget<wbr/>Coin<wbr/>Amount</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></h5></li></ul></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/ecec0b0/src/utils/transaction-util.ts#L51">src/utils/transaction-util.ts:51</a></li></ul></aside></div>
+<li>Defined in src/utils/transaction-util.ts:51</li></ul></aside></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -87,7 +91,7 @@
 <li><a href="BasePath.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Base<wbr/>Path</span></a></li>
 <li><a href="BigNumber.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Big<wbr/>Number</span></a></li>
 <li><a href="Bits.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Bits</span></a></li>
-<li><a href="BuildCoinInputResult.html" class="current"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Build<wbr/>Coin<wbr/>Input<wbr/>Result</span></a></li>
+<li><a href="BuildCoinResult.html" class="current"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Build<wbr/>Coin<wbr/>Result</span></a></li>
 <li><a href="CalculateRatesParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Calculate<wbr/>Rates<wbr/>Params</span></a></li>
 <li><a href="CalculateRatesResult.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Calculate<wbr/>Rates<wbr/>Result</span></a></li>
 <li><a href="CetusConfigs.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Cetus<wbr/>Configs</span></a></li>
@@ -125,6 +129,7 @@
 <li><a href="Position.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Position</span></a></li>
 <li><a href="PositionReward.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Position<wbr/>Reward</span></a></li>
 <li><a href="PreRouterSwapParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Pre<wbr/>Router<wbr/>Swap<wbr/>Params</span></a></li>
+<li><a href="PreSwapLpChangeParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Pre<wbr/>Swap<wbr/>Lp<wbr/>Change<wbr/>Params</span></a></li>
 <li><a href="PreSwapParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Pre<wbr/>Swap<wbr/>Params</span></a></li>
 <li><a href="PreSwapResult.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Pre<wbr/>Swap<wbr/>Result</span></a></li>
 <li><a href="PreSwapWithMultiPoolParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Pre<wbr/>Swap<wbr/>With<wbr/>Multi<wbr/>Pool<wbr/>Params</span></a></li>

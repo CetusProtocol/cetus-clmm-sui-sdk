@@ -294,11 +294,11 @@ export class DeepbookUtils {
     }
 
     const allCoins = await sdk.getOwnerCoinAssets(sdk.senderAddress)
-    const primaryBaseInput = TransactionUtil.buildCoinInputForAmount(tx, allCoins, BigInt(amount), baseCoin, false)
-    const baseAsset = primaryBaseInput?.transactionArgument
+    const primaryBaseInput = TransactionUtil.buildCoinForAmount(tx, allCoins, BigInt(amount), baseCoin, false)
+    const baseAsset = primaryBaseInput?.targetCoin
 
-    const primaryQuoteInput = TransactionUtil.buildCoinInputForAmount(tx, allCoins, BigInt(amount), quoteCoin, false)
-    const quoteAsset = primaryQuoteInput?.transactionArgument
+    const primaryQuoteInput = TransactionUtil.buildCoinForAmount(tx, allCoins, BigInt(amount), quoteCoin, false)
+    const quoteAsset = primaryQuoteInput?.targetCoin
 
     const typeArguments = [baseCoin, quoteCoin]
     const args: any = [

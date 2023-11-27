@@ -17,8 +17,8 @@ describe('Router Module', () => {
   })
 
   test('test get deepbook pool asks and bids', async () => {
-    // const coin_a = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
-    // const coin_b = '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
+    // const coin_a = TestnetCoin.USDT
+    // const coin_b = TestnetCoin.USDC
     // const pool_address = '0x067e75d248140e3f891d24f5ce12e7cbee1140db07c399fcd6e221bfe597b706'
 
     // ? - usdc
@@ -70,13 +70,13 @@ describe('Router Module', () => {
 
     const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
 
-    const buildCoinResult = TransactionUtil.buildCoinInputForAmount(
+    const buildCoinResult = TransactionUtil.buildCoinForAmount(
       tx,
       allCoinAsset,
       BigInt('1000000000'),
-      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT'
+      TestnetCoin.USDT
     )
-    const coin_a = buildCoinResult?.transactionArgument
+    const coin_a = buildCoinResult?.targetCoin
 
     const args: any = [
       tx.object('0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b'),
@@ -85,8 +85,8 @@ describe('Router Module', () => {
       tx.pure(900000000),
     ]
     const typeArguments = [
-      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
-      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
+      TestnetCoin.USDT,
+      TestnetCoin.USDC,
     ]
     tx.moveCall({
       target: `${deepbook.published_at}::endpoints_v2::deposit_base`,
@@ -106,13 +106,13 @@ describe('Router Module', () => {
 
     const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
 
-    const buildCoinResult = TransactionUtil.buildCoinInputForAmount(
+    const buildCoinResult = TransactionUtil.buildCoinForAmount(
       tx,
       allCoinAsset,
       BigInt('100000000'),
-      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC'
+      TestnetCoin.USDC
     )
-    const coin_a = buildCoinResult?.transactionArgument
+    const coin_a = buildCoinResult?.targetCoin
 
     const args: any = [
       tx.object('0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b'),
@@ -121,8 +121,8 @@ describe('Router Module', () => {
       tx.pure(100000000),
     ]
     const typeArguments = [
-      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
-      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
+      TestnetCoin.USDT,
+      TestnetCoin.USDC,
     ]
     tx.moveCall({
       target: `${deepbook.published_at}::endpoints_v2::deposit_quote`,
@@ -150,8 +150,8 @@ describe('Router Module', () => {
       tx.object(accountCap),
     ]
     const typeArguments = [
-      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT',
-      '0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdc::USDC',
+      TestnetCoin.USDT,
+      TestnetCoin.USDC,
     ]
     tx.moveCall({
       target: `${deepbook.published_at}::endpoints_v2::place_limit_order`,

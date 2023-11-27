@@ -162,10 +162,12 @@ export class CoinAssist {
     coins: CoinAsset[],
     amount: bigint,
     exclude: string[] = []
-  ): { objectArray: string[]; remainCoins: CoinAsset[] } {
-    const objectArray = CoinAssist.selectCoinAssetGreaterThanOrEqual(coins, amount, exclude).selectedCoins.map((item) => item.coinObjectId)
-    const remainCoins = CoinAssist.selectCoinAssetGreaterThanOrEqual(coins, amount, exclude).remainingCoins
-    return { objectArray, remainCoins }
+  ): { objectArray: string[]; remainCoins: CoinAsset[]; amountArray: string[] } {
+    const selectedResult = CoinAssist.selectCoinAssetGreaterThanOrEqual(coins, amount, exclude)
+    const objectArray = selectedResult.selectedCoins.map((item) => item.coinObjectId)
+    const remainCoins = selectedResult.remainingCoins
+    const amountArray = selectedResult.selectedCoins.map((item) => item.balance.toString())
+    return { objectArray, remainCoins, amountArray }
   }
 
   /**
