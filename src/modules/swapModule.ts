@@ -55,7 +55,7 @@ export class SwapModule implements IModule {
           const path2 = item.basePaths[1]
           const price1 = path.direction ? path.currentPrice : new Decimal(1).div(path.currentPrice)
           const price2 = path2.direction ? path2.currentPrice : new Decimal(1).div(path2.currentPrice)
-          const feeRate2 = path2.label === 'Cetus' ? new Decimal(path.feeRate).div(10 ** 6) : new Decimal(path.feeRate).div(10 ** 9)
+          const feeRate2 = path2.label === 'Cetus' ? new Decimal(path2.feeRate).div(10 ** 6) : new Decimal(path2.feeRate).div(10 ** 9)
 
           const feeAmount2 = d(path2.outputAmount)
             .div(10 ** path2.toDecimal)
