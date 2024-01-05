@@ -21,8 +21,6 @@ const SDKConfig = {
 
 export const clmm_mainnet: SdkOptions = {
   fullRpcUrl: 'https://mainnet.suiet.app/',
-  // fullRpcUrl: 'https://cetus-mainnet-rpc.blockvision.org/2R8NDfQ1v3UAqVAY8PwWQdB4FIb',
-  // fullRpcUrl: 'https://sui-mainnet-endpoint.blockvision.org/',
   simulationAccount: {
     address: '0x326ce9894f08dcaa337fa232641cc34db957aec9ff6614c1186bc9a7508df0bb',
   },

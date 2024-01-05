@@ -1,7 +1,7 @@
 {
     "typescript.tsdk": "./node_modules/typescript/lib",
     "editor.codeActionsOnSave": {
-        "source.fixAll": true
+        "source.fixAll": "explicit"
     },
     "[javascript]": {
         "editor.defaultFormatter": "dbaeumer.vscode-eslint"
