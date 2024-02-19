@@ -6,7 +6,7 @@ describe('Config Module', () => {
 
   test('getTokenListByCoinTypes', async () => {
     const tokenMap = await sdk.CetusConfig.getTokenListByCoinTypes([
-      '0x2764a3744693eea6423cdf0df44673ed391a463b554e5c5c695dc7f2937362c6::suia_token::SUIA_TOKEN',
+      '0x49d9b80dfe534058cf2c4cfa43d5ac8cb4b4af6aef562befcd545de493c2013a::idob::IDOB',
     ])
     console.log('tokenMap: ', tokenMap)
   })

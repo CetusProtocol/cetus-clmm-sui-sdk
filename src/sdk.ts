@@ -276,14 +276,14 @@ export class CetusClmmSDK {
     while (true) {
       const allCoinObject: any = await (coinType
         ? this.fullClient.getCoins({
-          owner: suiAddress,
-          coinType,
-          cursor: nextCursor,
-        })
+            owner: suiAddress,
+            coinType,
+            cursor: nextCursor,
+          })
         : this.fullClient.getAllCoins({
-          owner: suiAddress,
-          cursor: nextCursor,
-        }))
+            owner: suiAddress,
+            cursor: nextCursor,
+          }))
 
       allCoinObject.data.forEach((coin: any) => {
         if (BigInt(coin.balance) > 0) {

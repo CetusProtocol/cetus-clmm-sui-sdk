@@ -82,7 +82,7 @@ describe('Test Router V1 Module', () => {
           for (const byAmountIn of fixInputOrOutput) {
             const result = await sdk.Router.price(coinList[i], coinList[j], new BN(amount), byAmountIn, 0, '')
             console.log(`Fix ${amount} as ${byAmountIn ? 'input' : 'output'} amount`)
-            if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coinList[i], amount.toString())) {
+            if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coinList[i], result!.amountIn.toString())) {
               const params: SwapWithRouterParams = {
                 paths: result?.paths!,
                 partner: '',
@@ -110,12 +110,13 @@ describe('Test Router V1 Module', () => {
   test('Test specific swap', async () => {
     const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
     const byAmountIn = true
-    const amount = new BN('10')
+    const amount = new BN('8143301107')
 
-    const result = await sdk.Router.price(TestnetCoin.CETUS, TestnetCoin.SUI, amount, byAmountIn, 0, '')
+    const result = await sdk.Router.price(TestnetCoin.SUI, TestnetCoin.HASUI, amount, byAmountIn, 0, '')
     console.log(result, null, 2)
+    console.log('amount out:', result?.amountOut.toString(), result?.paths[0].poolAddress[0])
 
-    if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, TestnetCoin.CETUS, amount.toString())) {
+    if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, TestnetCoin.CETUS, result!.amountIn.toString())) {
       const params: SwapWithRouterParams = {
         paths: result?.paths!,
         partner: '',
@@ -126,6 +127,7 @@ describe('Test Router V1 Module', () => {
 
       const simulateRes = await execTx(sdk, true, payload, sendKeypair)
       console.log('simulateRes', simulateRes)
+      console.log('amount out:', result?.amountOut.toString())
     }
   })
 
@@ -140,7 +142,7 @@ describe('Test Router V1 Module', () => {
         const amount = CoinAssist.totalBalance(allCoinAsset, coinList[i]).toString()
         const result = await sdk.Router.price(coinList[i], coinList[j], new BN(amount), byAmountIn, 0, '')
         console.log(`Fix ${amount} as ${byAmountIn ? 'input' : 'output'} amount`)
-        if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coinList[i], amount.toString())) {
+        if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coinList[i], result!.amountIn.toString())) {
           const params: SwapWithRouterParams = {
             paths: result?.paths!,
             partner: '',
@@ -157,7 +159,7 @@ describe('Test Router V1 Module', () => {
             console.log("Common rotuer swap test passed.")
           }
         } else {
-          console.log(`${result?.isExceed ? 'Swap exceed' : !verifyBalanceEnough(allCoinAsset, coinList[i], amount.toString()) ? 'Insufficient balance' : 'unknown error'}`)
+          console.log(`${result?.isExceed ? 'Swap exceed' : !verifyBalanceEnough(allCoinAsset, coinList[i], result!.amountIn.toString()) ? 'Insufficient balance' : 'unknown error'}`)
         }
       }
     }
@@ -174,7 +176,7 @@ describe('Test Router V1 Module', () => {
         console.log(`Swap from ${coinList[i]} to ${coinList[j]}`)
         const result = await sdk.Router.price(coinList[i], coinList[j], new BN(amount), byAmountIn, 0, '')
         console.log(`Fix ${amount} as ${byAmountIn ? 'input' : 'output'} amount`)
-        if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coinList[i], amount.toString())) {
+        if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coinList[i], result!.amountIn.toString())) {
           const params: SwapWithRouterParams = {
             paths: result?.paths!,
             partner: '',
@@ -191,7 +193,7 @@ describe('Test Router V1 Module', () => {
             console.log("Common rotuer swap test passed.")
           }
         } else {
-          console.log(`${result?.isExceed ? 'Swap exceed' : !verifyBalanceEnough(allCoinAsset, coinList[i], amount.toString()) ? 'Insufficient balance' : 'unknown error'}`)
+          console.log(`${result?.isExceed ? 'Swap exceed' : !verifyBalanceEnough(allCoinAsset, coinList[i], result!.amountIn.toString()) ? 'Insufficient balance' : 'unknown error'}`)
         }
       }
     }
@@ -205,7 +207,7 @@ describe('Test Router V1 Module', () => {
     const fromCoinNumsBeforeSwap = CoinAssist.getCoinAssets(TestnetCoin.USDT, allCoinAsset).length
     const toCoinNumsBeforeSwap = CoinAssist.getCoinAssets(TestnetCoin.USDC, allCoinAsset).length
 
-    if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, TestnetCoin.USDT, amount.toString())) {
+    if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, TestnetCoin.USDT, result!.amountIn.toString())) {
       const params: SwapWithRouterParams = {
         paths: result?.paths!,
         partner: '',
@@ -235,7 +237,7 @@ describe('Test Router V1 Module', () => {
     const byAmountIn = true
     const partner = '0x5349919fa007fe7153f7e0957994de730cafc7038e0441f9991977fc598153cd'
     const result = await sdk.Router.price(TestnetCoin.USDC, TestnetCoin.USDT, new BN(amount), byAmountIn, 0, partner)
-    if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, TestnetCoin.USDC, amount.toString())) {
+    if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, TestnetCoin.USDC, result!.amountIn.toString())) {
       const params: SwapWithRouterParams = {
         paths: result?.paths!,
         partner: '',
@@ -252,7 +254,7 @@ describe('Test Router V1 Module', () => {
         console.log("Common rotuer swap test passed.")
       }
     } else {
-      console.log(`${result?.isExceed ? 'Swap exceed' : !verifyBalanceEnough(allCoinAsset, TestnetCoin.USDC, amount.toString()) ? 'Insufficient balance' : 'unknown error'}`)
+      console.log(`${result?.isExceed ? 'Swap exceed' : !verifyBalanceEnough(allCoinAsset, TestnetCoin.USDC, result!.amountIn.toString()) ? 'Insufficient balance' : 'unknown error'}`)
     }
   })
 })

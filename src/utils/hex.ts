@@ -1,3 +1,5 @@
+import { ClmmpoolsError, TypesErrorCode } from "../errors/errors"
+
 const HEX_REGEXP = /^[-+]?[0-9A-Fa-f]+\.?[0-9A-Fa-f]*?$/
 
 export function addHexPrefix(hex: string): string {
@@ -57,7 +59,7 @@ export function toBuffer(v: any): Buffer {
       // converts a BN to a Buffer
       v = Buffer.from(v.toArray())
     } else {
-      throw new Error('invalid type')
+      throw new ClmmpoolsError(`Invalid type`, TypesErrorCode.InvalidType)
     }
   }
   return v

@@ -1,5 +1,5 @@
 import BN from 'bn.js'
-import { buildSdk, buildTestAccount, pool_object_id, position_object_id } from './data/init_test_data'
+import { SdkEnv, TestnetCoin, buildSdk, buildTestAccount } from './data/init_test_data'
 import { TickMath } from '../src/math/tick'
 import { d } from '../src/utils/numbers'
 import { ClmmPoolUtil } from '../src/math/clmm'
@@ -8,7 +8,7 @@ import { printTransaction } from '../src/utils/transaction-util'
 import { CreatePoolParams } from '../src'
 
 describe('Pool Module', () => {
-  const sdk = buildSdk()
+  const sdk = buildSdk(SdkEnv.testnet)
 
   test('getAllPools', async () => {
     const pools = await sdk.Pool.getPoolsWithPage([])
@@ -26,7 +26,7 @@ describe('Pool Module', () => {
   })
 
   test('getSiginlePool', async () => {
-    const pool = await sdk.Pool.getPool('0x25ccb77dc4de57879e12ac7f8458860a0456a0a46a84b9f4a8903b5498b96665')
+    const pool = await sdk.Pool.getPool('0x473ab0306ff8952d473b10bb4c3516c632edeb0725f6bb3cda6c474d0ffc883f')
     console.log('pool', pool)
   })
 
@@ -103,7 +103,16 @@ describe('Pool Module', () => {
   })
 
   test('get partner ref fee', async () => {
-    const refFee = await sdk.Pool.getPartnerRefFeeAmount('0x5c41a004f0a781e9d050eec46f64c7f713deb385405b619148a845c5df63805d')
+    const refFee = await sdk.Pool.getPartnerRefFeeAmount('0x0c1e5401e40129da6a65a973b12a034e6c78b7b0b27c3a07213bc5ce3fa3d881')
     console.log('ref fee:', refFee)
   })
+
+  test('claim partner ref fee', async () => {
+    const partnerCap = 'xxx'
+    const partner = 'xxx'
+    const claimRefFeePayload = await sdk.Pool.claimPartnerRefFeePayload(partnerCap, partner, TestnetCoin.SUI)
+    const transferTxn = await sdk.fullClient.sendTransaction(buildTestAccount(), claimRefFeePayload)
+    console.log('doCreatPool: ', JSON.stringify(transferTxn))
+  })
 })
+

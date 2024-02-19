@@ -1,6 +1,6 @@
 import BN from 'bn.js'
 import { TransactionBlock, TransactionArgument } from '@mysten/sui.js/transactions'
-import { extractStructTagFromType, TransactionUtil } from '../utils'
+import { checkInvalidSuiAddress, extractStructTagFromType, TransactionUtil } from '../utils'
 import { ClmmFetcherModule, ClmmIntegratePoolV2Module, CLOCK_ADDRESS } from '../types/sui'
 import { getRewardInTickRange } from '../utils/tick'
 import { MathUtil, ONE, ZERO } from '../math/utils'
@@ -9,6 +9,7 @@ import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { CollectRewarderParams, getPackagerConfigs, Pool, Position, PositionReward, Rewarder, RewarderAmountOwed } from '../types'
 import { CollectFeesQuote } from '../math'
+import { ClmmpoolsError, ConfigErrorCode, UtilsErrorCode } from '../errors/errors'
 
 export type FetchPosRewardParams = {
   poolAddress: string
@@ -113,6 +114,7 @@ export class RewarderModule implements IModule {
    * @param {string} positionHandle The handle of the position.
    * @param {string} positionID The ID of the position.
    * @returns {Promise<Array<{amountOwed: number}>>} A promise that resolves to an array of objects with the amount owed to each rewarder.
+   * @deprecated This method is deprecated and may be removed in future versions. Use `sdk.Rewarder.fetchPosRewardersAmount()` instead.
    */
   async posRewardersAmount(poolID: string, positionHandle: string, positionID: string) {
     const currentTime = Date.parse(new Date().toString())
@@ -127,7 +129,7 @@ export class RewarderModule implements IModule {
     const tickLower = await this.sdk.Pool.getTickDataByIndex(ticksHandle, position.tick_lower_index)
     const tickUpper = await this.sdk.Pool.getTickDataByIndex(ticksHandle, position.tick_upper_index)
 
-    const amountOwed = this.posRewardersAmountInternal(pool, position, tickLower, tickUpper)
+    const amountOwed = this.posRewardersAmountInternal(pool, position, tickLower!, tickUpper!)
     return amountOwed
   }
 
@@ -137,6 +139,7 @@ export class RewarderModule implements IModule {
    * @param {string} accountAddress The account address.
    * @param {string} poolID The object ID of the pool.
    * @returns {Promise<Array<{amountOwed: number}>>} A promise that resolves to an array of objects with the amount owed to each rewarder.
+   * @deprecated This method is deprecated and may be removed in future versions. Use `sdk.Rewarder.fetchPosRewardersAmount()` instead.
    */
   async poolRewardersAmount(accountAddress: string, poolID: string) {
     const currentTime = Date.parse(new Date().toString())
@@ -254,6 +257,27 @@ export class RewarderModule implements IModule {
   }
 
   /**
+   * Fetch the position rewards for a given pool.
+   * @param {Pool}pool Pool object
+   * @param {string}positionId Position object id
+   * @returns {Promise<RewarderAmountOwed[]>} A Promise that resolves with the fetched position reward amount for the specified position object id.
+   */
+  async fetchPositionRewarders(pool: Pool, positionId: string): Promise<RewarderAmountOwed[]> {
+    const param = {
+      poolAddress: pool.poolAddress,
+      positionId,
+      coinTypeA: pool.coinTypeA,
+      coinTypeB: pool.coinTypeB,
+      rewarderInfo: pool.rewarder_infos,
+    }
+
+    const result = await this.fetchPosRewardersAmount([param])
+
+    return result[0].rewarderAmountOwed
+  }
+
+
+  /**
    * Fetches the Position fee amount for a given list of addresses.
    * @param positionIDs An array of position object ids.
    * @returns {Promise<Record<string, CollectFeesQuote>>} A Promise that resolves with the fetched position fee amount for the specified position object ids.
@@ -288,7 +312,6 @@ export class RewarderModule implements IModule {
    * Fetches the Position fee amount for a given list of addresses.
    * @param params  An array of FetchPosFeeParams objects containing the target addresses and their corresponding amounts.
    * @returns
-   * @deprecated This method is deprecated and may be removed in future versions. Use `sdk.Position.fetchPosFeeAmount()` instead.
    */
   async fetchPosFeeAmount(params: FetchPosFeeParams[]): Promise<CollectFeesQuote[]> {
     const { clmm_pool, integrate, simulationAccount } = this.sdk.sdkOptions
@@ -359,10 +382,18 @@ export class RewarderModule implements IModule {
       })
     }
 
+    if (!checkInvalidSuiAddress(simulationAccount.address)) {
+      throw new ClmmpoolsError(`this config simulationAccount: ${simulationAccount.address} is not set right`, ConfigErrorCode.InvalidSimulateAccount)
+    }
+
     const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
       transactionBlock: tx,
       sender: simulationAccount.address,
     })
+
+    if (simulateRes.error != null) {
+      throw new ClmmpoolsError(`fetch position rewards error code: ${simulateRes.error ?? 'unknown error'}, please check config and params`, ConfigErrorCode.InvalidConfig)
+    }
 
     const valueData: any = simulateRes.events?.filter((item: any) => {
       return extractStructTagFromType(item.type).name === `FetchPositionRewardsEvent`
@@ -372,14 +403,12 @@ export class RewarderModule implements IModule {
     }
 
     if (valueData.length !== params.length) {
-      throw new Error('valueData.length !== params.pools.length')
+      throw new ClmmpoolsError('valueData.length !== params.pools.length',)
     }
 
     const result: PosRewarderResult[] = []
 
     for (let i = 0; i < valueData.length; i += 1) {
-      console.log('params ', params[i])
-
       const posRrewarderResult: PosRewarderResult = {
         poolAddress: params[i].poolAddress,
         positionId: params[i].positionId,
@@ -442,8 +471,8 @@ export class RewarderModule implements IModule {
     for (const pos of positions) {
       const tickLower = await this.sdk.Pool.getTickDataByIndex(ticksHandle, pos.tick_lower_index)
       const tickUpper = await this.sdk.Pool.getTickDataByIndex(ticksHandle, pos.tick_upper_index)
-      lowerTicks.push(tickLower)
-      upperTicks.push(tickUpper)
+      lowerTicks.push(tickLower!)
+      upperTicks.push(tickUpper!)
     }
 
     return [lowerTicks, upperTicks]
@@ -456,6 +485,10 @@ export class RewarderModule implements IModule {
    * @returns
    */
   async collectRewarderTransactionPayload(params: CollectRewarderParams): Promise<TransactionBlock> {
+    if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
+      throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
+    }
+
     const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress, null)
     let tx = new TransactionBlock()
 

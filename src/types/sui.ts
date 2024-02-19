@@ -1,5 +1,7 @@
 import { TransactionArgument } from '@mysten/sui.js/transactions'
 import Decimal from 'decimal.js'
+import { ClmmpoolsError, TypesErrorCode } from '../errors/errors'
+
 /**
  * Represents a SUI address, which is a string.
  */
@@ -20,6 +22,7 @@ export const CLOCK_ADDRESS = '0x000000000000000000000000000000000000000000000000
 /**
  * Constants for different modules in the CLMM (Cryptocurrency Liquidity Mining Module).
  */
+export const ClmmPartnerModule = 'partner'
 export const ClmmIntegratePoolModule = 'pool_script'
 export const ClmmIntegratePoolV2Module = 'pool_script_v2'
 export const ClmmIntegrateRouterModule = 'router'
@@ -27,6 +30,7 @@ export const ClmmIntegrateRouterWithPartnerModule = 'router_with_partner'
 export const ClmmFetcherModule = 'fetcher_script'
 export const ClmmExpectSwapModule = 'expect_swap'
 export const ClmmIntegrateUtilsModule = 'utils'
+
 /**
  * The address for CoinInfo module.
  */
@@ -38,13 +42,16 @@ export const CoinStoreAddress = '0x1::coin::CoinStore'
 /**
  * Constants for different modules in the Deepbook system.
  */
+
 export const DeepbookCustodianV2Moudle = 'custodian_v2'
 export const DeepbookClobV2Moudle = 'clob_v2'
 export const DeepbookEndpointsV2Moudle = 'endpoints_v2'
+
 /**
  * Represents a SUI resource, which can be of any type.
  */
 export type SuiResource = any
+
 /**
  * Represents a paginated data page with optional cursor and limit.
  */
@@ -53,6 +60,7 @@ export type DataPage<T> = {
   nextCursor?: any
   hasNextPage: boolean
 }
+
 /**
  * Represents query parameters for pagination.
  */
@@ -60,6 +68,7 @@ export type PageQuery = {
   cursor?: any
   limit?: number | null
 }
+
 /**
  * Represents arguments for pagination, with options for fetching all data or using PageQuery.
  */
@@ -134,6 +143,7 @@ export type SuiStructTag = {
    */
   type_arguments: SuiAddressType[]
 }
+
 /**
  * Represents basic SUI data types.
  */
@@ -165,5 +175,5 @@ export const getDefaultSuiInputType = (value: any): SuiInputTypes => {
   if (typeof value === 'boolean') {
     return 'bool' // Treat boolean values as 'bool' type.
   }
-  throw new Error(`Unknown type for value: ${value}`)
+  throw new ClmmpoolsError(`Unknown type for value: ${value}`, TypesErrorCode.InvalidType)
 }

@@ -1,10 +1,10 @@
 import BN from 'bn.js'
-import { buildSdk, buildTestAccountNew, buildTestAccount, buildTestPool } from './data/init_test_data'
+import { buildSdk, buildTestAccountNew, buildTestAccount, buildTestPool, TestnetCoin } from './data/init_test_data'
 import { CoinProvider, OnePath, PreRouterSwapParams, SwapWithRouterParams } from '../src/modules/routerModule'
 import SDK, { CoinAsset, CoinAssist, DeepbookUtils, Pool, printTransaction, SwapUtils, TransactionUtil } from '../src'
 import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS } from '../src/types/sui'
 import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
-// import { RawSigner } from '@mysten/`sui.js/dist/cjs/signers/raw-signer'
+
 
 describe('Router Module', () => {
   const sdk = buildSdk()
@@ -70,12 +70,7 @@ describe('Router Module', () => {
 
     const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
 
-    const buildCoinResult = TransactionUtil.buildCoinForAmount(
-      tx,
-      allCoinAsset,
-      BigInt('1000000000'),
-      TestnetCoin.USDT
-    )
+    const buildCoinResult = TransactionUtil.buildCoinForAmount(tx, allCoinAsset, BigInt('1000000000'), TestnetCoin.USDT)
     const coin_a = buildCoinResult?.targetCoin
 
     const args: any = [
@@ -84,10 +79,7 @@ describe('Router Module', () => {
       tx.object(accountCap),
       tx.pure(900000000),
     ]
-    const typeArguments = [
-      TestnetCoin.USDT,
-      TestnetCoin.USDC,
-    ]
+    const typeArguments = [TestnetCoin.USDT, TestnetCoin.USDC]
     tx.moveCall({
       target: `${deepbook.published_at}::endpoints_v2::deposit_base`,
       typeArguments,
@@ -106,12 +98,7 @@ describe('Router Module', () => {
 
     const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
 
-    const buildCoinResult = TransactionUtil.buildCoinForAmount(
-      tx,
-      allCoinAsset,
-      BigInt('100000000'),
-      TestnetCoin.USDC
-    )
+    const buildCoinResult = TransactionUtil.buildCoinForAmount(tx, allCoinAsset, BigInt('100000000'), TestnetCoin.USDC)
     const coin_a = buildCoinResult?.targetCoin
 
     const args: any = [
@@ -120,10 +107,7 @@ describe('Router Module', () => {
       tx.object(accountCap),
       tx.pure(100000000),
     ]
-    const typeArguments = [
-      TestnetCoin.USDT,
-      TestnetCoin.USDC,
-    ]
+    const typeArguments = [TestnetCoin.USDT, TestnetCoin.USDC]
     tx.moveCall({
       target: `${deepbook.published_at}::endpoints_v2::deposit_quote`,
       typeArguments,
@@ -149,10 +133,7 @@ describe('Router Module', () => {
       tx.object(CLOCK_ADDRESS),
       tx.object(accountCap),
     ]
-    const typeArguments = [
-      TestnetCoin.USDT,
-      TestnetCoin.USDC,
-    ]
+    const typeArguments = [TestnetCoin.USDT, TestnetCoin.USDC]
     tx.moveCall({
       target: `${deepbook.published_at}::endpoints_v2::place_limit_order`,
       typeArguments,
@@ -169,8 +150,13 @@ describe('Router Module', () => {
   test('create account cap', async () => {
     let tx = new TransactionBlock()
     const createAccountCapResult = DeepbookUtils.createAccountCap(sdk.senderAddress, sdk.sdkOptions, tx, false)
-    const cap = createAccountCapResult[0] as TransactionArgument
+    const cap: any = createAccountCapResult[0]
     tx = createAccountCapResult[1] as TransactionBlock
+
+    if (sdk.senderAddress.length === 0) {
+      throw Error('this config sdk senderAddress is empty')
+    }
+
     tx.transferObjects([cap], tx.pure(sdk.senderAddress))
 
     const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, tx)

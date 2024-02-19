@@ -26,6 +26,10 @@ export type DeepbookPool = {
 
 export class DeepbookUtils {
   static createAccountCap(senderAddress: string, sdkOptions: SdkOptions, tx: TransactionBlock, isTransfer = false) {
+    if (senderAddress.length === 0) {
+      throw Error('this config sdk senderAddress is empty')
+    }
+
     const { deepbook } = sdkOptions
 
     const [cap] = tx.moveCall({

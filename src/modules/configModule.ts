@@ -8,9 +8,10 @@ import { extractStructTagFromType, fixCoinType, normalizeCoinType } from '../uti
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { getObjectFields, getObjectId, getObjectPreviousTransactionDigest, getObjectType } from '../utils/objects'
+import { ClmmpoolsError, ConfigErrorCode } from '../errors/errors'
 
 /**
- * Helper class to help interact with clmm pool and coin and launchpad pool config
+ * Helper class to help interact with clmm pool and coin and launchpad pool config.
  */
 export class ConfigModule implements IModule {
   protected _sdk: CetusClmmSDK
@@ -23,6 +24,18 @@ export class ConfigModule implements IModule {
 
   get sdk() {
     return this._sdk
+  }
+
+  /**
+   * Set default token list cache.
+   * @param {CoinConfig[]}coinList 
+   */
+  setTokenListCache(coinList: CoinConfig[]) {
+    const { coin_list_handle } = getPackagerConfigs(this.sdk.sdkOptions.cetus_config)
+    const cacheKey = `${coin_list_handle}_getCoinConfigs`
+    const cacheData = this.getCache<CoinConfig[]>(cacheKey)
+    const updatedCacheData = cacheData ? [...cacheData, ...coinList] : coinList
+    this.updateCache(cacheKey, updatedCacheData, cacheTime24h)
   }
 
   /**
@@ -48,11 +61,11 @@ export class ConfigModule implements IModule {
       }
     }
 
-    const unFindArray = coinTypes.filter((coinType: string) => {
+    const unFoundArray = coinTypes.filter((coinType: string) => {
       return tokenMap[coinType] === undefined
     })
 
-    for (const coinType of unFindArray) {
+    for (const coinType of unFoundArray) {
       const metadataKey = `${coinType}_metadata`
       const metadata = this.getCache<CoinConfig>(metadataKey)
       if (metadata !== undefined) {
@@ -106,6 +119,10 @@ export class ConfigModule implements IModule {
     const objects = await this._sdk.fullClient.batchGetObjects(warpIds, { showContent: true })
     const coinList: CoinConfig[] = []
     objects.forEach((object) => {
+      if (object.error != null || object.data?.content?.dataType !== "moveObject") {
+        throw new ClmmpoolsError(`when getCoinConfigs get objects error: ${object.error}, please check the rpc and contracts address config.`, ConfigErrorCode.InvalidConfig)
+      }
+
       const coin = this.buildCoinConfig(object, transformExtensions)
       this.updateCache(`${coin_list_handle}_${coin.address}_getCoinConfig`, coin, cacheTime24h)
       coinList.push({ ...coin })
@@ -137,6 +154,11 @@ export class ConfigModule implements IModule {
         },
       },
     })
+
+    if (object.error != null || object.data?.content?.dataType !== "moveObject") {
+      throw new ClmmpoolsError(`when getCoinConfig get object error: ${object.error}, please check the rpc and contracts address config.`, ConfigErrorCode.InvalidConfig)
+    }
+
     const coin = this.buildCoinConfig(object, transformExtensions)
     this.updateCache(cacheKey, coin, cacheTime24h)
     return coin
@@ -150,6 +172,7 @@ export class ConfigModule implements IModule {
    */
   private buildCoinConfig(object: SuiObjectResponse, transformExtensions = true) {
     let fields = getObjectFields(object)
+
     fields = fields.value.fields
     const coin: any = { ...fields }
 
@@ -184,6 +207,10 @@ export class ConfigModule implements IModule {
     const objects = await this._sdk.fullClient.batchGetObjects(warpIds, { showContent: true })
     const poolList: ClmmPoolConfig[] = []
     objects.forEach((object) => {
+      if (object.error != null || object.data?.content?.dataType !== "moveObject") {
+        throw new ClmmpoolsError(`when getClmmPoolsConfigs get objects error: ${object.error}, please check the rpc and contracts address config.`, ConfigErrorCode.InvalidConfig)
+      }
+
       const pool = this.buildClmmPoolConfig(object, transformExtensions)
       this.updateCache(`${pool.pool_address}_getClmmPoolConfig`, pool, cacheTime24h)
       poolList.push({ ...pool })
@@ -242,6 +269,10 @@ export class ConfigModule implements IModule {
     const objects = await this._sdk.fullClient.batchGetObjects(warpIds, { showContent: true })
     const poolList: LaunchpadPoolConfig[] = []
     objects.forEach((object) => {
+      if (object.error != null || object.data?.content?.dataType !== "moveObject") {
+        throw new ClmmpoolsError(`when getCoinConfigs get objects error: ${object.error}, please check the rpc and contracts address config.`, ConfigErrorCode.InvalidConfig)
+      }
+
       const pool = this.buildLaunchpadPoolConfig(object, transformExtensions)
       this.updateCache(`${pool.pool_address}_getLaunchpadPoolConfig`, pool, cacheTime24h)
       poolList.push({ ...pool })
@@ -306,7 +337,7 @@ export class ConfigModule implements IModule {
       if (key === 'labels') {
         try {
           value = JSON.parse(decodeURIComponent(Base64.decode(value)))
-        } catch (error) {}
+        } catch (error) { }
       }
       if (transformExtensions) {
         coin[key] = value
@@ -394,6 +425,10 @@ export class ConfigModule implements IModule {
     const res = await this._sdk.fullClient.multiGetObjects({ ids: warpIds, options: { showContent: true } })
 
     res.forEach((item) => {
+      if (item.error != null || item.data?.content?.dataType !== "moveObject") {
+        throw new ClmmpoolsError(`when getCetusConfigHandle get objects error: ${item.error}, please check the rpc and contracts address config.`, ConfigErrorCode.InvalidConfigHandle)
+      }
+
       const fields = getObjectFields(item)
       const type = getObjectType(item) as string
       switch (extractStructTagFromType(type).name) {
@@ -416,7 +451,6 @@ export class ConfigModule implements IModule {
 
   /**
    * Updates the cache for the given key.
-   *
    * @param key The key of the cache entry to update.
    * @param data The data to store in the cache.
    * @param time The time in minutes after which the cache entry should expire.
@@ -434,20 +468,26 @@ export class ConfigModule implements IModule {
 
   /**
    * Gets the cache entry for the given key.
-   *
    * @param key The key of the cache entry to get.
    * @param forceRefresh Whether to force a refresh of the cache entry.
    * @returns The cache entry for the given key, or undefined if the cache entry does not exist or is expired.
    */
   getCache<T>(key: string, forceRefresh = false): T | undefined {
-    const cacheData = this._cache[key]
-    const isValid = cacheData?.isValid()
-    if (!forceRefresh && isValid) {
-      return cacheData.value as T
+    try {
+      const cacheData = this._cache[key];
+      if (!cacheData) {
+        return undefined; // No cache data available
+      }
+
+      if (forceRefresh || !cacheData.isValid()) {
+        delete this._cache[key];
+        return undefined;
+      }
+
+      return cacheData.value as T;
+    } catch (error) {
+      console.error(`Error accessing cache for key ${key}:`, error);
+      return undefined;
     }
-    if (!isValid) {
-      delete this._cache[key]
-    }
-    return undefined
   }
 }

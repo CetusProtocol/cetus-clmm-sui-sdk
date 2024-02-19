@@ -1,7 +1,7 @@
 import { DynamicFieldPage, SuiObjectResponse, SuiTransactionBlockResponse } from '@mysten/sui.js/dist/cjs/client'
 import { normalizeSuiAddress } from '@mysten/sui.js/utils'
-import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
-import { CachedContent, cacheTime24h, cacheTime5min, d, getFutureTime } from '../utils'
+import { TransactionBlock } from '@mysten/sui.js/transactions'
+import { CachedContent, cacheTime24h, cacheTime5min, checkInvalidSuiAddress, d, getFutureTime } from '../utils'
 import {
   CreatePoolAddLiquidityParams,
   CreatePoolParams,
@@ -15,7 +15,7 @@ import {
   CoinAsset,
 } from '../types'
 import { TransactionUtil } from '../utils/transaction-util'
-import { CoinAssist, tickScore } from '../math'
+import { tickScore } from '../math'
 import { asUintN, buildPool, buildPositionReward, buildTickData, buildTickDataByEvent } from '../utils/common'
 import { extractStructTagFromType, isSortedSymbols } from '../utils/contracts'
 import { TickData } from '../types/clmmpool'
@@ -23,6 +23,7 @@ import {
   ClmmFetcherModule,
   ClmmIntegratePoolModule,
   ClmmIntegratePoolV2Module,
+  ClmmPartnerModule,
   CLOCK_ADDRESS,
   DataPage,
   PaginationArgs,
@@ -32,6 +33,7 @@ import {
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { getObjectPreviousTransactionDigest } from '../utils/objects'
+import { ClmmpoolsError, ConfigErrorCode, PartnerErrorCode, PoolErrorCode, PositionErrorCode, UtilsErrorCode } from '../errors/errors'
 
 type GetTickParams = {
   start: number[]
@@ -65,10 +67,15 @@ export class PoolModule implements IModule {
       hasNextPage: true,
     }
     const objects = await this._sdk.fullClient.getDynamicFieldsByPage(positionHandle, paginationArgs)
+
     dataPage.hasNextPage = objects.hasNextPage
     dataPage.nextCursor = objects.nextCursor
 
     const positionObjectIDs = objects.data.map((item: any) => {
+      if (item.error != null || item.data?.content?.dataType !== "moveObject") {
+        throw new ClmmpoolsError(`when getPositionList get position objects error: ${item.error}, please check the rpc, contracts address config and position id.`, ConfigErrorCode.InvalidConfig)
+      }
+
       return item.name.value
     })
 
@@ -146,12 +153,16 @@ export class PoolModule implements IModule {
       poolImmutables.forEach((item) => poolObjectIds.push(item.poolAddress))
     }
 
-    const objectDataResponses: any[] = await this._sdk.fullClient.batchGetObjects(poolObjectIds, {
+    const objectDataResponses = await this._sdk.fullClient.batchGetObjects(poolObjectIds, {
       showContent: true,
       showType: true,
     })
 
     for (const suiObj of objectDataResponses) {
+      if (suiObj.error != null || suiObj.data?.content?.dataType !== 'moveObject') {
+        throw new ClmmpoolsError(`getPools error code: ${suiObj.error?.code ?? 'unknown error'}, please check config and object ids`, PoolErrorCode.InvalidPoolObject)
+      }
+
       const pool = buildPool(suiObj)
       allPool.push(pool)
       const cacheKey = `${pool.poolAddress}_getPoolObject`
@@ -232,6 +243,9 @@ export class PoolModule implements IModule {
     })
 
     for (const suiObj of objectDataResponses) {
+      if (suiObj.error != null || suiObj.data?.content?.dataType !== 'moveObject') {
+        throw new ClmmpoolsError(`getPoolWithPages error code: ${suiObj.error?.code ?? 'unknown error'}, please check config and object ids`, PoolErrorCode.InvalidPoolObject)
+      }
       const pool = buildPool(suiObj)
       allPool.push(pool)
       const cacheKey = `${pool.poolAddress}_getPoolObject`
@@ -252,14 +266,18 @@ export class PoolModule implements IModule {
     if (cacheData !== undefined) {
       return cacheData
     }
-    const objects = (await this._sdk.fullClient.getObject({
+    const object = (await this._sdk.fullClient.getObject({
       id: poolID,
       options: {
         showType: true,
         showContent: true,
       },
     })) as SuiObjectResponse
-    const pool = buildPool(objects)
+
+    if (object.error != null || object.data?.content?.dataType !== 'moveObject') {
+      throw new ClmmpoolsError(`getPool error code: ${object.error?.code ?? 'unknown error'}, please check config and object id`, PoolErrorCode.InvalidPoolObject)
+    }
+    const pool = buildPool(object)
     this.updateCache(cacheKey, pool)
     return pool
   }
@@ -397,14 +415,19 @@ export class PoolModule implements IModule {
     return objects
   }
 
-  private async creatPool(paramss: CreatePoolParams[]) {
+  /**
+   * Create pool internal. 
+   * @param {CreatePoolParams[]}params The parameters for the pools. 
+   * @returns {Promise<TransactionBlock>} A promise that resolves to the transaction payload.
+   */
+  private async creatPool(params: CreatePoolParams[]): Promise<TransactionBlock> {
     const tx = new TransactionBlock()
     const { integrate, clmm_pool } = this.sdk.sdkOptions
     const eventConfig = getPackagerConfigs(clmm_pool)
     const globalPauseStatusObjectId = eventConfig.global_config_id
     const poolsId = eventConfig.pools_id
 
-    paramss.forEach((params) => {
+    params.forEach((params) => {
       const args = [
         tx.object(globalPauseStatusObjectId),
         tx.object(poolsId),
@@ -424,9 +447,14 @@ export class PoolModule implements IModule {
     return tx
   }
 
-  private async creatPoolAndAddLiquidity(params: CreatePoolAddLiquidityParams) {
-    if (this._sdk.senderAddress.length === 0) {
-      throw Error('this config sdk senderAddress is empty')
+  /**
+   * Create pool and add liquidity internal. It will call create_pool_with_liquidity function.
+   * @param {CreatePoolAddLiquidityParams}params The parameters for the create and liquidity.
+   * @returns {Promise<TransactionBlock>} A promise that resolves to the transaction payload.
+   */
+  private async creatPoolAndAddLiquidity(params: CreatePoolAddLiquidityParams): Promise<TransactionBlock> {
+    if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
+      throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
     }
 
     const tx = new TransactionBlock()
@@ -525,10 +553,19 @@ export class PoolModule implements IModule {
       arguments: args,
       typeArguments,
     })
+
+    if (!checkInvalidSuiAddress(simulationAccount.address)) {
+      throw new ClmmpoolsError('this config simulationAccount is not set right', ConfigErrorCode.InvalidSimulateAccount)
+    }
+
     const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
       transactionBlock: tx,
       sender: simulationAccount.address,
     })
+
+    if (simulateRes.error != null) {
+      throw new ClmmpoolsError(`getTicks error code: ${simulateRes.error ?? 'unknown error'}, please check config and tick object ids`, PoolErrorCode.InvalidTickObjectId)
+    }
 
     simulateRes.events?.forEach((item: any) => {
       if (extractStructTagFromType(item.type).name === `FetchTicksResultEvent`) {
@@ -555,7 +592,7 @@ export class PoolModule implements IModule {
       const typeArguments = [params.coinTypeA, params.coinTypeB]
 
       const tx = new TransactionBlock()
-      const args = [tx.pure(params.pool_id), tx.pure(start), tx.pure(limit.toString())]
+      const args = [tx.object(params.pool_id), tx.pure(start, 'u64'), tx.pure(limit.toString(), 'u64')]
 
       tx.moveCall({
         target: `${integrate.published_at}::${ClmmFetcherModule}::fetch_positions`,
@@ -563,13 +600,20 @@ export class PoolModule implements IModule {
         typeArguments,
       })
 
+      if (!checkInvalidSuiAddress(simulationAccount.address)) {
+        throw new ClmmpoolsError('this config simulationAccount is not set right', ConfigErrorCode.InvalidSimulateAccount)
+      }
       const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
         transactionBlock: tx,
         sender: simulationAccount.address,
       })
 
+      if (simulateRes.error != null) {
+        throw new ClmmpoolsError(`fetch position reward error code: ${simulateRes.error ?? 'unknown error'}, please check config and tick object ids`, PositionErrorCode.InvalidPositionRewardObject)
+      }
+
       const positionRewards: PositionReward[] = []
-      simulateRes.events?.forEach((item: any) => {
+      simulateRes?.events?.forEach((item: any) => {
         if (extractStructTagFromType(item.type).name === `FetchPositionsEvent`) {
           item.parsedJson.positions.forEach((item: any) => {
             const positionReward = buildPositionReward(item)
@@ -624,21 +668,32 @@ export class PoolModule implements IModule {
     return allTickData
   }
 
+  /**
+   * Get ticks by tick object ids.
+   * @param {string} tickObjectId The object ids of the ticks. 
+   * @returns {Promise<TickData[]>} A promise that resolves to an array of tick data.
+   */
   private async getTicksByRpc(tickObjectId: string[]): Promise<TickData[]> {
     const ticks: TickData[] = []
     const objectDataResponses = await this.sdk.fullClient.batchGetObjects(tickObjectId, { showContent: true, showType: true })
     for (const suiObj of objectDataResponses) {
-      ticks.push(buildTickData(suiObj))
+      if (suiObj.error != null || suiObj.data?.content?.dataType !== 'moveObject') {
+        throw new ClmmpoolsError(`getTicksByRpc error code: ${suiObj.error?.code ?? 'unknown error'}, please check config and tick object ids`, PoolErrorCode.InvalidTickObjectId)
+      }
+
+      const tick = buildTickData(suiObj)
+      if (tick != null) {
+        ticks.push(tick)
+      }
     }
     return ticks
   }
 
   /**
    * Gets the tick data for the given tick index.
-   *
    * @param {string} tickHandle The handle for the tick.
    * @param {number} tickIndex The index of the tick.
-   * @returns {Promise<TickData>} A promise that resolves to the tick data.
+   * @returns {Promise<TickData | null>} A promise that resolves to the tick data.
    */
   async getTickDataByIndex(tickHandle: string, tickIndex: number): Promise<TickData> {
     const name = { type: 'u64', value: asUintN(BigInt(tickScore(tickIndex).toString())).toString() }
@@ -646,24 +701,36 @@ export class PoolModule implements IModule {
       parentId: tickHandle,
       name,
     })
+
+    if (res.error != null || res.data?.content?.dataType !== 'moveObject') {
+      throw new ClmmpoolsError(`get tick by index: ${tickIndex} error: ${res.error}`, PoolErrorCode.InvalidTickIndex)
+    }
+
     return buildTickData(res)
   }
 
   /**
    * Gets the tick data for the given object ID.
-   *
    * @param {string} tickId The object ID of the tick.
-   * @returns {Promise<TickData>} A promise that resolves to the tick data.
+   * @returns {Promise<TickData | null>} A promise that resolves to the tick data.
    */
-  async getTickDataByObjectId(tickId: string): Promise<TickData> {
+  async getTickDataByObjectId(tickId: string): Promise<TickData | null> {
     const res = await this.sdk.fullClient.getObject({
       id: tickId,
       options: { showContent: true },
     })
 
+    if (res.error != null || res.data?.content?.dataType !== 'moveObject') {
+      throw new ClmmpoolsError(`getTicksByRpc error code: ${res.error?.code ?? 'unknown error'}, please check config and tick object ids`, PoolErrorCode.InvalidTickObjectId)
+    }
     return buildTickData(res)
   }
 
+  /**
+   * Get partner ref fee amount
+   * @param {string}partner Partner object id 
+   * @returns {Promise<CoinAsset[]>} A promise that resolves to an array of coin asset.
+   */
   async getPartnerRefFeeAmount(partner: string): Promise<CoinAsset[]> {
     const objectDataResponses = await this._sdk.fullClient.batchGetObjects([partner], {
       showOwner: true,
@@ -672,15 +739,20 @@ export class PoolModule implements IModule {
       showType: true,
     })
 
-    let balance: any
-    objectDataResponses.forEach((info) => {
-      balance = info.data.content.fields.balances
-    })
+    if (objectDataResponses[0].error != null || objectDataResponses[0].data?.content?.dataType !== 'moveObject') {
+      throw new ClmmpoolsError(`get partner by object id: ${partner} error: ${objectDataResponses[0].error}`, PartnerErrorCode.NotFoundPartnerObject)
+    }
+
+    const balance = (objectDataResponses[0].data.content.fields as any).balances
 
     const objects = await this._sdk.fullClient.getDynamicFieldsByPage(balance.fields.id.id)
 
     const coins: string[] = []
     objects.data.forEach((object) => {
+      if (object.error != null || object.data?.content?.dataType !== "moveObject") {
+        throw new ClmmpoolsError(`when getPartnerRefFeeAmount get partner object error: ${object.error}, please check the rpc, contracts address config and position id.`, ConfigErrorCode.InvalidConfig)
+      }
+
       coins.push(object.objectId)
     })
 
@@ -691,7 +763,11 @@ export class PoolModule implements IModule {
       showDisplay: true,
       showType: true,
     })
-    object.forEach((info) => {
+    object.forEach((info: any) => {
+      if (info.error != null || info.data?.content?.dataType !== 'moveObject') {
+        throw new ClmmpoolsError(`get coin by object id: ${info.data.objectId} error: ${info.error}`, PartnerErrorCode.InvalidParnterRefFeeFields)
+      }
+
       const coinAsset: CoinAsset = {
         coinAddress: info.data.content.fields.name,
         coinObjectId: info.data.objectId,
@@ -704,8 +780,34 @@ export class PoolModule implements IModule {
   }
 
   /**
+   * Claim partner ref fee.
+   * @param {string} partnerCap partner cap id.
+   * @param {string} partner partner id.
+   * @returns {Promise<TransactionBlock>} A promise that resolves to the transaction payload.
+   */
+  async claimPartnerRefFeePayload(partnerCap: string, partner: string, coinType: string): Promise<TransactionBlock> {
+    const tx = new TransactionBlock()
+    const { clmm_pool } = this.sdk.sdkOptions
+    const { global_config_id } = getPackagerConfigs(clmm_pool)
+    const typeArguments = [coinType]
+
+    const args = [
+      tx.object(global_config_id),
+      tx.object(partnerCap),
+      tx.object(partner),
+    ]
+
+    tx.moveCall({
+      target: `${clmm_pool.published_at}::${ClmmPartnerModule}::claim_ref_fee`,
+      arguments: args,
+      typeArguments,
+    })
+
+    return tx
+  }
+
+  /**
    * Updates the cache for the given key.
-   *
    * @param key The key of the cache entry to update.
    * @param data The data to store in the cache.
    * @param time The time in minutes after which the cache entry should expire.
@@ -723,7 +825,6 @@ export class PoolModule implements IModule {
 
   /**
    * Gets the cache entry for the given key.
-   *
    * @param key The key of the cache entry to get.
    * @param forceRefresh Whether to force a refresh of the cache entry.
    * @returns The cache entry for the given key, or undefined if the cache entry does not exist or is expired.

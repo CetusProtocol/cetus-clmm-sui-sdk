@@ -1,17 +1,21 @@
-import { TransactionBlock } from '@mysten/sui.js/transactions'
+import { Inputs, TransactionBlock } from '@mysten/sui.js/transactions'
 import {
+  DevInspectResults,
   DynamicFieldPage,
   PaginatedEvents,
   PaginatedObjectsResponse,
   SuiClient,
   SuiEventFilter,
   SuiObjectDataOptions,
+  SuiObjectResponse,
   SuiObjectResponseQuery,
   SuiTransactionBlockResponse,
 } from '@mysten/sui.js/client'
 import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
 import { Secp256k1Keypair } from '@mysten/sui.js/keypairs/secp256k1'
 
+import { bcs } from '@mysten/sui.js/bcs'
+import { toB64 } from '@mysten/bcs'
 import { DataPage, PaginationArgs, SuiObjectIdType } from '../types'
 
 /**
@@ -119,8 +123,8 @@ export class RpcModule extends SuiClient {
    * @param limit
    * @returns
    */
-  async batchGetObjects(ids: SuiObjectIdType[], options?: SuiObjectDataOptions, limit = 50): Promise<any[]> {
-    let objectDataResponses: any[] = []
+  async batchGetObjects(ids: SuiObjectIdType[], options?: SuiObjectDataOptions, limit = 50): Promise<SuiObjectResponse[]> {
+    let objectDataResponses: SuiObjectResponse[] = []
 
     try {
       for (let i = 0; i < Math.ceil(ids.length / limit); i++) {
@@ -184,6 +188,65 @@ export class RpcModule extends SuiClient {
     } catch (error) {
       console.log('error: ', error)
     }
+    return undefined
+  }
+
+  /**
+   * Send a simulation transaction.
+   * @param tx - The transaction block.
+   * @param simulationAccount - The simulation account.
+   * @param useDevInspect - A flag indicating whether to use DevInspect. Defaults to true.
+   * @returns A promise that resolves to DevInspectResults or undefined.
+   */
+  async sendSimulationTransaction(
+    tx: TransactionBlock,
+    simulationAccount: string,
+    useDevInspect = true
+  ): Promise<DevInspectResults | undefined> {
+    try {
+      if (useDevInspect) {
+        const simulateRes = await this.devInspectTransactionBlock({
+          transactionBlock: tx,
+          sender: simulationAccount,
+        })
+        return simulateRes
+      }
+
+      // If useDevInspect is false, manually construct the transaction for simulation.
+      const inputs = tx.blockData.inputs.map((input) => {
+        const { type, value } = input
+        if (type === 'object') {
+          return Inputs.SharedObjectRef({
+            objectId: value,
+            initialSharedVersion: 0,
+            mutable: true,
+          })
+        }
+        return value
+      })
+
+      const kind = {
+        ProgrammableTransaction: {
+          inputs,
+          transactions: tx.blockData.transactions,
+        },
+      }
+      // Serialize the transaction using BCS.
+      const serialize = bcs.TransactionKind.serialize(kind, {
+        maxSize: 131072,
+      }).toBytes()
+
+      const devInspectTxBytes = toB64(serialize)
+      // Send the request to DevInspect.
+      const res = await this.transport.request<DevInspectResults>({
+        method: 'sui_devInspectTransactionBlock',
+        params: [simulationAccount, devInspectTxBytes, null, null],
+      })
+      return res
+    } catch (error) {
+      console.log('devInspectTransactionBlock error', error)
+    }
+
     return undefined
   }
 }

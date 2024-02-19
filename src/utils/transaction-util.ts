@@ -1,6 +1,7 @@
 import BN from 'bn.js'
 import Decimal from 'decimal.js'
-import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
+import { TransactionBlock } from '@mysten/sui.js/transactions'
+import { TransactionObjectArgument } from '@mysten/sui.js/dist/cjs/builder/TransactionBlock'
 import { CoinAssist } from '../math/CoinAssist'
 import { OnePath, SwapWithRouterParams } from '../modules/routerModule'
 import { TickData } from '../types/clmmpool'
@@ -31,6 +32,7 @@ import SDK, {
   ZERO,
 } from '../index'
 import { AggregatorResult, BasePath } from '../modules/routerModuleV2'
+import { ClmmpoolsError, UtilsErrorCode } from '../errors/errors'
 
 export type AdjustResult = {
   isAdjustCoinA: boolean
@@ -49,11 +51,11 @@ export function findAdjustCoin(coinPair: CoinPairType): AdjustResult {
 }
 
 export type BuildCoinResult = {
-  targetCoin: TransactionArgument
+  targetCoin: TransactionObjectArgument
   remainCoins: CoinAsset[]
   isMintZeroCoin: boolean
   tragetCoinAmount: string
-  originalSplitedCoin?: TransactionArgument
+  originalSplitedCoin?: TransactionObjectArgument
 }
 
 type CoinInputInterval = {
@@ -78,6 +80,11 @@ export async function printTransaction(tx: TransactionBlock, isPrint = true) {
       console.log(`transaction ${index}: `, item)
     }
   })
+}
+
+interface TransferedCoin {
+  coinType: string
+  coin: TransactionObjectArgument
 }
 
 export class TransactionUtil {
@@ -116,13 +123,13 @@ export class TransactionUtil {
         primaryCoinBInput.targetCoin
       )
     }
-    const primaryCoinInputs: TransactionArgument[] = []
+    const primaryCoinInputs: TransactionObjectArgument[] = []
     params.rewarder_coin_types.forEach((type) => {
       switch (normalizeCoinType(type)) {
-        case params.coinTypeA:
+        case coinTypeA:
           primaryCoinInputs.push(TransactionUtil.buildCoinForAmount(tx, allCoinAssetA!, BigInt(0), type, false).targetCoin)
           break
-        case params.coinTypeB:
+        case coinTypeB:
           primaryCoinInputs.push(TransactionUtil.buildCoinForAmount(tx, allCoinAssetB!, BigInt(0), type, false).targetCoin)
           break
         default:
@@ -151,7 +158,7 @@ export class TransactionUtil {
     // amount coins
     const amountCoins = CoinAssist.selectCoinAssetGreaterThanOrEqual(allCoins, amount).selectedCoins
     if (amountCoins.length === 0) {
-      throw new Error(`Insufficient balance`)
+      throw new ClmmpoolsError(`Insufficient balance`, UtilsErrorCode.InsufficientBalance)
     }
     const totalAmount = CoinAssist.calculateTotalBalance(allCoins)
     // If the remaining coin balance is greater than 1000000000, no gas fee correction will be done
@@ -176,7 +183,7 @@ export class TransactionUtil {
       if (totalAmount - amount < newGas) {
         amount -= newGas
         if (amount < 0) {
-          throw new Error(`gas Insufficient balance`)
+          throw new ClmmpoolsError(`gas Insufficient balance`, UtilsErrorCode.InsufficientBalance)
         }
 
         const newTx = new TransactionBlock()
@@ -329,12 +336,12 @@ export class TransactionUtil {
   ): BuildCoinResult {
     return need_interval_amount
       ? TransactionUtil.buildCoinForAmountInterval(
-          tx,
-          allCoinAsset,
-          { amountSecond: BigInt(reverSlippageAmount(amount, slippage)), amountFirst: BigInt(amount) },
-          coinType,
-          buildVector
-        )
+        tx,
+        allCoinAsset,
+        { amountSecond: BigInt(reverSlippageAmount(amount, slippage)), amountFirst: BigInt(amount) },
+        coinType,
+        buildVector
+      )
       : TransactionUtil.buildCoinForAmount(tx, allCoinAsset, BigInt(amount), coinType, buildVector)
   }
 
@@ -389,28 +396,28 @@ export class TransactionUtil {
     const clmmConfig = getPackagerConfigs(clmm_pool)
     const args = params.is_open
       ? [
-          tx.object(clmmConfig.global_config_id),
-          tx.object(params.pool_id),
-          tx.pure(asUintN(BigInt(params.tick_lower)).toString()),
-          tx.pure(asUintN(BigInt(params.tick_upper)).toString()),
-          primaryCoinAInputs.targetCoin,
-          primaryCoinBInputs.targetCoin,
-          tx.pure(params.amount_a),
-          tx.pure(params.amount_b),
-          tx.pure(params.fix_amount_a),
-          tx.object(CLOCK_ADDRESS),
-        ]
+        tx.object(clmmConfig.global_config_id),
+        tx.object(params.pool_id),
+        tx.pure(asUintN(BigInt(params.tick_lower)).toString()),
+        tx.pure(asUintN(BigInt(params.tick_upper)).toString()),
+        primaryCoinAInputs.targetCoin,
+        primaryCoinBInputs.targetCoin,
+        tx.pure(params.amount_a),
+        tx.pure(params.amount_b),
+        tx.pure(params.fix_amount_a),
+        tx.object(CLOCK_ADDRESS),
+      ]
       : [
-          tx.object(clmmConfig.global_config_id),
-          tx.object(params.pool_id),
-          tx.object(params.pos_id),
-          primaryCoinAInputs.targetCoin,
-          primaryCoinBInputs.targetCoin,
-          tx.pure(params.amount_a),
-          tx.pure(params.amount_b),
-          tx.pure(params.fix_amount_a),
-          tx.object(CLOCK_ADDRESS),
-        ]
+        tx.object(clmmConfig.global_config_id),
+        tx.object(params.pool_id),
+        tx.object(params.pos_id),
+        primaryCoinAInputs.targetCoin,
+        primaryCoinBInputs.targetCoin,
+        tx.pure(params.amount_a),
+        tx.pure(params.amount_b),
+        tx.pure(params.fix_amount_a),
+        tx.object(CLOCK_ADDRESS),
+      ]
 
     tx.moveCall({
       target: `${integrate.published_at}::${ClmmIntegratePoolV2Module}::${functionName}`,
@@ -541,33 +548,33 @@ export class TransactionUtil {
         ? 'swap_a2b_with_partner'
         : 'swap_b2a_with_partner'
       : params.a2b
-      ? 'swap_a2b'
-      : 'swap_b2a'
+        ? 'swap_a2b'
+        : 'swap_b2a'
 
     const args = hasSwapPartner
       ? [
-          tx.pure(global_config_id),
-          tx.pure(params.pool_id),
-          tx.pure(params.swap_partner),
-          primaryCoinInputA.targetCoin,
-          primaryCoinInputB.targetCoin,
-          tx.pure(params.by_amount_in),
-          tx.pure(params.amount),
-          tx.pure(params.amount_limit),
-          tx.pure(sqrtPriceLimit.toString()),
-          tx.pure(CLOCK_ADDRESS),
-        ]
+        tx.pure(global_config_id),
+        tx.pure(params.pool_id),
+        tx.pure(params.swap_partner),
+        primaryCoinInputA.targetCoin,
+        primaryCoinInputB.targetCoin,
+        tx.pure(params.by_amount_in),
+        tx.pure(params.amount),
+        tx.pure(params.amount_limit),
+        tx.pure(sqrtPriceLimit.toString()),
+        tx.pure(CLOCK_ADDRESS),
+      ]
       : [
-          tx.pure(global_config_id),
-          tx.pure(params.pool_id),
-          primaryCoinInputA.targetCoin,
-          primaryCoinInputB.targetCoin,
-          tx.pure(params.by_amount_in),
-          tx.pure(params.amount),
-          tx.pure(params.amount_limit),
-          tx.pure(sqrtPriceLimit.toString()),
-          tx.pure(CLOCK_ADDRESS),
-        ]
+        tx.pure(global_config_id),
+        tx.pure(params.pool_id),
+        primaryCoinInputA.targetCoin,
+        primaryCoinInputB.targetCoin,
+        tx.pure(params.by_amount_in),
+        tx.pure(params.amount),
+        tx.pure(params.amount_limit),
+        tx.pure(sqrtPriceLimit.toString()),
+        tx.pure(CLOCK_ADDRESS),
+      ]
 
     tx.moveCall({
       target: `${integrate.published_at}::${ClmmIntegratePoolV2Module}::${functionName}`,
@@ -620,7 +627,7 @@ export class TransactionUtil {
     amount: bigint,
     coinType: string,
     buildVector = true
-  ): Promise<TransactionArgument | undefined> {
+  ): Promise<TransactionObjectArgument | undefined> {
     if (sdk.senderAddress.length === 0) {
       throw Error('this config sdk senderAddress is empty')
     }
@@ -645,7 +652,7 @@ export class TransactionUtil {
     }
     const amountTotal = CoinAssist.calculateTotalBalance(coinAssets)
     if (amountTotal < amount) {
-      throw new Error(`The amount(${amountTotal}) is Insufficient balance for ${coinType} , expect ${amount} `)
+      throw new ClmmpoolsError(`The amount(${amountTotal}) is Insufficient balance for ${coinType} , expect ${amount} `, UtilsErrorCode.InsufficientBalance)
     }
 
     return TransactionUtil.buildCoin(tx, allCoins, coinAssets, amount, coinType, buildVector, fixAmount)
@@ -769,7 +776,7 @@ export class TransactionUtil {
     }
 
     if (amountTotal < amounts.amountSecond) {
-      throw new Error(`The amount(${amountTotal}) is Insufficient balance for ${coinType} , expect ${amounts.amountSecond} `)
+      throw new ClmmpoolsError(`The amount(${amountTotal}) is Insufficient balance for ${coinType} , expect ${amounts.amountSecond} `, UtilsErrorCode.InsufficientBalance)
     }
 
     return TransactionUtil.buildCoin(tx, [...allCoins], [...coinAssets], amounts.amountSecond, coinType, buildVector)
@@ -787,7 +794,9 @@ export class TransactionUtil {
     sdk: SDK,
     params: SwapWithRouterParams,
     byAmountIn: boolean,
-    allCoinAsset: CoinAsset[]
+    allCoinAsset: CoinAsset[],
+    // If recipient not set, transfer objects move call will use ctx sender.
+    recipient?: string
   ): Promise<TransactionBlock> {
     let tx = new TransactionBlock()
 
@@ -798,7 +807,7 @@ export class TransactionUtil {
       params.partner = ''
     }
 
-    tx = await this.buildRouterBasePathTx(sdk, params, byAmountIn, allCoinAsset, tx)
+    tx = await this.buildRouterBasePathTx(sdk, params, byAmountIn, allCoinAsset, tx, recipient)
     return tx
   }
 
@@ -807,7 +816,9 @@ export class TransactionUtil {
     params: SwapWithRouterParams,
     byAmountIn: boolean,
     allCoinAsset: CoinAsset[],
-    tx: TransactionBlock
+    tx: TransactionBlock,
+    // If recipient not set, transfer objects move call will use ctx sender.
+    recipient?: string
   ) {
     const validPaths = params.paths.filter((path) => path && path.poolAddress)
     const inputAmount = Number(validPaths.reduce((total, path) => total.add(path.amountIn), ZERO).toString())
@@ -841,12 +852,15 @@ export class TransactionUtil {
       tx
     )
 
-    const transferObjects: TransactionArgument[] = []
+    const transferedCoins: TransferedCoin[] = []
     const { toCoin, fromCoin } = buildRouterBasePathReturnCoin
     tx = buildRouterBasePathReturnCoin.tx
 
     if (toCoinBuildResult.isMintZeroCoin) {
-      transferObjects.push(toCoin)
+      transferedCoins.push({
+        coinType: toCoinType,
+        coin: toCoin,
+      })
     } else if (toCoinBuildResult.originalSplitedCoin !== undefined) {
       tx.mergeCoins(toCoinBuildResult.originalSplitedCoin!, [toCoin])
     } else {
@@ -854,14 +868,17 @@ export class TransactionUtil {
     }
 
     if (isSplited) {
-      const originalSplitedFromCoin = fromCoinBuildResult?.originalSplitedCoin as TransactionArgument
+      const originalSplitedFromCoin = fromCoinBuildResult?.originalSplitedCoin as TransactionObjectArgument
       tx.mergeCoins(originalSplitedFromCoin, [fromCoin])
     } else {
-      transferObjects.push(fromCoin)
+      transferedCoins.push({
+        coinType: fromCoinType,
+        coin: fromCoin,
+      })
     }
 
-    if (transferObjects.length > 0) {
-      tx.transferObjects(transferObjects, tx.pure(sdk.senderAddress))
+    for (let i = 0; i < transferedCoins.length; i++) {
+      this.buildTransferCoin(sdk, tx, transferedCoins[i].coin, transferedCoins[i].coinType, recipient)
     }
 
     return tx
@@ -890,10 +907,10 @@ export class TransactionUtil {
     const fromCoinType = params.paths[0].coinType[0]
     const toCoinType = params.paths[0].coinType[params.paths[0].coinType.length - 1]
 
-    let fromCoin = fromCoinBuildRes.targetCoin as TransactionArgument
+    let fromCoin = fromCoinBuildRes.targetCoin as TransactionObjectArgument
     let toCoin
     if (toCoinBuildRes.isMintZeroCoin || toCoinBuildRes.originalSplitedCoin !== undefined) {
-      toCoin = toCoinBuildRes.targetCoin as TransactionArgument
+      toCoin = toCoinBuildRes.targetCoin as TransactionObjectArgument
     } else {
       toCoin = TransactionUtil.callMintZeroValueCoin(tx, toCoinType)
     }
@@ -921,34 +938,34 @@ export class TransactionUtil {
         const sqrtPriceLimit = SwapUtils.getDefaultSqrtPriceLimit(a2b).toString()
         const args: any = noPartner
           ? [
-              tx.object(globalConfigID),
-              tx.object(path.poolAddress[0]),
-              poolCoinA,
-              poolCoinB,
-              tx.pure(a2b),
-              tx.pure(byAmountIn),
-              tx.pure(amount),
-              tx.pure(sqrtPriceLimit),
-              tx.pure(false),
-              tx.object(CLOCK_ADDRESS),
-            ]
+            tx.object(globalConfigID),
+            tx.object(path.poolAddress[0]),
+            poolCoinA,
+            poolCoinB,
+            tx.pure(a2b),
+            tx.pure(byAmountIn),
+            tx.pure(amount),
+            tx.pure(sqrtPriceLimit),
+            tx.pure(false),
+            tx.object(CLOCK_ADDRESS),
+          ]
           : [
-              tx.object(globalConfigID),
-              tx.object(path.poolAddress[0]),
-              tx.pure(params.partner),
-              poolCoinA,
-              poolCoinB,
-              tx.pure(a2b),
-              tx.pure(byAmountIn),
-              tx.pure(amount),
-              tx.pure(sqrtPriceLimit),
-              tx.pure(false),
-              tx.object(CLOCK_ADDRESS),
-            ]
+            tx.object(globalConfigID),
+            tx.object(path.poolAddress[0]),
+            tx.pure(params.partner),
+            poolCoinA,
+            poolCoinB,
+            tx.pure(a2b),
+            tx.pure(byAmountIn),
+            tx.pure(amount),
+            tx.pure(sqrtPriceLimit),
+            tx.pure(false),
+            tx.object(CLOCK_ADDRESS),
+          ]
 
         const typeArguments = [swapParams.poolCoinA, swapParams.poolCoinB]
 
-        const coinABs: TransactionArgument[] = tx.moveCall({
+        const coinABs: TransactionObjectArgument[] = tx.moveCall({
           target: `${sdk.sdkOptions.integrate.published_at}::${moduleName}::${functionName}`,
           typeArguments,
           arguments: args,
@@ -980,40 +997,40 @@ export class TransactionUtil {
         const sqrtPriceLimit1 = SwapUtils.getDefaultSqrtPriceLimit(path.a2b[1])
         const args: any = noPartner
           ? [
-              tx.object(globalConfigID),
-              tx.object(path.poolAddress[0]),
-              tx.object(path.poolAddress[1]),
-              fromCoin,
-              toCoin,
-              tx.pure(byAmountIn),
-              tx.pure(amount0.toString()),
-              tx.pure(amount1.toString()),
-              tx.pure(sqrtPriceLimit0.toString()),
-              tx.pure(sqrtPriceLimit1.toString()),
-              tx.object(CLOCK_ADDRESS),
-            ]
+            tx.object(globalConfigID),
+            tx.object(path.poolAddress[0]),
+            tx.object(path.poolAddress[1]),
+            fromCoin,
+            toCoin,
+            tx.pure(byAmountIn),
+            tx.pure(amount0.toString()),
+            tx.pure(amount1.toString()),
+            tx.pure(sqrtPriceLimit0.toString()),
+            tx.pure(sqrtPriceLimit1.toString()),
+            tx.object(CLOCK_ADDRESS),
+          ]
           : [
-              tx.object(globalConfigID),
-              tx.object(path.poolAddress[0]),
-              tx.object(path.poolAddress[1]),
-              tx.pure(params.partner),
-              fromCoin,
-              toCoin,
-              tx.pure(byAmountIn),
-              tx.pure(amount0.toString()),
-              tx.pure(amount1.toString()),
-              tx.pure(sqrtPriceLimit0.toString()),
-              tx.pure(sqrtPriceLimit1.toString()),
-              tx.object(CLOCK_ADDRESS),
-            ]
+            tx.object(globalConfigID),
+            tx.object(path.poolAddress[0]),
+            tx.object(path.poolAddress[1]),
+            tx.pure(params.partner),
+            fromCoin,
+            toCoin,
+            tx.pure(byAmountIn),
+            tx.pure(amount0.toString()),
+            tx.pure(amount1.toString()),
+            tx.pure(sqrtPriceLimit0.toString()),
+            tx.pure(sqrtPriceLimit1.toString()),
+            tx.object(CLOCK_ADDRESS),
+          ]
         const typeArguments = [path.coinType[0], path.coinType[1], path.coinType[2]]
         const fromToCoins = tx.moveCall({
           target: `${integrate.published_at}::${moduleName}::${functionName}`,
           typeArguments,
           arguments: args,
         })
-        fromCoin = fromToCoins[0] as TransactionArgument
-        toCoin = fromToCoins[1] as TransactionArgument
+        fromCoin = fromToCoins[0] as TransactionObjectArgument
+        toCoin = fromToCoins[1] as TransactionObjectArgument
       }
     }
 
@@ -1029,8 +1046,17 @@ export class TransactionUtil {
     toCoinBuildRes: BuildCoinResult,
     partner: string,
     priceSplitPoint: number,
-    tx: TransactionBlock
+    tx: TransactionBlock,
+    // If recipient not set, transfer objects move call will use sdk.senderAddress
+    recipient?: string
   ) {
+    if (recipient == null) {
+      if (sdk.senderAddress.length === 0) {
+        throw Error('recipient and this config sdk senderAddress all not set')
+      }
+      recipient = sdk.senderAddress
+    }
+
     // When the router's split path length exceeds 1, router cannot support partner.
     // now router v1 just return one best path.
     // when use router v2, must set allow split to false.
@@ -1094,9 +1120,9 @@ export class TransactionUtil {
     } else {
       const amountLimit = Math.round(param.outputAmount * (1 - priceSplitPoint))
 
-      fromCoin = fromCoinBuildRes.targetCoin as TransactionArgument
+      fromCoin = fromCoinBuildRes.targetCoin as TransactionObjectArgument
       if (toCoinBuildRes.isMintZeroCoin || toCoinBuildRes.originalSplitedCoin !== undefined) {
-        toCoin = toCoinBuildRes.targetCoin as TransactionArgument
+        toCoin = toCoinBuildRes.targetCoin as TransactionObjectArgument
       } else {
         toCoin = TransactionUtil.callMintZeroValueCoin(tx, param.toCoin)
       }
@@ -1105,9 +1131,9 @@ export class TransactionUtil {
 
       let accountCap
       if (hasExternalPool) {
-        const [cap, createAccountCapTX] = DeepbookUtils.createAccountCap(sdk.senderAddress, sdk.sdkOptions, tx)
+        const [cap, createAccountCapTX] = DeepbookUtils.createAccountCap(recipient, sdk.sdkOptions, tx)
         tx = createAccountCapTX as TransactionBlock
-        accountCap = cap as TransactionArgument
+        accountCap = cap as TransactionObjectArgument
         isCreateAccountCap = true
       }
 
@@ -1122,41 +1148,41 @@ export class TransactionUtil {
               if (splitPath.basePaths.length === 1) {
                 const deepbookTxBuild = this.buildDeepbookBasePathTx(sdk, basePath, tx, accountCap, fromCoin, toCoin, false)
 
-                fromCoin = deepbookTxBuild.from as TransactionArgument
-                toCoin = deepbookTxBuild.to as TransactionArgument
+                fromCoin = deepbookTxBuild.from as TransactionObjectArgument
+                toCoin = deepbookTxBuild.to as TransactionObjectArgument
               } else {
                 middleCoin = TransactionUtil.callMintZeroValueCoin(tx, basePath.toCoin)
                 const deepbookTxBuild = this.buildDeepbookBasePathTx(sdk, basePath, tx, accountCap, fromCoin, middleCoin, false)
-                fromCoin = deepbookTxBuild.from as TransactionArgument
-                middleCoin = deepbookTxBuild.to as TransactionArgument
+                fromCoin = deepbookTxBuild.from as TransactionObjectArgument
+                middleCoin = deepbookTxBuild.to as TransactionObjectArgument
               }
             } else {
               const deepbookTxBuild = this.buildDeepbookBasePathTx(sdk, basePath, tx, accountCap, middleCoin, toCoin, true)
 
-              middleCoin = deepbookTxBuild.from as TransactionArgument
-              toCoin = deepbookTxBuild.to as TransactionArgument
+              middleCoin = deepbookTxBuild.from as TransactionObjectArgument
+              toCoin = deepbookTxBuild.to as TransactionObjectArgument
             }
           }
           if (basePath.label === 'Cetus') {
             if (i === 0) {
               if (splitPath.basePaths.length === 1) {
                 const clmmTxBuild = this.buildClmmBasePathTx(sdk, basePath, tx, param.byAmountIn, fromCoin, toCoin, false, partner)
-                fromCoin = clmmTxBuild.from as TransactionArgument
-                toCoin = clmmTxBuild.to as TransactionArgument
+                fromCoin = clmmTxBuild.from as TransactionObjectArgument
+                toCoin = clmmTxBuild.to as TransactionObjectArgument
               } else {
                 middleCoin = TransactionUtil.callMintZeroValueCoin(tx, basePath.toCoin)
                 const clmmTxBuild = this.buildClmmBasePathTx(sdk, basePath, tx, param.byAmountIn, fromCoin, middleCoin, false, partner)
-                fromCoin = clmmTxBuild.from as TransactionArgument
-                middleCoin = clmmTxBuild.to as TransactionArgument
+                fromCoin = clmmTxBuild.from as TransactionObjectArgument
+                middleCoin = clmmTxBuild.to as TransactionObjectArgument
               }
             } else {
               const clmmTxBuild = this.buildClmmBasePathTx(sdk, basePath, tx, param.byAmountIn, middleCoin, toCoin, true, partner)
-              middleCoin = clmmTxBuild.from as TransactionArgument
-              toCoin = clmmTxBuild.to as TransactionArgument
+              middleCoin = clmmTxBuild.from as TransactionObjectArgument
+              toCoin = clmmTxBuild.to as TransactionObjectArgument
               tx.moveCall({
                 target: `${sdk.sdkOptions.integrate.published_at}::${ClmmIntegrateUtilsModule}::send_coin`,
                 typeArguments: [basePath.fromCoin],
-                arguments: [middleCoin, tx.pure(sdk.senderAddress)],
+                arguments: [middleCoin, tx.pure(recipient)],
               })
             }
           }
@@ -1166,7 +1192,7 @@ export class TransactionUtil {
       this.checkCoinThreshold(sdk, param.byAmountIn, tx, toCoin, amountLimit, param.toCoin)
 
       if (isCreateAccountCap) {
-        tx = DeepbookUtils.deleteAccountCapByObject(accountCap as TransactionArgument, sdk.sdkOptions, tx)
+        tx = DeepbookUtils.deleteAccountCapByObject(accountCap as TransactionObjectArgument, sdk.sdkOptions, tx)
       }
     }
     return { fromCoin, toCoin, tx }
@@ -1177,7 +1203,8 @@ export class TransactionUtil {
     param: AggregatorResult,
     allCoinAsset: CoinAsset[],
     partner: string,
-    priceSlippagePoint: number
+    priceSlippagePoint: number,
+    recipient?: string
   ) {
     let tx = new TransactionBlock()
 
@@ -1192,7 +1219,7 @@ export class TransactionUtil {
       false,
       true
     )
-    const isSplited = fromCoinBuildResult.originalSplitedCoin !== undefined
+    const isSplited = fromCoinBuildResult.originalSplitedCoin != null
     const toCoinBuildResult = TransactionUtil.buildCoinForAmount(tx, allCoinAsset, 0n, param.toCoin, false)
 
     const buildAggregatorSwapReturnCoinsRes = await this.buildAggregatorSwapReturnCoins(
@@ -1202,28 +1229,36 @@ export class TransactionUtil {
       toCoinBuildResult,
       partner,
       priceSlippagePoint,
-      tx
+      tx,
+      recipient
     )
     const { fromCoin, toCoin } = buildAggregatorSwapReturnCoinsRes
     tx = buildAggregatorSwapReturnCoinsRes.tx
 
-    const transferObjects: TransactionArgument[] = []
+    const transferedCoins: TransferedCoin[] = []
     if (toCoinBuildResult.isMintZeroCoin) {
-      transferObjects.push(toCoin)
-    } else if (toCoinBuildResult.originalSplitedCoin !== undefined) {
+      transferedCoins.push({
+        coinType: param.toCoin,
+        coin: toCoin,
+      })
+    } else if (toCoinBuildResult.originalSplitedCoin != null) {
       tx.mergeCoins(toCoinBuildResult.originalSplitedCoin!, [toCoin])
     } else {
       tx.mergeCoins(toCoinBuildResult.targetCoin, [toCoin])
     }
 
     if (isSplited) {
-      const originalSplitedFromCoin = fromCoinBuildResult.originalSplitedCoin as TransactionArgument
+      const originalSplitedFromCoin = fromCoinBuildResult.originalSplitedCoin as TransactionObjectArgument
       tx.mergeCoins(originalSplitedFromCoin, [fromCoin])
     } else {
-      transferObjects.push(fromCoin)
+      transferedCoins.push({
+        coinType: param.fromCoin,
+        coin: fromCoin,
+      })
     }
-    if (transferObjects.length > 0) {
-      tx.transferObjects(transferObjects, tx.pure(sdk.senderAddress))
+
+    for (let i = 0; i < transferedCoins.length; i++) {
+      this.buildTransferCoin(sdk, tx, transferedCoins[i].coin, transferedCoins[i].coinType, recipient)
     }
     return tx
   }
@@ -1232,7 +1267,7 @@ export class TransactionUtil {
     sdk: SDK,
     byAmountIn: boolean,
     tx: TransactionBlock,
-    coin: TransactionArgument,
+    coin: TransactionObjectArgument,
     amountLimit: number,
     coinType: string
   ) {
@@ -1250,8 +1285,8 @@ export class TransactionUtil {
     basePath: BasePath,
     tx: TransactionBlock,
     accountCap: any,
-    from: TransactionArgument,
-    to: TransactionArgument,
+    from: TransactionObjectArgument,
+    to: TransactionObjectArgument,
     middleStep: boolean
   ) {
     const base = basePath.direction ? from : to
@@ -1271,7 +1306,7 @@ export class TransactionUtil {
 
     const typeArguments = basePath.direction ? [basePath.fromCoin, basePath.toCoin] : [basePath.toCoin, basePath.fromCoin]
 
-    const coinAB: TransactionArgument[] = tx.moveCall({
+    const coinAB: TransactionObjectArgument[] = tx.moveCall({
       target: `${sdk.sdkOptions.deepbook_endpoint_v2.published_at}::endpoints_v2::swap`,
       typeArguments,
       arguments: args,
@@ -1292,8 +1327,8 @@ export class TransactionUtil {
     basePath: BasePath,
     tx: TransactionBlock,
     byAmountIn: boolean,
-    from: TransactionArgument,
-    to: TransactionArgument,
+    from: TransactionObjectArgument,
+    to: TransactionObjectArgument,
     middleStep: boolean,
     partner: string
   ) {
@@ -1308,34 +1343,34 @@ export class TransactionUtil {
     const sqrtPriceLimit = SwapUtils.getDefaultSqrtPriceLimit(basePath.direction)
     const args: any = noPartner
       ? [
-          tx.object(globalConfigID),
-          tx.object(basePath.poolAddress),
-          coinA,
-          coinB,
-          tx.pure(basePath.direction),
-          tx.pure(byAmountIn),
-          tx.pure(amount),
-          tx.pure(sqrtPriceLimit.toString()),
-          tx.pure(middleStep),
-          tx.object(CLOCK_ADDRESS),
-        ]
+        tx.object(globalConfigID),
+        tx.object(basePath.poolAddress),
+        coinA,
+        coinB,
+        tx.pure(basePath.direction),
+        tx.pure(byAmountIn),
+        tx.pure(amount),
+        tx.pure(sqrtPriceLimit.toString()),
+        tx.pure(middleStep),
+        tx.object(CLOCK_ADDRESS),
+      ]
       : [
-          tx.object(globalConfigID),
-          tx.object(basePath.poolAddress),
-          tx.pure(partner),
-          coinA,
-          coinB,
-          tx.pure(basePath.direction),
-          tx.pure(byAmountIn),
-          tx.pure(amount),
-          tx.pure(sqrtPriceLimit.toString()),
-          tx.pure(middleStep),
-          tx.object(CLOCK_ADDRESS),
-        ]
+        tx.object(globalConfigID),
+        tx.object(basePath.poolAddress),
+        tx.pure(partner),
+        coinA,
+        coinB,
+        tx.pure(basePath.direction),
+        tx.pure(byAmountIn),
+        tx.pure(amount),
+        tx.pure(sqrtPriceLimit.toString()),
+        tx.pure(middleStep),
+        tx.object(CLOCK_ADDRESS),
+      ]
 
     const typeArguments = basePath.direction ? [basePath.fromCoin, basePath.toCoin] : [basePath.toCoin, basePath.fromCoin]
 
-    const coinAB: TransactionArgument[] = tx.moveCall({
+    const coinAB: TransactionObjectArgument[] = tx.moveCall({
       target: `${integrate.published_at}::${moduleName}::${functionName}`,
       typeArguments,
       arguments: args,
@@ -1374,5 +1409,23 @@ export class TransactionUtil {
       }
     }
     return coinTypePair
+  }
+
+  // ------------------------------------------utils-------------------------------------------------//
+  static buildTransferCoinToSender(sdk: SDK, tx: TransactionBlock, coin: TransactionObjectArgument, coinType: string) {
+    tx.moveCall({
+      target: `${sdk.sdkOptions.integrate.published_at}::${ClmmIntegrateUtilsModule}::transfer_coin_to_sender`,
+      typeArguments: [coinType],
+      arguments: [coin],
+    })
+  }
+
+  // If recipient not set, transfer objects move call will use ctx sender
+  static buildTransferCoin(sdk: SDK, tx: TransactionBlock, coin: TransactionObjectArgument, coinType: string, recipient?: string) {
+    if (recipient != null) {
+      tx.transferObjects([coin], tx.pure(recipient))
+    } else {
+      TransactionUtil.buildTransferCoinToSender(sdk, tx, coin, coinType)
+    }
   }
 }

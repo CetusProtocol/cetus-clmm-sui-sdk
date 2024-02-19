@@ -122,7 +122,7 @@ describe('Test Router V2 Module', () => {
           for (const orderSplit of [true, false]) {
             for (const externalRouter of [true, false]) {
               const result = await (await sdk.RouterV2.getBestRouter(coinList[i], coinList[j], amount, byAmountIn, 0, '', undefined, undefined, orderSplit, externalRouter)).result
-              console.log(`Fix ${amount} as input amount, orderSplit: ${orderSplit}, externalRouter: ${externalRouter}`)
+              console.log(`Fix ${amount} as input amount,output: ${result.outputAmount} orderSplit: ${orderSplit}, externalRouter: ${externalRouter}`)
 
               if (a === 3 && coinList[i] === TestnetCoin.SUI || a === 4) {
                 assert(!verifyBalanceEnough(allCoinAsset, coinList[i], amount.toString()), "Use total balance of sui test failed.")
@@ -138,15 +138,15 @@ describe('Test Router V2 Module', () => {
                 const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, result, allCoinAsset, '', 0)
                 const simulateRes = await execTx(sdk, true, payload, sendKeypair)!
                 if (result?.outputAmount === 0) {
-                  assert(simulateRes.effects!.status.status === "failure", "Amount out equals 0 should failed.")
                   console.log("Router swap when amount out equals 0 test passed.")
+                  assert(simulateRes.effects!.status.status === "failure", "Amount out equals 0 should failed.")
                 } else {
-                  assert(simulateRes.effects!.status.status === "success", "Common router swap test failed.")
                   console.log("Common rotuer swap test passed.")
+                  assert(simulateRes.effects!.status.status === "success", "Common router swap test failed.")
                 }
               } else {
-                assert(result.isExceed, "Result should be exceed.")
                 console.log(`result exceed`)
+                assert(result.isExceed, "Result should be exceed.")
               }
             }
           }
@@ -190,16 +190,17 @@ describe('Test Router V2 Module', () => {
   })
 
   test('Test specific router swap', async () => {
-    const coin_a = TestnetCoin.CETUS
-    const coin_b = TestnetCoin.USDC
-    const amount = 1
-    const byAmountIn = false
+    const coin_a = TestnetCoin.SUI
+    const coin_b = TestnetCoin.HASUI
+    const amount = 8143301107
+    const byAmountIn = true
     const slippage = 0
 
-    const result = await (await sdk.RouterV2.getBestRouter(coin_a, coin_b, amount, byAmountIn, slippage, '', undefined, undefined, false, true)).result
+    const { result, version } = await (await sdk.RouterV2.getBestRouter(coin_a, coin_b, amount, byAmountIn, slippage, '', undefined, undefined, false, true))
+    console.log(result, version)
     if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coin_a, result.inputAmount.toString())) {
       const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, result, allCoinAsset, '', 0.01)
-      const simulateRes = await execTx(sdk, true, payload, sendKeypair)!
+      const simulateRes = await execTx(sdk, false, payload, sendKeypair)!
       if (result?.outputAmount === 0) {
         assert(simulateRes.effects!.status.status === "failure", "Amount out equals 0 should failed.")
         console.log("Router swap when amount out equals 0 test passed.")
@@ -215,11 +216,11 @@ describe('Test Router V2 Module', () => {
   test('Test lp change for specific router swap', async () => {
     const coin_a = TestnetCoin.SUI
     const coin_b = TestnetCoin.HASUI
-    const amount = 15000000000
+    const amount = 150000000
     const byAmountIn = true
     const slippage = 0.001
 
-    const result = await (await sdk.RouterV2.getBestRouter(coin_a, coin_b, amount, byAmountIn, slippage, '', undefined, undefined, false, true,[
+    const result = await (await sdk.RouterV2.getBestRouter(coin_a, coin_b, amount, byAmountIn, slippage, '', undefined, undefined, false, true, [
       {
         "pool_id": "0x473ab0306ff8952d473b10bb4c3516c632edeb0725f6bb3cda6c474d0ffc883f",
         "tick_lower": -2,
@@ -228,7 +229,7 @@ describe('Test Router V2 Module', () => {
         "is_increase": false
       }
     ])).result
-    console.log("结果： " , result);
+    console.log("结果： ", result);
 
     if (!result?.isExceed && verifyBalanceEnough(allCoinAsset, coin_a, result.inputAmount.toString())) {
       const payload = await TransactionUtil.buildAggregatorSwapTransaction(sdk, result, allCoinAsset, '', 0.01)
@@ -327,6 +328,16 @@ describe('Test Router V2 Module', () => {
       console.log(`${result?.isExceed ? 'result exceed' : !verifyBalanceEnough(allCoinAsset, coin_a, amount.toString()) ? 'balance insufficient' : 'unknown error'}`)
     }
   })
+
+  test("Transfer zero coin", async () => {
+    const coinType = TestnetCoin.HASUI
+    const tx = new TransactionBlock()
+
+    const coin = tx.object('0x721729c8cb713aadce7f4f4f4ece2f72a1574f75e0e809a064ede10f55f7cee4')
+    const payload = await TransactionUtil.buildTransferCoin(sdk, tx, coin, coinType)
+    const simulateRes = await execTx(sdk, false, tx, sendKeypair)!
+  })
+
 })
 
 export async function execTx(sdk: CetusClmmSDK, simulate: boolean, payload: TransactionBlock, sendKeypair: Ed25519Keypair | Secp256k1Keypair) {
@@ -336,7 +347,7 @@ export async function execTx(sdk: CetusClmmSDK, simulate: boolean, payload: Tran
       transactionBlock: payload,
       sender: simulationAccount.address,
     })
-    // console.log('simulateRes', simulateRes)
+    console.log('simulateRes', simulateRes)
 
     return simulateRes
   } else {

@@ -6,6 +6,12 @@ export enum MathErrorCode {
   MulShiftLeftOverflow = `MulShiftLeftOverflow`,
   DivideByZero = `DivideByZero`,
   UnsignedIntegerOverflow = `UnsignedIntegerOverflow`,
+  InvalidCoinAmount = `InvalidCoinAmount`,
+  InvalidLiquidityAmount = `InvalidLiquidityAmount`,
+  InvalidReserveAmount = `InvalidReserveAmount`,
+  InvalidSqrtPrice = `InvalidSqrtPrice`,
+  NotSupportedThisCoin = `NotSupportedThisCoin`,
+  InvalidTwoTickIndex = `InvalidTwoTickIndex`,
 }
 
 export enum CoinErrorCode {
@@ -16,7 +22,6 @@ export enum CoinErrorCode {
 
 export enum SwapErrorCode {
   InvalidSqrtPriceLimitDirection = `InvalidSqrtPriceLimitDirection`,
-  SqrtPriceOutOfBounds = `SqrtPriceOutOfBounds`,
   ZeroTradableAmount = `ZeroTradableAmount`,
   AmountOutBelowMinimum = `AmountOutBelowMinimum`,
   AmountInAboveMaximum = `AmountInAboveMaximum`,
@@ -24,13 +29,58 @@ export enum SwapErrorCode {
   TickArraySequenceInvalid = `TickArraySequenceInvalid`,
   TickArrayCrossingAboveMax = `TickArrayCrossingAboveMax`,
   TickArrayIndexNotInitialized = `TickArrayIndexNotInitialized`,
+  ParamsLengthNotEqual = `ParamsLengthNotEqual`,
+}
+
+export enum PositionErrorCode {
+  InvalidTickEvent = `InvalidTickEvent`,
+  InvalidPositionObject = `InvalidPositionObject`,
+  InvalidPositionRewardObject = `InvalidPositionRewardObject`,
 }
 
 export enum PoolErrorCode {
   InvalidCoinTypeSequence = `InvalidCoinTypeSequence`,
+  InvalidTickIndex = `InvalidTickIndex`,
+  InvalidPoolObject = `InvalidPoolObject`,
+  InvalidTickObjectId = `InvalidTickObjectId`,
+  InvalidTickObject = `InvalidTickObject`,
+  InvalidTickFields = `InvalidTickFields`,
 }
 
-export type ClmmpoolsErrorCode = MathErrorCode | SwapErrorCode | CoinErrorCode | PoolErrorCode
+export enum PartnerErrorCode {
+  NotFoundPartnerObject = `NotFoundPartnerObject`,
+  InvalidParnterRefFeeFields = `InvalidParnterRefFeeFields`,
+}
+
+export enum ConfigErrorCode {
+  InvalidConfig = `InvalidConfig`,
+  InvalidConfigHandle = `InvalidConfigHandle`,
+  InvalidSimulateAccount = `InvalidSimulateAccount`,
+}
+
+export enum UtilsErrorCode {
+  InvalidSendAddress = `InvalidSendAddress`,
+  InvalidRecipientAddress = `InvalidRecipientAddress`,
+  InvalidRecipientAndAmountLength = `InvalidRecipientAndAmountLength`,
+  InsufficientBalance = `InsufficientBalance`,
+  InvalidTarget = `InvalidTarget`,
+  InvalidTransactionBuilder = `InvalidTransactionBuilder`,
+}
+
+export enum RouterErrorCode {
+  InvalidCoin = `InvalidCoin`,
+  NotFoundPath = `NotFoundPath`,
+  NoDowngradeNeedParams = `NoDowngradeNeedParams`,
+  InvalidSwapCountUrl = `InvalidSwapCountUrl`,
+  InvalidTransactionBuilder = `InvalidTransactionBuilder`,
+}
+
+export enum TypesErrorCode {
+  InvalidType = `InvalidType`,
+}
+
+export type ClmmpoolsErrorCode = MathErrorCode | SwapErrorCode | CoinErrorCode | PoolErrorCode |
+  PositionErrorCode | PartnerErrorCode | ConfigErrorCode | UtilsErrorCode | RouterErrorCode | TypesErrorCode
 
 export class ClmmpoolsError extends Error {
   override message: string

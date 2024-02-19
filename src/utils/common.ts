@@ -18,6 +18,7 @@ import {
   getObjectNotExistsResponse,
   getObjectOwner,
 } from './objects'
+import { ClmmpoolsError, PoolErrorCode, PositionErrorCode } from '../errors/errors'
 
 /**
  * Converts an amount to a decimal value, based on the number of decimals specified.
@@ -30,6 +31,7 @@ export function toDecimalsAmount(amount: number | string, decimals: number | str
 
   return Number(d(amount).mul(mul))
 }
+
 /**
  * Converts a bigint to an unsigned integer of the specified number of bits.
  * @param {bigint} int - The bigint to convert.
@@ -39,6 +41,7 @@ export function toDecimalsAmount(amount: number | string, decimals: number | str
 export function asUintN(int: bigint, bits = 32) {
   return BigInt.asUintN(bits, BigInt(int)).toString()
 }
+
 /**
  * Converts a bigint to a signed integer of the specified number of bits.
  * @param {bigint} int - The bigint to convert.
@@ -48,6 +51,7 @@ export function asUintN(int: bigint, bits = 32) {
 export function asIntN(int: bigint, bits = 32) {
   return Number(BigInt.asIntN(bits, BigInt(int)))
 }
+
 /**
  * Converts an amount in decimals to its corresponding numerical value.
  * @param {number|string} amount - The amount to convert.
@@ -59,6 +63,7 @@ export function fromDecimalsAmount(amount: number | string, decimals: number | s
 
   return Number(d(amount).div(mul))
 }
+
 /**
  * Converts a secret key in string or Uint8Array format to an Ed25519 key pair.
  * @param {string|Uint8Array} secretKey - The secret key to convert.
@@ -74,6 +79,7 @@ export function secretKeyToEd25519Keypair(secretKey: string | Uint8Array, ecode:
   const hexKey = ecode === 'hex' ? fromHEX(secretKey) : fromB64(secretKey)
   return Ed25519Keypair.fromSecretKey(hexKey)
 }
+
 /**
  * Converts a secret key in string or Uint8Array format to a Secp256k1 key pair.
  * @param {string|Uint8Array} secretKey - The secret key to convert.
@@ -88,6 +94,7 @@ export function secretKeyToSecp256k1Keypair(secretKey: string | Uint8Array, ecod
   const hexKey = ecode === 'hex' ? fromHEX(secretKey) : fromB64(secretKey)
   return Secp256k1Keypair.fromSecretKey(hexKey)
 }
+
 /**
  * Builds a pool name based on two coin types and tick spacing.
  * @param {string} coin_type_a - The type of the first coin.
@@ -100,6 +107,7 @@ function buildPoolName(coin_type_a: string, coin_type_b: string, tick_spacing: s
   const coinNameB = extractStructTagFromType(coin_type_b).name
   return `${coinNameA}-${coinNameB}[${tick_spacing}]`
 }
+
 /**
  * Builds a Pool object based on a SuiObjectResponse.
  * @param {SuiObjectResponse} objects - The SuiObjectResponse containing information about the pool.
@@ -108,7 +116,11 @@ function buildPoolName(coin_type_a: string, coin_type_b: string, tick_spacing: s
 export function buildPool(objects: SuiObjectResponse): Pool {
   const type = getMoveObjectType(objects) as string
   const formatType = extractStructTagFromType(type)
-  const fields = getObjectFields(objects) as any
+  const fields = getObjectFields(objects)
+  if (fields == null) {
+    throw new ClmmpoolsError(`Pool id ${getObjectId(objects)} not exists.`, PoolErrorCode.InvalidPoolObject)
+  }
+
   const rewarders: Rewarder[] = []
   fields.rewarder_manager.fields.rewarders.forEach((item: any) => {
     const { emissions_per_second } = item.fields
@@ -154,6 +166,7 @@ export function buildPool(objects: SuiObjectResponse): Pool {
   pool.name = buildPoolName(pool.coinTypeA, pool.coinTypeB, pool.tickSpacing)
   return pool
 }
+
 /**
  * Builds an NFT object based on a response containing information about the NFT.
  * @param {any} objects - The response containing information about the NFT.
@@ -185,6 +198,10 @@ export function buildNFT(objects: any): NFT {
  * @returns {Position} - The built Position object.
  */
 export function buildPosition(objects: SuiObjectResponse): Position {
+  if (objects.error != null || objects.data?.content?.dataType !== 'moveObject') {
+    throw new ClmmpoolsError(`Position not exists. Get Position error:${objects.error}`, PositionErrorCode.InvalidPositionObject)
+  }
+
   let nft: NFT = {
     creator: '',
     description: '',
@@ -273,6 +290,7 @@ export function buildPosition(objects: SuiObjectResponse): Position {
 
   return position
 }
+
 /**
  * Builds a PositionReward object based on a response containing information about the reward.
  * @param {any} fields - The response containing information about the reward.
@@ -319,12 +337,18 @@ export function buildPositionReward(fields: any): PositionReward {
   }
   return possition
 }
+
 /**
  * Builds a TickData object based on a response containing information about tick data.
+ * It must check if the response contains the required fields.
  * @param {SuiObjectResponse} objects - The response containing information about tick data.
  * @returns {TickData} - The built TickData object.
  */
 export function buildTickData(objects: SuiObjectResponse): TickData {
+  if (objects.error != null || objects.data?.content?.dataType !== 'moveObject') {
+    throw new ClmmpoolsError(`Tick not exists. Get tick data error:${objects.error}`, PoolErrorCode.InvalidTickObject)
+  }
+
   const fields = getObjectFields(objects)
 
   const valueItem = fields.value.fields.value.fields
@@ -341,21 +365,36 @@ export function buildTickData(objects: SuiObjectResponse): TickData {
 
   return possition
 }
+
 /**
  * Builds a TickData object based on a given event's fields.
  * @param {any} fields - The fields of an event.
  * @returns {TickData} - The built TickData object.
+ * @throws {Error} If any required field is missing.
  */
 export function buildTickDataByEvent(fields: any): TickData {
+  if (!fields || !fields.index || !fields.sqrt_price || !fields.liquidity_net || !fields.liquidity_gross || !fields.fee_growth_outside_a || !fields.fee_growth_outside_b) {
+    throw new ClmmpoolsError(`Invalid tick fields.`, PoolErrorCode.InvalidTickFields)
+  }
+
+  // It's assumed that asIntN is a function that converts a BigInt to an integer.
+  const index = asIntN(BigInt(fields.index.bits));
+  const sqrtPrice = new BN(fields.sqrt_price);
+  const liquidityNet = new BN(fields.liquidity_net.bits);
+  const liquidityGross = new BN(fields.liquidity_gross);
+  const feeGrowthOutsideA = new BN(fields.fee_growth_outside_a);
+  const feeGrowthOutsideB = new BN(fields.fee_growth_outside_b);
+  const rewardersGrowthOutside = fields.rewards_growth_outside || [];
+
   const tick: TickData = {
     objectId: '',
-    index: asIntN(BigInt(fields.index.bits)),
-    sqrtPrice: new BN(fields.sqrt_price),
-    liquidityNet: new BN(fields.liquidity_net.bits),
-    liquidityGross: new BN(fields.liquidity_gross),
-    feeGrowthOutsideA: new BN(fields.fee_growth_outside_a),
-    feeGrowthOutsideB: new BN(fields.fee_growth_outside_b),
-    rewardersGrowthOutside: fields.rewards_growth_outside,
+    index,
+    sqrtPrice,
+    liquidityNet,
+    liquidityGross,
+    feeGrowthOutsideA,
+    feeGrowthOutsideB,
+    rewardersGrowthOutside,
   }
 
   return tick

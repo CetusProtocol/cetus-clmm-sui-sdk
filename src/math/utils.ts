@@ -158,4 +158,45 @@ export class MathUtil {
   static isOverflow(n: BN, bit: number): boolean {
     return n.gte(TWO.pow(new BN(bit)))
   }
+
+  static sign(v: BN): number {
+    const signBit = v.testn(127) ? 1 : 0
+    return signBit
+  }
+
+  static is_neg(v: BN): boolean {
+    return this.sign(v) === 1
+  }
+
+  static abs_u128(v: BN): BN {
+    if (v.gt(ZERO)) {
+      return v
+    }
+    return this.u128_neg(v.subn(1))
+  }
+
+  static u128_neg(v: BN): BN {
+    return v.uxor(new BN('ffffffffffffffffffffffffffffffff', 16))
+  }
+
+  static neg(v: BN): BN {
+    if (this.is_neg(v)) {
+      return v.abs()
+    }
+    return this.neg_from(v)
+  }
+
+  static abs(v: BN): BN {
+    if (this.sign(v) === 0) {
+      return v
+    }
+    return this.u128_neg(v.sub(new BN(1)))
+  }
+
+  static neg_from(v: BN): BN {
+    if (v.eq(ZERO)) {
+      return v
+    }
+    return this.u128_neg(v).add(new BN(1)).or(new BN(1).shln(127))
+  }
 }

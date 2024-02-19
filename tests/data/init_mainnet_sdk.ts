@@ -20,7 +20,7 @@ const SDKConfig = {
 }
 
 export const clmm_mainnet: SdkOptions = {
-  fullRpcUrl: 'https://mainnet.suiet.app/',
+  fullRpcUrl: 'https://sui-mainnet-endpoint.blockvision.org/',
   simulationAccount: {
     address: '0x326ce9894f08dcaa337fa232641cc34db957aec9ff6614c1186bc9a7508df0bb',
   },
@@ -37,7 +37,7 @@ export const clmm_mainnet: SdkOptions = {
   },
   integrate: {
     package_id: '0x996c4d9480708fb8b92aa7acf819fb0497b5ec8e65ba06601cae2fb6db3312c3',
-    published_at: '0x12fc0b1791df55bf2c91921f12152659c4a897fa6867144b5b3939a3ea004c46 ',
+    published_at: '0x12fc0b1791df55bf2c91921f12152659c4a897fa6867144b5b3939a3ea004c46',
     version: 2,
   },
   deepbook: {

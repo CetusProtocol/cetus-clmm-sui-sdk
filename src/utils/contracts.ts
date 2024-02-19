@@ -114,6 +114,7 @@ export function fixSuiObjectId(value: string): string {
   }
   return value
 }
+
 /**
  * Fixes and normalizes a coin type by removing or keeping the prefix.
  *
@@ -130,6 +131,7 @@ export const fixCoinType = (coinType: string, removePrefix = true) => {
   }
   return `${normalizeAddress}::${arr.join('::')}`
 }
+
 /**
  * Recursively traverses the given data object and patches any string values that represent Sui object IDs.
  *

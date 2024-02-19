@@ -135,8 +135,13 @@ export function getObjectDisplay(resp: SuiObjectResponse): DisplayFieldsResponse
   return display
 }
 
-export function getObjectFields(resp: SuiObjectResponse | SuiObjectData): any | undefined {
-  const fields = getMoveObject(resp)?.fields
+/**
+ * Get the fields of a sui object response or data. The dataType of the object must be moveObject.
+ * @param {SuiObjectResponse | SuiObjectData}object The object to get the fields from.
+ * @returns {any} The fields of the object.
+ */
+export function getObjectFields(object: SuiObjectResponse | SuiObjectData): any {
+  const fields = getMoveObject(object)?.fields
   if (fields) {
     if ('fields' in fields) {
       return fields.fields
@@ -150,6 +155,11 @@ export interface SuiObjectDataWithContent extends SuiObjectData {
   content: SuiParsedData
 }
 
+/**
+ * Return hasPublicTransfer of a move object.
+ * @param {SuiObjectResponse | SuiObjectData}data 
+ * @returns 
+ */
 export function hasPublicTransfer(data: SuiObjectResponse | SuiObjectData): boolean {
   return getMoveObject(data)?.hasPublicTransfer ?? false
 }

@@ -7,3 +7,4 @@ package.test.json
 /examples/node_modules
 /examples/package-lock.json
 /examples/*.js
+/.husky

@@ -1,8 +1,6 @@
 import { buildSdk, position_object_id, buildTestAccount, pool_object_id } from './data/init_test_data'
 import 'isomorphic-fetch'
-import BN from 'bn.js'
 import { CollectRewarderParams } from '../src'
-import { RawSigner, getTransactionEffects } from '@mysten/sui.js'
 
 const poolObjectId = pool_object_id
 describe('Rewarder Module', () => {
@@ -48,9 +46,8 @@ describe('Rewarder Module', () => {
   })
 
   test('collectPoolRewarderTransactionPayload', async () => {
-    const account = buildTestAccount()
-    const signer = new RawSigner(account, sdk.fullClient)
-    sdk.senderAddress = account.getPublicKey().toSuiAddress()
+    const sendKeypair = buildTestAccount()
+    sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()
 
     const pool = await sdk.Pool.getPool(poolObjectId)
 
@@ -72,7 +69,7 @@ describe('Rewarder Module', () => {
 
     const collectRewarderPayload = await sdk.Rewarder.collectRewarderTransactionPayload(collectRewarderParams)
 
-
-    const transferTxn: any = await signer.signAndExecuteTransactionBlock({ transactionBlock: collectRewarderPayload })
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, collectRewarderPayload)
+    console.log('collectRewarderPayload: ', JSON.stringify(transferTxn, null, 2))
   })
 })

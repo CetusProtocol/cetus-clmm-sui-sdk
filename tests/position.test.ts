@@ -1,19 +1,18 @@
 import { TickMath } from '../src/math/tick'
 import BN from 'bn.js'
-import { buildSdk, buildTestAccount, buildTestPool, buildTestPosition, pool_object_id, position_object_id } from './data/init_test_data'
+import { SdkEnv, USDT_USDC_POOL_10, buildSdk, buildTestAccount, buildTestPool, buildTestPosition, pool_object_id, position_object_id } from './data/init_test_data'
 import { ClmmPoolUtil } from '../src/math/clmm'
 import { Percentage } from '../src/math/percentage'
 import { adjustForCoinSlippage } from '../src/math/position'
 import 'isomorphic-fetch'
 import { printTransaction } from '../src/utils/transaction-util'
-import { AddLiquidityFixTokenParams, AddLiquidityParams, Position, RemoveLiquidityParams, d, toDecimalsAmount } from '../src'
-import Decimal from 'decimal.js'
+import { Position } from '../src'
 import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
 
 let sendKeypair: Ed25519Keypair
 
 describe('Position add Liquidity Module', () => {
-  const sdk = buildSdk()
+  const sdk = buildSdk(SdkEnv.testnet)
 
   beforeEach(async () => {
     sendKeypair = buildTestAccount()
@@ -48,9 +47,9 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('fetchPositionRewardList', async () => {
-    const pool = await sdk.Pool.getPool(pool_object_id)
+    const pool = await sdk.Pool.getPool("0xd40feebfcf7935d40c9e82c9cb437442fee6b70a4be84d94764d0d89bb28ab07")
     const res = await sdk.Pool.fetchPositionRewardList({
-      pool_id: pool.poolAddress,
+      pool_id: "0xd40feebfcf7935d40c9e82c9cb437442fee6b70a4be84d94764d0d89bb28ab07",
       coinTypeA: pool.coinTypeA,
       coinTypeB: pool.coinTypeB,
     })
@@ -59,7 +58,7 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('open position', async () => {
-    const pool = await buildTestPool(sdk, pool_object_id)
+    const pool = await buildTestPool(sdk, USDT_USDC_POOL_10)
     const lowerTick = TickMath.getPrevInitializableTickIndex(
       new BN(pool.current_tick_index).toNumber(),
       new BN(pool.tickSpacing).toNumber()
@@ -78,13 +77,13 @@ describe('Position add Liquidity Module', () => {
     })
 
     const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, openPositionTransactionPayload)
-    console.log('open position: ', transferTxn)
+    console.log('open position: ', JSON.stringify(transferTxn, null, 2))
   })
 
   test('close position', async () => {
-    const poolObjectId = pool_object_id
-    const pool = await buildTestPool(sdk, poolObjectId)
-    const position = (await buildTestPosition(sdk, position_object_id)) as Position
+    const pool = await buildTestPool(sdk, USDT_USDC_POOL_10)
+    const positionObjectId = '0x44fec2821d23b30dd4b90850d25f049ed9b8f3b95df9f944b680bbde05557094'
+    const position = (await buildTestPosition(sdk, positionObjectId)) as Position
 
     const lowerTick = Number(position.tick_lower_index)
     const upperTick = Number(position.tick_upper_index)
@@ -99,10 +98,10 @@ describe('Position add Liquidity Module', () => {
     const coinAmounts = ClmmPoolUtil.getCoinAmountFromLiquidity(liquidity, curSqrtPrice, lowerSqrtPrice, upperSqrtPrice, false)
     const { tokenMaxA, tokenMaxB } = adjustForCoinSlippage(coinAmounts, slippageTolerance, false)
 
-    const rewards: any[] = await sdk.Rewarder.posRewardersAmount(poolObjectId, pool.position_manager.positions_handle, position_object_id)
+    const rewards = await sdk.Rewarder.fetchPositionRewarders(pool, positionObjectId)
     console.log('rewards: ', rewards)
 
-    const rewardCoinTypes = rewards.filter((item) => Number(item.amount_owed) > 0).map((item) => item.coin_address)
+    const rewardCoinTypes = rewards.map((item) => item.coin_address)
 
     const closePositionTransactionPayload = await sdk.Position.closePositionTransactionPayload({
       coinTypeA: pool.coinTypeA,
@@ -111,7 +110,7 @@ describe('Position add Liquidity Module', () => {
       min_amount_b: tokenMaxB.toString(),
       rewarder_coin_types: [...rewardCoinTypes],
       pool_id: pool.poolAddress,
-      pos_id: position_object_id,
+      pos_id: positionObjectId,
       collect_fee: true,
     })
 

@@ -1,6 +1,7 @@
 import BN from 'bn.js'
 import { NFT, SuiAddressType, SuiObjectIdType } from './sui'
 import { TickData } from './clmmpool'
+import { ClmmpoolsError, ConfigErrorCode } from '../errors/errors'
 /**
  * Enumerates the possible status values of a position within a liquidity mining module.
  */
@@ -932,7 +933,7 @@ export type RewarderAmountOwed = {
  */
 export function getPackagerConfigs<T>(packageObj: Package<T>) {
   if (packageObj.config === undefined) {
-    throw Error(`package: ${packageObj.package_id}  not config in sdk SdkOptions`)
+    throw new ClmmpoolsError(`package: ${packageObj.package_id}  not config in sdk SdkOptions`, ConfigErrorCode.InvalidConfig)
   }
   return packageObj.config
 }

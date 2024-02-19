@@ -19,6 +19,7 @@ import {
   buildPositionReward,
   cacheTime24h,
   cacheTime5min,
+  checkInvalidSuiAddress,
   extractStructTagFromType,
   getFutureTime,
 } from '../utils'
@@ -36,6 +37,7 @@ import { IModule } from '../interfaces/IModule'
 import { getObjectFields } from '../utils/objects'
 import { CollectFeesQuote } from '../math'
 import { FetchPosFeeParams } from './rewarderModule'
+import { ClmmpoolsError, ConfigErrorCode, PoolErrorCode, UtilsErrorCode } from '../errors/errors'
 
 /**
  * Helper class to help interact with clmm position with a position router interface.
@@ -245,7 +247,7 @@ export class PositionModule implements IModule {
    * @param {FetchPosFeeParams[]} params  An array of FetchPosFeeParams objects containing the target addresses and their corresponding amounts.
    * @returns {Promise<CollectFeesQuote[]>} A Promise that resolves with the fetched position fee amount for the specified addresses.
    */
-  private async fetchPosFeeAmount(params: FetchPosFeeParams[]): Promise<CollectFeesQuote[]> {
+  public async fetchPosFeeAmount(params: FetchPosFeeParams[]): Promise<CollectFeesQuote[]> {
     const { clmm_pool, integrate, simulationAccount } = this.sdk.sdkOptions
     const tx = new TransactionBlock()
 
@@ -263,10 +265,18 @@ export class PositionModule implements IModule {
       })
     }
 
+    if (!checkInvalidSuiAddress(simulationAccount.address)) {
+      throw new ClmmpoolsError('this config simulationAccount is not set right', ConfigErrorCode.InvalidSimulateAccount)
+    }
+
     const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
       transactionBlock: tx,
       sender: simulationAccount.address,
     })
+
+    if (simulateRes.error != null) {
+      throw new ClmmpoolsError(`fetch position fee error code: ${simulateRes.error ?? 'unknown error'}, please check config and postion and pool object ids`, PoolErrorCode.InvalidPoolObject)
+    }
 
     const valueData: any = simulateRes.events?.filter((item: any) => {
       return extractStructTagFromType(item.type).name === `FetchPositionFeesEvent`
@@ -334,8 +344,8 @@ export class PositionModule implements IModule {
       curSqrtPrice: BN
     }
   ): Promise<TransactionBlock> {
-    if (this._sdk.senderAddress.length === 0) {
-      throw Error('this config sdk senderAddress is empty')
+    if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
+      throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
     }
     const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
 
@@ -358,9 +368,10 @@ export class PositionModule implements IModule {
    */
   async createAddLiquidityPayload(params: AddLiquidityParams): Promise<TransactionBlock> {
     const { integrate, clmm_pool } = this._sdk.sdkOptions
-    if (this._sdk.senderAddress.length === 0) {
-      throw Error('this config sdk senderAddress is empty')
+    if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
+      throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
     }
+
     const tick_lower = asUintN(BigInt(params.tick_lower)).toString()
     const tick_upper = asUintN(BigInt(params.tick_upper)).toString()
 
@@ -429,6 +440,10 @@ export class PositionModule implements IModule {
    * @returns {TransactionBlock}
    */
   async removeLiquidityTransactionPayload(params: RemoveLiquidityParams): Promise<TransactionBlock> {
+    if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
+      throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
+    }
+
     const { clmm_pool, integrate } = this.sdk.sdkOptions
 
     const functionName = 'remove_liquidity'
@@ -466,6 +481,10 @@ export class PositionModule implements IModule {
    * @returns {TransactionBlock}
    */
   async closePositionTransactionPayload(params: ClosePositionParams): Promise<TransactionBlock> {
+    if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
+      throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
+    }
+
     const { clmm_pool, integrate } = this.sdk.sdkOptions
 
     let tx = new TransactionBlock()
@@ -528,6 +547,10 @@ export class PositionModule implements IModule {
    * @returns {TransactionBlock}
    */
   async collectFeeTransactionPayload(params: CollectFeeParams): Promise<TransactionBlock> {
+    if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
+      throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
+    }
+
     const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress, null, true)
     const tx = new TransactionBlock()
 
@@ -569,6 +592,9 @@ export class PositionModule implements IModule {
    */
   async calculateFee(params: CollectFeeParams) {
     const paylod = await this.collectFeeTransactionPayload(params)
+    if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
+      throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
+    }
 
     const res = await this._sdk.fullClient.devInspectTransactionBlock({
       transactionBlock: paylod,

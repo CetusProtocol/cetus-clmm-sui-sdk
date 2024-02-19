@@ -5,6 +5,7 @@ import { asIntN, d } from '../utils'
 import { MAX_SQRT_PRICE, MIN_SQRT_PRICE } from '../types/constants'
 import Decimal from '../utils/decimal'
 import { MathUtil } from './utils'
+import { ClmmpoolsError, MathErrorCode } from '../errors/errors'
 
 const BIT_PRECISION = 14
 const LOG_B_2_X32 = '59543866431248'
@@ -179,7 +180,7 @@ export class TickMath {
 
   static sqrtPriceX64ToTickIndex(sqrtPriceX64: BN): number {
     if (sqrtPriceX64.gt(new BN(MAX_SQRT_PRICE)) || sqrtPriceX64.lt(new BN(MIN_SQRT_PRICE))) {
-      throw new Error('Provided sqrtPrice is not within the supported sqrtPrice range.')
+      throw new ClmmpoolsError('Provided sqrtPrice is not within the supported sqrtPrice range.', MathErrorCode.InvalidSqrtPrice)
     }
 
     const msb = sqrtPriceX64.bitLength() - 1

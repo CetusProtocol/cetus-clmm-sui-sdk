@@ -2,11 +2,12 @@ import BN from 'bn.js'
 import { Graph, GraphEdge, GraphVertex } from '@syntsugar/cc-graph'
 import { TransactionBlock } from '@mysten/sui.js/transactions'
 import { PreSwapWithMultiPoolParams } from '../types'
-import { extractStructTagFromType, printTransaction } from '../utils'
+import { checkInvalidSuiAddress, extractStructTagFromType } from '../utils'
 import { ClmmExpectSwapModule, ClmmIntegrateRouterModule, SuiAddressType } from '../types/sui'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { U64_MAX, ZERO } from '../math'
+import { ClmmpoolsError, ConfigErrorCode, RouterErrorCode } from '../errors/errors'
 
 // coin node in coin map
 export interface CoinNode {
@@ -97,7 +98,6 @@ export type PriceResult = {
   coinTypeC: SuiAddressType | undefined
   createTxParams: SwapWithRouterParams | undefined
 }
-
 
 // return the pool with tvl info by statistics API
 type PoolWithTvl = {
@@ -331,7 +331,7 @@ export class RouterModule implements IModule {
     const toCoin = this.tokenInfo(to)
 
     if (fromCoin === undefined || toCoin === undefined) {
-      throw new Error('From/To coin is undefined')
+      throw new ClmmpoolsError('From/To coin is undefined', RouterErrorCode.InvalidCoin)
     }
 
     const fromVertex = this.graph.getVertexByKey(fromCoin.address)
@@ -341,7 +341,7 @@ export class RouterModule implements IModule {
     const allPaths = Array.from(pathIters)
 
     if (allPaths.length === 0) {
-      throw new Error('No find valid path in coin graph')
+      throw new ClmmpoolsError('No find valid path in coin graph', RouterErrorCode.NotFoundPath)
     }
 
     let preRouterSwapParams: PreRouterSwapParams[] = []
@@ -488,7 +488,7 @@ export class RouterModule implements IModule {
         }
         return result
       }
-      throw new Error('No parameters available for service downgrade')
+      throw new ClmmpoolsError('No parameters available for service downgrade', RouterErrorCode.NoDowngradeNeedParams)
     }
 
     const preSwapResult = await this.preRouterSwapA2B2C(preRouterSwapParams.slice(0, 16))
@@ -653,6 +653,9 @@ export class RouterModule implements IModule {
       }
     }
 
+    if (!checkInvalidSuiAddress(simulationAccount.address)) {
+      throw new ClmmpoolsError('this config simulationAccount is not set right', ConfigErrorCode.InvalidSimulateAccount)
+    }
     const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
       transactionBlock: tx,
       sender: simulationAccount.address,
@@ -735,19 +738,19 @@ export class RouterModule implements IModule {
     try {
       response = await fetch(swapCountUrl)
     } catch (e) {
-      throw new Error(`Failed to get pool list with liquidity from ${swapCountUrl}.`)
+      throw new ClmmpoolsError(`Failed to get pool list with liquidity from ${swapCountUrl}.`, RouterErrorCode.InvalidSwapCountUrl)
     }
 
     let json
     try {
       json = await response.json()
     } catch (e) {
-      throw new Error(`Failed tp [arse response from ${swapCountUrl}].`)
+      throw new ClmmpoolsError(`Failed tp [arse response from ${swapCountUrl}].`, RouterErrorCode.InvalidSwapCountUrl)
     }
 
     if (json.code !== 200) {
-      throw new Error(
-        `Failed to get pool list from ${swapCountUrl}. Statu code is ${json.code}.`
+      throw new ClmmpoolsError(
+        `Failed to get pool list from ${swapCountUrl}. Statu code is ${json.code}.`, RouterErrorCode.InvalidSwapCountUrl
       )
     }
 

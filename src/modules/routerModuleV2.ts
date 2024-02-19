@@ -203,11 +203,8 @@ export class RouterModuleV2 implements IModule {
       )}&sender_address=''&request_id=${encodeURIComponent(uuidv4())}
       `
     }
-    console.log({ apiUrl, options })
 
     result = await this.fetchAndParseData(apiUrl, options)
-
-    console.log({ result })
 
     if (result?.isTimeout || result == null) {
       const priceResult: any = await this.sdk.Router.price(

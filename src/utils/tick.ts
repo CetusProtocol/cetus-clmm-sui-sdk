@@ -7,8 +7,7 @@ import { MIN_TICK_INDEX, MAX_TICK_INDEX } from '../types/constants'
 export class TickUtil {
   /**
    * Get min tick index.
-   *
-   * @param tick_spacing - tick spacing
+   * @param tick_spacing tick spacing
    * @retruns min tick index
    */
   static getMinIndex(tickSpacing: number): number {
@@ -47,6 +46,16 @@ export function getNearestTickByTick(tickIndex: number, tickSpacing: number): nu
   return tickIndex + mod
 }
 
+/**
+ * Calculate reward amount in tick range.
+ * @param {Pool}pool Pool object.
+ * @param {TickData}tickLower Tick lower data.
+ * @param {TickData}tickUpper Tick upper data.
+ * @param {number}tickLowerIndex Tick lower index.
+ * @param {number}tickUpperIndex Tick upper index. 
+ * @param {BN[]}growthGlobal 
+ * @returns 
+ */
 export function getRewardInTickRange(
   pool: Pool,
   tickLower: TickData,

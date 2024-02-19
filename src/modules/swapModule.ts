@@ -20,8 +20,9 @@ import { IModule } from '../interfaces/IModule'
 import { SwapUtils } from '../math/swap'
 import { computeSwap } from '../math/clmm'
 import { TickMath } from '../math/tick'
-import { d } from '../utils'
+import { checkInvalidSuiAddress, d } from '../utils'
 import { SplitPath } from './routerModuleV2'
+import { ClmmpoolsError, ConfigErrorCode, SwapErrorCode } from '../errors/errors'
 
 export const AMM_SWAP_MODULE = 'amm_swap'
 export const POOL_STRUCT = 'Pool'
@@ -102,32 +103,6 @@ export class SwapModule implements IModule {
     return cprice.minus(rate).div(cprice).mul(100)
   }
 
-  private async calculateFee(fromType: string, pool: Pool, from_amount: string, raw_amount_limit?: string) {
-    const coinTypes = await this.sdk.Token.getTokenListByCoinTypes([pool.coinTypeA, pool.coinTypeB])
-    const decimalsA = coinTypes[pool.coinTypeA].decimals
-    const decimalsB = coinTypes[pool.coinTypeB].decimals
-    // 1.575318 = coinTypeB/coinTypeA
-    const currPrice = TickMath.sqrtPriceX64ToPrice(new BN(pool.current_sqrt_price), decimalsA, decimalsB)
-    const feeTier = d(pool.fee_rate).div(10000).div(100)
-
-    const a2b = fromType === pool.coinTypeA
-
-    console.log({ a2b, feeTier })
-
-    const fee = d(from_amount).mul(feeTier)
-    return { fee, to_amount: raw_amount_limit, currPrice, to_type: a2b ? pool.coinTypeB : pool.coinTypeA, decimalsA, decimalsB }
-  }
-
-  private changeAmount(a2b: boolean, from_amount: string, curr_price: string, subDecimals: number) {
-    let to_amount
-    if (a2b) {
-      to_amount = d(from_amount).mul(curr_price)
-    } else {
-      to_amount = d(from_amount).div(curr_price)
-    }
-    return to_amount.div(10 ** subDecimals)
-  }
-
   /**
    * Performs a pre-swap with multiple pools.
    *
@@ -148,10 +123,16 @@ export class SwapModule implements IModule {
       })
     }
 
+    if (!checkInvalidSuiAddress(simulationAccount.address)) {
+      throw new ClmmpoolsError('this config simulationAccount is not set right', ConfigErrorCode.InvalidSimulateAccount)
+    }
     const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
       transactionBlock: tx,
       sender: simulationAccount.address,
     })
+    if (simulateRes.error != null) {
+      throw new ClmmpoolsError(`pre swap with multi pools error code: ${simulateRes.error ?? 'unknown error'}, please check config and params`, ConfigErrorCode.InvalidConfig)
+    }
 
     const valueData: any = simulateRes.events?.filter((item: any) => {
       return extractStructTagFromType(item.type).name === `CalculatedSwapResultEvent`
@@ -161,7 +142,7 @@ export class SwapModule implements IModule {
     }
 
     if (valueData.length !== params.poolAddresses.length) {
-      throw new Error('valueData.length !== params.pools.length')
+      throw new ClmmpoolsError('valueData.length !== params.pools.length', SwapErrorCode.ParamsLengthNotEqual)
     }
 
     let tempMaxAmount = params.byAmountIn ? ZERO : U64_MAX
@@ -218,10 +199,17 @@ export class SwapModule implements IModule {
       arguments: args,
       typeArguments,
     })
+
+    if (!checkInvalidSuiAddress(simulationAccount.address)) {
+      throw new ClmmpoolsError('this config simulationAccount is not set right', ConfigErrorCode.InvalidSimulateAccount)
+    }
     const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
       transactionBlock: tx,
       sender: simulationAccount.address,
     })
+    if (simulateRes.error != null) {
+      throw new ClmmpoolsError(`preswap error code: ${simulateRes.error ?? 'unknown error'}, please check config and params`, ConfigErrorCode.InvalidConfig)
+    }
 
     const valueData: any = simulateRes.events?.filter((item: any) => {
       return extractStructTagFromType(item.type).name === `CalculatedSwapResultEvent`
@@ -269,7 +257,6 @@ export class SwapModule implements IModule {
    * Calculates the rates for a swap.
    * @param {CalculateRatesParams} params The parameters for the calculation.
    * @returns {CalculateRatesResult} The results of the calculation.
-   * @deprecated This method is deprecated and may be removed in future versions. Use `sdk.Swap.preswap()` instead.
    */
   calculateRates(params: CalculateRatesParams): CalculateRatesResult {
     const { currentPool } = params
@@ -290,10 +277,8 @@ export class SwapModule implements IModule {
 
     let isExceed = false
     if (params.byAmountIn) {
-      console.log(swapResult.amountIn.toString(), params.amount.toString(), params.byAmountIn)
       isExceed = swapResult.amountIn.lt(params.amount)
     } else {
-      console.log(swapResult.amountOut.toString(), params.amount.toString(), params.byAmountIn)
       isExceed = swapResult.amountOut.lt(params.amount)
     }
     const sqrtPriceLimit = SwapUtils.getDefaultSqrtPriceLimit(params.a2b)

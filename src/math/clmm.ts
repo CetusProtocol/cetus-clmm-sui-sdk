@@ -1,5 +1,5 @@
 import BN from 'bn.js'
-import { d, toDecimalsAmount } from '../utils'
+import { asUintN, d } from '../utils'
 import { LiquidityInput } from '../types/liquidity'
 import { ClmmpoolsError, MathErrorCode, CoinErrorCode } from '../errors/errors'
 import type { ClmmpoolData, TickData } from '../types/clmmpool'
@@ -325,7 +325,7 @@ export function computeSwap(
     if (aToB && poolData.currentTickIndex < tick.index) {
       continue
     }
-    if (!aToB && poolData.currentTickIndex > tick.index) {
+    if (!aToB && poolData.currentTickIndex >= tick.index) {
       continue
     }
     if (tick === null) {
@@ -336,20 +336,33 @@ export function computeSwap(
     } else {
       targetSqrtPrice = tick.sqrtPrice
     }
+
     const stepResult = computeSwapStep(currentSqrtPrice, targetSqrtPrice, currentLiquidity, remainerAmount, poolData.feeRate, byAmountIn)
+
     if (!stepResult.amountIn.eq(ZERO)) {
       remainerAmount = byAmountIn
         ? remainerAmount.sub(stepResult.amountIn.add(stepResult.feeAmount))
         : remainerAmount.sub(stepResult.amountOut)
     }
+
     swapResult.amountIn = swapResult.amountIn.add(stepResult.amountIn)
     swapResult.amountOut = swapResult.amountOut.add(stepResult.amountOut)
     swapResult.feeAmount = swapResult.feeAmount.add(stepResult.feeAmount)
     if (stepResult.nextSqrtPrice.eq(tick.sqrtPrice)) {
-      signedLiquidityChange = aToB ? tick.liquidityNet.mul(new BN(-1)) : tick.liquidityNet
-      currentLiquidity = signedLiquidityChange.gt(ZERO)
-        ? currentLiquidity.add(signedLiquidityChange)
-        : currentLiquidity.sub(signedLiquidityChange.abs())
+      signedLiquidityChange = tick.liquidityNet.mul(new BN(-1))
+
+      if (aToB) {
+        if (MathUtil.is_neg(signedLiquidityChange)) {
+          currentLiquidity = currentLiquidity.add(new BN(asUintN(BigInt(signedLiquidityChange.toString()), 128)))
+        } else {
+          currentLiquidity = currentLiquidity.add(signedLiquidityChange)
+        }
+      } else if (MathUtil.is_neg(signedLiquidityChange)) {
+        currentLiquidity = currentLiquidity.sub(new BN(asUintN(BigInt(signedLiquidityChange.toString()), 128)))
+      } else {
+        currentLiquidity = currentLiquidity.sub(signedLiquidityChange)
+      }
+
       currentSqrtPrice = tick.sqrtPrice
     } else {
       currentSqrtPrice = stepResult.nextSqrtPrice
@@ -433,7 +446,13 @@ export class ClmmPoolUtil {
    * @param roundUp - is round up
    * @returns
    */
-  static getCoinAmountFromLiquidity(liquidity: BN, curSqrtPrice: BN, lowerSqrtPrice: BN, upperSqrtPrice: BN, roundUp: boolean): CoinAmounts {
+  static getCoinAmountFromLiquidity(
+    liquidity: BN,
+    curSqrtPrice: BN,
+    lowerSqrtPrice: BN,
+    upperSqrtPrice: BN,
+    roundUp: boolean
+  ): CoinAmounts {
     const liq = new Decimal(liquidity.toString())
     const curSqrtPriceStr = new Decimal(curSqrtPrice.toString())
     const lowerPriceStr = new Decimal(lowerSqrtPrice.toString())
@@ -490,12 +509,12 @@ export class ClmmPoolUtil {
     let liquidity
     if (currentTick < lowerTick) {
       if (!iscoinA) {
-        throw new Error('lower tick cannot calculate liquidity by coinB')
+        throw new ClmmpoolsError('lower tick cannot calculate liquidity by coinB', MathErrorCode.NotSupportedThisCoin)
       }
       liquidity = estimateLiquidityForCoinA(lowerSqrtPrice, upperSqrtPrice, coinAmount)
     } else if (currentTick > upperTick) {
       if (iscoinA) {
-        throw new Error('upper tick cannot calculate liquidity by coinA')
+        throw new ClmmpoolsError('upper tick cannot calculate liquidity by coinA', MathErrorCode.NotSupportedThisCoin)
       }
       liquidity = estimateLiquidityForCoinB(upperSqrtPrice, lowerSqrtPrice, coinAmount)
     } else if (iscoinA) {
@@ -540,7 +559,7 @@ export class ClmmPoolUtil {
    */
   static estimateLiquidityFromcoinAmounts(curSqrtPrice: BN, lowerTick: number, upperTick: number, tokenAmount: CoinAmounts): BN {
     if (lowerTick > upperTick) {
-      throw new Error('lower tick cannot be greater than lower tick')
+      throw new ClmmpoolsError('lower tick cannot be greater than lower tick', MathErrorCode.InvalidTwoTickIndex)
     }
     const currTick = TickMath.sqrtPriceX64ToTickIndex(curSqrtPrice)
     const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(lowerTick)
@@ -577,8 +596,6 @@ export class ClmmPoolUtil {
     tokenPriceB: string
   ) {
     const { ratioA, ratioB } = ClmmPoolUtil.calculateDepositRatioFixTokenA(lowerTick, upperTick, curSqrtPrice)
-
-    console.log({ ratioA, ratioB })
 
     const amountA = d(totalAmount).mul(ratioA).div(tokenPriceA)
     const amountB = d(totalAmount).mul(ratioB).div(tokenPriceB)

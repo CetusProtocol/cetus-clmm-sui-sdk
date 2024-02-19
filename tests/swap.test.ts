@@ -2,14 +2,11 @@ import BN from 'bn.js'
 import { TestnetCoin, buildSdk, buildTestAccount, buildTestPool, pool_object_id } from './data/init_test_data'
 import 'isomorphic-fetch'
 import { printTransaction } from '../src/utils/transaction-util'
-import { adjustForSlippage, d, Percentage, TickMath } from '../src'
-import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
-
-let sendKeypair: Ed25519Keypair
+import { adjustForSlippage, d, Percentage } from '../src'
+import { assert } from 'console'
 
 describe('Swap calculate Module', () => {
   const sdk = buildSdk()
-
 
   test('fetchTicksByContract', async () => {
     const tickdatas = await sdk.Pool.fetchTicks({
@@ -70,10 +67,10 @@ describe('Swap calculate Module', () => {
   })
 
   test('preswap', async () => {
-    const a2b = true
-    const pool = await sdk.Pool.getPool('0xc41621d02d5ee00a7a993b912a8550df50524c9b2494339691e5896936ff269b')
-    const byAmountIn = true
-    const amount = '1000000'
+    const a2b = false
+    const pool = await sdk.Pool.getPool('0x6fd4915e6d8d3e2ba6d81787046eb948ae36fdfc75dad2e24f0d4aaa2417a416')
+    const byAmountIn = false
+    const amount = '80000000000000'
 
     const res: any = await sdk.Swap.preswap({
       pool: pool,
@@ -81,7 +78,7 @@ describe('Swap calculate Module', () => {
       coinTypeA: pool.coinTypeA,
       coinTypeB: pool.coinTypeB,
       decimalsA: 6,
-      decimalsB: 8,
+      decimalsB: 6,
       a2b,
       byAmountIn: byAmountIn,
       amount,
@@ -89,13 +86,51 @@ describe('Swap calculate Module', () => {
 
     console.log('preswap###res###', res)
   })
+
+  test('calculateRates', async () => {
+    const a2b = false
+    const pool = await sdk.Pool.getPool('0x6fd4915e6d8d3e2ba6d81787046eb948ae36fdfc75dad2e24f0d4aaa2417a416')
+    const byAmountIn = false
+    const amount = '80000000000000'
+
+    const swapTicks = await sdk.Pool.fetchTicks({
+      pool_id: pool.poolAddress,
+      coinTypeA: pool.coinTypeA,
+      coinTypeB: pool.coinTypeB
+    })
+    // const swapTicks =  await  sdk.Pool.fetchTicksByRpc(pool.ticks_handle)
+    console.log("swapTicks: ", swapTicks.length);
+
+
+    const res = sdk.Swap.calculateRates({
+      decimalsA: 6,
+      decimalsB: 6,
+      a2b,
+      byAmountIn,
+      amount: new BN(amount),
+      swapTicks: swapTicks,
+      currentPool: pool
+    })
+
+    console.log('preswap###res###', {
+      estimatedAmountIn: res.estimatedAmountIn.toString(),
+      estimatedAmountOut: res.estimatedAmountOut.toString(),
+      estimatedEndSqrtPrice: res.estimatedEndSqrtPrice.toString(),
+      estimatedFeeAmount: res.estimatedFeeAmount.toString(),
+      isExceed: res.isExceed,
+      extraComputeLimit: res.extraComputeLimit,
+      amount: res.amount.toString(),
+      aToB: res.aToB,
+      byAmountIn: res.byAmountIn,
+    })
+  })
 })
 
 describe('Swap Module', () => {
   const sdk = buildSdk()
+  let sendKeypair = buildTestAccount()
 
   beforeEach(async () => {
-    sendKeypair = buildTestAccount()
     sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()
   })
 
@@ -149,5 +184,72 @@ describe('Swap Module', () => {
     printTransaction(swapPayload)
     const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, swapPayload)
     console.log('swap: ', transferTxn)
+  })
+})
+
+describe('Swap Module: assert preswap and calcualteRates', () => {
+  const sdk = buildSdk()
+  const sendKeypair = buildTestAccount()
+
+  beforeEach(async () => {
+    sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()
+  })
+
+  test('swap', async () => {
+    const a2b = true
+    const byAmountIn = true
+    const amount = "120000000000000000"
+
+    const currentPool = await sdk.Pool.getPool('0x6fd4915e6d8d3e2ba6d81787046eb948ae36fdfc75dad2e24f0d4aaa2417a416')
+
+    const decimalsA = 6
+    const decimalsB = 6
+    const preSwapRes: any = await sdk.Swap.preswap({
+      pool: currentPool,
+      currentSqrtPrice: currentPool.current_sqrt_price,
+      coinTypeA: currentPool.coinTypeA,
+      coinTypeB: currentPool.coinTypeB,
+      decimalsA,
+      decimalsB,
+      a2b,
+      byAmountIn,
+      amount,
+    })
+
+    console.log('preswap###res###', preSwapRes)
+
+    const swapTicks = await sdk.Pool.fetchTicks({
+      pool_id: currentPool.poolAddress,
+      coinTypeA: currentPool.coinTypeA,
+      coinTypeB: currentPool.coinTypeB
+    })
+    // const swapTicks =  await  sdk.Pool.fetchTicksByRpc(pool.ticks_handle)
+    console.log("swapTicks: ", swapTicks.length);
+
+    const calculateRatesRes = sdk.Swap.calculateRates({
+      decimalsA,
+      decimalsB,
+      a2b,
+      byAmountIn,
+      amount: new BN(amount),
+      swapTicks,
+      currentPool,
+    })
+
+    console.log('preswap###res###', {
+      estimatedAmountIn: calculateRatesRes.estimatedAmountIn.toString(),
+      estimatedAmountOut: calculateRatesRes.estimatedAmountOut.toString(),
+      estimatedEndSqrtPrice: calculateRatesRes.estimatedEndSqrtPrice.toString(),
+      estimatedFeeAmount: calculateRatesRes.estimatedFeeAmount.toString(),
+      isExceed: calculateRatesRes.isExceed,
+      extraComputeLimit: calculateRatesRes.extraComputeLimit,
+      amount: calculateRatesRes.amount.toString(),
+      aToB: calculateRatesRes.aToB,
+      byAmountIn: calculateRatesRes.byAmountIn,
+    })
+
+
+    assert(preSwapRes.estimatedAmountIn.toString() == calculateRatesRes.estimatedAmountIn.toString())
+    assert(preSwapRes.estimatedAmountOut.toString() == calculateRatesRes.estimatedAmountOut.toString())
   })
 })
