@@ -1,8 +1,8 @@
 import BN from 'bn.js'
-import { TestnetCoin, buildSdk, buildTestAccount, buildTestPool, pool_object_id } from './data/init_test_data'
+import { TestnetCoin, buildSdk, buildTestAccount as buildTestAccountNew, buildTestPool, SdkEnv, USDT_USDC_POOL_10 } from './data/init_test_data'
 import 'isomorphic-fetch'
 import { printTransaction } from '../src/utils/transaction-util'
-import { adjustForSlippage, d, Percentage } from '../src'
+import { adjustForSlippage, d, Percentage, TransactionUtil } from '../src'
 import { assert } from 'console'
 
 describe('Swap calculate Module', () => {
@@ -10,7 +10,7 @@ describe('Swap calculate Module', () => {
 
   test('fetchTicksByContract', async () => {
     const tickdatas = await sdk.Pool.fetchTicks({
-      pool_id: pool_object_id,
+      pool_id: USDT_USDC_POOL_10,
       coinTypeA: TestnetCoin.USDT,
       coinTypeB: TestnetCoin.USDC,
     })
@@ -127,8 +127,8 @@ describe('Swap calculate Module', () => {
 })
 
 describe('Swap Module', () => {
-  const sdk = buildSdk()
-  let sendKeypair = buildTestAccount()
+  const sdk = buildSdk(SdkEnv.testnet)
+  let sendKeypair = buildTestAccountNew()
 
   beforeEach(async () => {
     sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()
@@ -137,10 +137,10 @@ describe('Swap Module', () => {
   test('swap', async () => {
     const a2b = true
     const byAmountIn = true
-    const amount = "100"
+    const amount = "10000000"
     const slippage = Percentage.fromDecimal(d(0.1))
 
-    const currentPool = await buildTestPool(sdk, pool_object_id)
+    const currentPool = await buildTestPool(sdk, USDT_USDC_POOL_10)
     console.log('currentPool: ', currentPool)
 
     const decimalsA = 6
@@ -167,11 +167,11 @@ describe('Swap Module', () => {
       byAmountIn,
     })
 
-    const toAmount = byAmountIn ? res.estimatedAmountOut : res.estimatedAmountIn
+    const toAmount = byAmountIn ? new BN(res.estimatedAmountOut) : new BN(res.estimatedAmountIn)
 
     const amountLimit = adjustForSlippage(toAmount, slippage, !byAmountIn)
 
-    const swapPayload = await sdk.Swap.createSwapTransactionPayload({
+    let swapPayload = await sdk.Swap.createSwapTransactionWithoutTransferCoinsPayload({
       pool_id: currentPool.poolAddress,
       a2b,
       by_amount_in: byAmountIn,
@@ -181,15 +181,18 @@ describe('Swap Module', () => {
       coinTypeB: currentPool.coinTypeB,
     })
 
-    printTransaction(swapPayload)
-    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, swapPayload)
+    TransactionUtil.buildTransferCoinToSender(sdk, swapPayload.tx, swapPayload.coinABs[0], currentPool.coinTypeA)
+    TransactionUtil.buildTransferCoinToSender(sdk, swapPayload.tx, swapPayload.coinABs[1], currentPool.coinTypeB)
+
+    printTransaction(swapPayload.tx)
+    const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, swapPayload.tx)
     console.log('swap: ', transferTxn)
   })
 })
 
 describe('Swap Module: assert preswap and calcualteRates', () => {
   const sdk = buildSdk()
-  const sendKeypair = buildTestAccount()
+  const sendKeypair = buildTestAccountNew()
 
   beforeEach(async () => {
     sdk.senderAddress = sendKeypair.getPublicKey().toSuiAddress()

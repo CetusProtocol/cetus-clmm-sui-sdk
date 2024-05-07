@@ -1,6 +1,6 @@
 import { TickMath } from '../src/math/tick'
 import BN from 'bn.js'
-import { buildSdk, buildTestAccount, buildTestPool, buildTestPosition, pool_object_id, position_object_id } from './data/init_test_data'
+import { buildSdk, buildTestAccount, buildTestPool, buildTestPosition, PoolObjectID, PositionObjectID } from './data/init_test_data'
 import { ClmmPoolUtil } from '../src/math/clmm'
 import { Percentage } from '../src/math/percentage'
 import { adjustForCoinSlippage } from '../src/math/position'
@@ -21,8 +21,8 @@ describe('add Liquidity Module', () => {
   })
 
   test('add liquidity for input liquidity', async () => {
-    const pool = await buildTestPool(sdk, pool_object_id)
-    const position = (await buildTestPosition(sdk, position_object_id)) as Position
+    const pool = await buildTestPool(sdk, PoolObjectID)
+    const position = (await buildTestPosition(sdk, PositionObjectID)) as Position
     const curSqrtPrice = new BN(pool.current_sqrt_price)
     const lowerTick = Number(position.tick_lower_index)
     const upperTick = Number(position.tick_upper_index)
@@ -62,7 +62,7 @@ describe('add Liquidity Module', () => {
 
 
   test('add liquidity for input totalAmount', async () => {
-    const pool = await buildTestPool(sdk, pool_object_id)
+    const pool = await buildTestPool(sdk, PoolObjectID)
     const curSqrtPrice = new BN(pool.current_sqrt_price)
     // ===>tick_uppe
     const tick_lower_index = -304

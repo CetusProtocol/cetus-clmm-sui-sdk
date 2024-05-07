@@ -1,9 +1,19 @@
 import { normalizeSuiObjectId } from '@mysten/sui.js/utils'
-import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
-import { TransactionObjectArgument, TransactionResult } from '@mysten/sui.js/dist/cjs/builder'
+import { TransactionArgument, TransactionBlock, TransactionObjectArgument, TransactionResult } from '@mysten/sui.js/transactions'
 import { getDefaultSuiInputType, SuiInputTypes, SuiTxArg } from '../types/sui'
 import { ClmmpoolsError, UtilsErrorCode } from '../errors/errors'
 
+/**
+ * Check if the address is a valid sui address.
+ * @param {string}address
+ * @returns
+ */
+export function checkInvalidSuiAddress(address: string): boolean {
+  if (!address.startsWith('0x') || address.length !== 66) {
+    return false
+  }
+  return true
+}
 export class TxBlock {
   public txBlock: TransactionBlock
 
@@ -86,7 +96,7 @@ export class TxBlock {
    * Transfer objects to many recipients.
    * @param {SuiTxArg[]}objects The objects to be transferred.
    * @param {string}recipient The recipient address.
-   * @returns 
+   * @returns
    */
   transferObjects(objects: SuiTxArg[], recipient: string) {
     if (!checkInvalidSuiAddress(recipient) === false) {
@@ -109,7 +119,8 @@ export class TxBlock {
     // a regex for pattern `${string}::${string}::${string}`
     const regex = /(?<package>[a-zA-Z0-9]+)::(?<module>[a-zA-Z0-9_]+)::(?<function>[a-zA-Z0-9_]+)/
     const match = target.match(regex)
-    if (match === null) throw new ClmmpoolsError('Invalid target format. Expected `${string}::${string}::${string}`', UtilsErrorCode.InvalidTarget)
+    if (match === null)
+      throw new ClmmpoolsError('Invalid target format. Expected `${string}::${string}::${string}`', UtilsErrorCode.InvalidTarget)
     const convertedArgs = this.convertArgs(args)
     const tx = this.txBlock
     return tx.moveCall({
@@ -121,8 +132,8 @@ export class TxBlock {
 
   /**
    * Create pure address arguments
-   * @param {string}value 
-   * @returns 
+   * @param {string}value
+   * @returns
    */
   address(value: string) {
     return this.txBlock.pure(value)
@@ -130,8 +141,8 @@ export class TxBlock {
 
   /**
    * Create pure arguments
-   * @param {any}value 
-   * @returns 
+   * @param {any}value
+   * @returns
    */
   pure(value: any) {
     return this.txBlock.pure(value)
@@ -139,8 +150,8 @@ export class TxBlock {
 
   /**
    * Create object arguments
-   * @param {string}value 
-   * @returns 
+   * @param {string}value
+   * @returns
    */
   object(value: string) {
     return this.txBlock.object(value)
@@ -148,8 +159,8 @@ export class TxBlock {
 
   /**
    * Create move vec arguments
-   * @param {number}gasBudget 
-   * @returns 
+   * @param {number}gasBudget
+   * @returns
    */
   setGasBudget(gasBudget: number) {
     this.txBlock.setGasBudget(gasBudget)
@@ -170,7 +181,8 @@ export class TxBlock {
    * @param type 'address' | 'bool' | 'u8' | 'u16' | 'u32' | 'u64' | 'u128' | 'u256' | 'object'
    */
   makeMoveVec(args: SuiTxArg[], type?: SuiInputTypes) {
-    if (args.length === 0) throw new ClmmpoolsError('Transaction builder error: Empty array is not allowed', UtilsErrorCode.InvalidTransactionBuilder)
+    if (args.length === 0)
+      throw new ClmmpoolsError('Transaction builder error: Empty array is not allowed', UtilsErrorCode.InvalidTransactionBuilder)
     if (type === 'object' && args.some((arg) => typeof arg !== 'string')) {
       throw new ClmmpoolsError('Transaction builder error: Object id must be string', UtilsErrorCode.InvalidTransactionBuilder)
     }
@@ -202,18 +214,5 @@ export class TxBlock {
       // We do nothing, because it's most likely already a move value
       return arg
     })
-  }
-}
-
-/**
- * Check if the address is a valid sui address.
- * @param {string}address  
- * @returns 
- */
-export function checkInvalidSuiAddress(address: string): boolean {
-  if (!address.startsWith('0x') || address.length !== 66) {
-    return false
-  } else {
-    return true
   }
 }

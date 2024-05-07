@@ -1,4 +1,4 @@
-import { SuiMoveObject, SuiTransactionBlockResponse } from '@mysten/sui.js/dist/cjs/client'
+import { SuiMoveObject, SuiTransactionBlockResponse } from '@mysten/sui.js/client'
 import { CoinAsset, FaucetCoin } from '../types'
 import { extractStructTagFromType, normalizeCoinType } from '../utils/contracts'
 import { SuiAddressType } from '../types/sui'

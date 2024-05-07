@@ -1,5 +1,5 @@
 import { Base64 } from 'js-base64'
-import { SuiObjectResponse } from '@mysten/sui.js/dist/cjs/client/types/generated'
+import { SuiObjectResponse } from '@mysten/sui.js/client'
 import { normalizeSuiObjectId } from '@mysten/sui.js/utils'
 import { CetusConfigs, ClmmPoolConfig, CoinConfig, getPackagerConfigs, LaunchpadPoolConfig } from '../types'
 import { SuiResource, SuiAddressType } from '../types/sui'
@@ -28,7 +28,7 @@ export class ConfigModule implements IModule {
 
   /**
    * Set default token list cache.
-   * @param {CoinConfig[]}coinList 
+   * @param {CoinConfig[]}coinList
    */
   setTokenListCache(coinList: CoinConfig[]) {
     const { coin_list_handle } = getPackagerConfigs(this.sdk.sdkOptions.cetus_config)
@@ -119,8 +119,11 @@ export class ConfigModule implements IModule {
     const objects = await this._sdk.fullClient.batchGetObjects(warpIds, { showContent: true })
     const coinList: CoinConfig[] = []
     objects.forEach((object) => {
-      if (object.error != null || object.data?.content?.dataType !== "moveObject") {
-        throw new ClmmpoolsError(`when getCoinConfigs get objects error: ${object.error}, please check the rpc and contracts address config.`, ConfigErrorCode.InvalidConfig)
+      if (object.error != null || object.data?.content?.dataType !== 'moveObject') {
+        throw new ClmmpoolsError(
+          `when getCoinConfigs get objects error: ${object.error}, please check the rpc and contracts address config.`,
+          ConfigErrorCode.InvalidConfig
+        )
       }
 
       const coin = this.buildCoinConfig(object, transformExtensions)
@@ -155,8 +158,11 @@ export class ConfigModule implements IModule {
       },
     })
 
-    if (object.error != null || object.data?.content?.dataType !== "moveObject") {
-      throw new ClmmpoolsError(`when getCoinConfig get object error: ${object.error}, please check the rpc and contracts address config.`, ConfigErrorCode.InvalidConfig)
+    if (object.error != null || object.data?.content?.dataType !== 'moveObject') {
+      throw new ClmmpoolsError(
+        `when getCoinConfig get object error: ${object.error}, please check the rpc and contracts address config.`,
+        ConfigErrorCode.InvalidConfig
+      )
     }
 
     const coin = this.buildCoinConfig(object, transformExtensions)
@@ -207,8 +213,11 @@ export class ConfigModule implements IModule {
     const objects = await this._sdk.fullClient.batchGetObjects(warpIds, { showContent: true })
     const poolList: ClmmPoolConfig[] = []
     objects.forEach((object) => {
-      if (object.error != null || object.data?.content?.dataType !== "moveObject") {
-        throw new ClmmpoolsError(`when getClmmPoolsConfigs get objects error: ${object.error}, please check the rpc and contracts address config.`, ConfigErrorCode.InvalidConfig)
+      if (object.error != null || object.data?.content?.dataType !== 'moveObject') {
+        throw new ClmmpoolsError(
+          `when getClmmPoolsConfigs get objects error: ${object.error}, please check the rpc and contracts address config.`,
+          ConfigErrorCode.InvalidConfig
+        )
       }
 
       const pool = this.buildClmmPoolConfig(object, transformExtensions)
@@ -269,8 +278,11 @@ export class ConfigModule implements IModule {
     const objects = await this._sdk.fullClient.batchGetObjects(warpIds, { showContent: true })
     const poolList: LaunchpadPoolConfig[] = []
     objects.forEach((object) => {
-      if (object.error != null || object.data?.content?.dataType !== "moveObject") {
-        throw new ClmmpoolsError(`when getCoinConfigs get objects error: ${object.error}, please check the rpc and contracts address config.`, ConfigErrorCode.InvalidConfig)
+      if (object.error != null || object.data?.content?.dataType !== 'moveObject') {
+        throw new ClmmpoolsError(
+          `when getCoinConfigs get objects error: ${object.error}, please check the rpc and contracts address config.`,
+          ConfigErrorCode.InvalidConfig
+        )
       }
 
       const pool = this.buildLaunchpadPoolConfig(object, transformExtensions)
@@ -337,7 +349,7 @@ export class ConfigModule implements IModule {
       if (key === 'labels') {
         try {
           value = JSON.parse(decodeURIComponent(Base64.decode(value)))
-        } catch (error) { }
+        } catch (error) {}
       }
       if (transformExtensions) {
         coin[key] = value
@@ -425,8 +437,11 @@ export class ConfigModule implements IModule {
     const res = await this._sdk.fullClient.multiGetObjects({ ids: warpIds, options: { showContent: true } })
 
     res.forEach((item) => {
-      if (item.error != null || item.data?.content?.dataType !== "moveObject") {
-        throw new ClmmpoolsError(`when getCetusConfigHandle get objects error: ${item.error}, please check the rpc and contracts address config.`, ConfigErrorCode.InvalidConfigHandle)
+      if (item.error != null || item.data?.content?.dataType !== 'moveObject') {
+        throw new ClmmpoolsError(
+          `when getCetusConfigHandle get objects error: ${item.error}, please check the rpc and contracts address config.`,
+          ConfigErrorCode.InvalidConfigHandle
+        )
       }
 
       const fields = getObjectFields(item)
@@ -474,20 +489,20 @@ export class ConfigModule implements IModule {
    */
   getCache<T>(key: string, forceRefresh = false): T | undefined {
     try {
-      const cacheData = this._cache[key];
+      const cacheData = this._cache[key]
       if (!cacheData) {
-        return undefined; // No cache data available
+        return undefined // No cache data available
       }
 
       if (forceRefresh || !cacheData.isValid()) {
-        delete this._cache[key];
-        return undefined;
+        delete this._cache[key]
+        return undefined
       }
 
-      return cacheData.value as T;
+      return cacheData.value as T
     } catch (error) {
-      console.error(`Error accessing cache for key ${key}:`, error);
-      return undefined;
+      console.error(`Error accessing cache for key ${key}:`, error)
+      return undefined
     }
   }
 }

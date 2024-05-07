@@ -6,8 +6,8 @@ import { getObjectPreviousTransactionDigest } from '../../src/utils/objects'
 import { SDK } from './init_mainnet_sdk'
 import { TestnetSDK } from './init_testnet_sdk'
 
-export const position_object_id = '0x7cea8359f50318d88026d702462df7ce9d96a5b12f3efe9dce6d6450fba779a0'
-export const pool_object_id = '0xcf994611fd4c48e277ce3ffd4d4364c914af2c3cbb05f7bf6facd371de688630'
+export const PositionObjectID = '0x7cea8359f50318d88026d702462df7ce9d96a5b12f3efe9dce6d6450fba779a0'
+export const PoolObjectID = '0xcf994611fd4c48e277ce3ffd4d4364c914af2c3cbb05f7bf6facd371de688630'
 
 export const USDT_USDC_POOL_10 = '0x40c2dd0a9395b1f15a477f0e368c55651b837fd27765395a9412ab07fc75971c'
 

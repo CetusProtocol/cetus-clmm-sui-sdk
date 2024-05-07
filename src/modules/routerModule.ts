@@ -101,7 +101,7 @@ export type PriceResult = {
 
 // return the pool with tvl info by statistics API
 type PoolWithTvl = {
-  poolAddress: String
+  poolAddress: string
   tvl: number
 }
 
@@ -308,7 +308,7 @@ export class RouterModule implements IModule {
 
   /**
    * Get the best price from router graph.
-   * 
+   *
    * @param {string} from from coin type
    * @param {string} to to coin type
    * @param {BN} amount coin amount
@@ -417,7 +417,7 @@ export class RouterModule implements IModule {
 
     // add one limit, must calculated two steps path.
     const stepNumsOne = preRouterSwapParams.filter((item) => item.stepNums === 1)
-    let notStepNumsOne = preRouterSwapParams.filter((item) => item.stepNums !== 1)
+    const notStepNumsOne = preRouterSwapParams.filter((item) => item.stepNums !== 1)
 
     let poolWithTvls: PoolWithTvl[] = []
     try {
@@ -606,6 +606,54 @@ export class RouterModule implements IModule {
     return result
   }
 
+  async priceUseV1(
+    from: string,
+    to: string,
+    _amount: BN,
+    byAmountIn: boolean,
+    priceSlippagePoint: number,
+    partner: string,
+    swapWithMultiPoolParams?: PreSwapWithMultiPoolParams
+  ) {
+    if (swapWithMultiPoolParams != null) {
+      const preSwapResult = await this.sdk.Swap.preSwapWithMultiPool(swapWithMultiPoolParams)
+
+      const onePath: OnePath = {
+        amountIn: new BN(preSwapResult!.estimatedAmountIn),
+        amountOut: new BN(preSwapResult!.estimatedAmountOut),
+        poolAddress: [preSwapResult!.poolAddress],
+        a2b: [preSwapResult!.aToB],
+        rawAmountLimit: byAmountIn ? [preSwapResult!.estimatedAmountOut] : [preSwapResult!.estimatedAmountIn],
+        isExceed: preSwapResult!.isExceed,
+        coinType: [from, to],
+      }
+
+      const swapWithRouterParams = {
+        paths: [onePath],
+        partner,
+        priceSlippagePoint,
+      }
+
+      const result: PriceResult = {
+        amountIn: new BN(preSwapResult!.estimatedAmountIn),
+        amountOut: new BN(preSwapResult!.estimatedAmountOut),
+        paths: [onePath],
+        a2b: preSwapResult!.aToB,
+        b2c: undefined,
+        byAmountIn,
+        isExceed: preSwapResult!.isExceed,
+        targetSqrtPrice: [preSwapResult!.estimatedEndSqrtPrice],
+        currentSqrtPrice: [preSwapResult!.estimatedStartSqrtPrice],
+        coinTypeA: from,
+        coinTypeB: to,
+        coinTypeC: undefined,
+        createTxParams: swapWithRouterParams,
+      }
+      return result
+    }
+    throw new ClmmpoolsError('No parameters available for service downgrade', RouterErrorCode.NoDowngradeNeedParams)
+  }
+
   async preRouterSwapA2B2C(params: PreRouterSwapParams[]) {
     if (params.length === 0) {
       return null
@@ -750,11 +798,12 @@ export class RouterModule implements IModule {
 
     if (json.code !== 200) {
       throw new ClmmpoolsError(
-        `Failed to get pool list from ${swapCountUrl}. Statu code is ${json.code}.`, RouterErrorCode.InvalidSwapCountUrl
+        `Failed to get pool list from ${swapCountUrl}. Statu code is ${json.code}.`,
+        RouterErrorCode.InvalidSwapCountUrl
       )
     }
 
-    const pools = json.data.pools
+    const { pools } = json.data
 
     for (const pool of pools) {
       result.push({

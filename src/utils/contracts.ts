@@ -144,7 +144,9 @@ export function patchFixSuiObjectId(data: any) {
       patchFixSuiObjectId(data[key])
     } else if (type === 'string') {
       const value = data[key]
-      data[key] = fixSuiObjectId(value)
+      if (value && !value.includes('::')) {
+        data[key] = fixSuiObjectId(value)
+      }
     }
   }
 }

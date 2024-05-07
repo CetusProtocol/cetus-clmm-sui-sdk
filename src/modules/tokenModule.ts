@@ -171,8 +171,9 @@ export class TokenModule implements IModule {
     while (true) {
       const tx = new TransactionBlock()
       tx.moveCall({
-        target: `${token.published_at}::coin_list::${isOwnerRequest ? 'fetch_full_list_with_limit' : 'fetch_all_registered_coin_info_with_limit'
-          }`,
+        target: `${token.published_at}::coin_list::${
+          isOwnerRequest ? 'fetch_full_list_with_limit' : 'fetch_all_registered_coin_info_with_limit'
+        }`,
         arguments: isOwnerRequest
           ? [tx.pure(tokenConfig.coin_registry_id), tx.pure(listOwnerAddr), tx.pure(index), tx.pure(limit)]
           : [tx.pure(tokenConfig.coin_registry_id), tx.pure(index), tx.pure(limit)],
@@ -224,8 +225,9 @@ export class TokenModule implements IModule {
     while (true) {
       const tx = new TransactionBlock()
       tx.moveCall({
-        target: `${token.published_at}::lp_list::${isOwnerRequest ? 'fetch_full_list_with_limit' : 'fetch_all_registered_coin_info_with_limit'
-          }`,
+        target: `${token.published_at}::lp_list::${
+          isOwnerRequest ? 'fetch_full_list_with_limit' : 'fetch_all_registered_coin_info_with_limit'
+        }`,
         arguments: isOwnerRequest
           ? [tx.pure(tokenConfig.pool_registry_id), tx.pure(listOwnerAddr), tx.pure(index), tx.pure(limit)]
           : [tx.pure(tokenConfig.pool_registry_id), tx.pure(index), tx.pure(limit)],
@@ -370,7 +372,7 @@ export class TokenModule implements IModule {
         if (key === 'labels') {
           try {
             value = JSON.parse(decodeURIComponent(Base64.decode(value)))
-          } catch (error) { }
+          } catch (error) {}
         }
         if (key === 'pyth_id') {
           value = normalizeSuiObjectId(value)

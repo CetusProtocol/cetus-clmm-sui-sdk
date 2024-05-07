@@ -1,4 +1,4 @@
-import { buildSdk, buildTestPool, pool_object_id, position_object_id } from './data/init_test_data'
+import { buildSdk, buildTestPool, PoolObjectID, PositionObjectID } from './data/init_test_data'
 import { collectFeesQuote } from '../src/math/collect-fees'
 import 'isomorphic-fetch'
 
@@ -15,9 +15,9 @@ describe('collect fees', () => {
   })
 
   test('collect fees', async () => {
-    const pool = await buildTestPool(sdk, pool_object_id)
+    const pool = await buildTestPool(sdk, PoolObjectID)
 
-    const position = await sdk.Position.getPositionById(position_object_id)
+    const position = await sdk.Position.getPositionById(PositionObjectID)
     if (position === undefined) {
       return
     }

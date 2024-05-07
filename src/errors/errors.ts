@@ -73,14 +73,24 @@ export enum RouterErrorCode {
   NoDowngradeNeedParams = `NoDowngradeNeedParams`,
   InvalidSwapCountUrl = `InvalidSwapCountUrl`,
   InvalidTransactionBuilder = `InvalidTransactionBuilder`,
+  InvalidServerResponse = `InvalidServerResponse`,
 }
 
 export enum TypesErrorCode {
   InvalidType = `InvalidType`,
 }
 
-export type ClmmpoolsErrorCode = MathErrorCode | SwapErrorCode | CoinErrorCode | PoolErrorCode |
-  PositionErrorCode | PartnerErrorCode | ConfigErrorCode | UtilsErrorCode | RouterErrorCode | TypesErrorCode
+export type ClmmpoolsErrorCode =
+  | MathErrorCode
+  | SwapErrorCode
+  | CoinErrorCode
+  | PoolErrorCode
+  | PositionErrorCode
+  | PartnerErrorCode
+  | ConfigErrorCode
+  | UtilsErrorCode
+  | RouterErrorCode
+  | TypesErrorCode
 
 export class ClmmpoolsError extends Error {
   override message: string

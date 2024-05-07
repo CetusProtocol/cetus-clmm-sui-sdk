@@ -1,8 +1,8 @@
-import { buildSdk, position_object_id, buildTestAccount, pool_object_id } from './data/init_test_data'
+import { buildSdk, PositionObjectID, buildTestAccount, PoolObjectID } from './data/init_test_data'
 import 'isomorphic-fetch'
 import { CollectRewarderParams } from '../src'
 
-const poolObjectId = pool_object_id
+const poolObjectId = PoolObjectID
 describe('Rewarder Module', () => {
   const sdk = buildSdk()
 
@@ -26,13 +26,13 @@ describe('Rewarder Module', () => {
   test('poolRewardersAmount', async () => {
     const account = buildTestAccount().getPublicKey().toSuiAddress()
 
-    const res = await sdk.Rewarder.poolRewardersAmount(account, pool_object_id)
+    const res = await sdk.Rewarder.poolRewardersAmount(account, PoolObjectID)
     console.log('res####', res)
   })
 
   test('pool rewarders amount', async () => {
     const account = buildTestAccount().getPublicKey().toSuiAddress()
-    const res = await sdk.Rewarder.fetchPoolRewardersAmount(account, pool_object_id)
+    const res = await sdk.Rewarder.fetchPoolRewardersAmount(account, PoolObjectID)
     console.log('res####', res)
   })
 
@@ -54,13 +54,13 @@ describe('Rewarder Module', () => {
     const rewards: any[] = await sdk.Rewarder.posRewardersAmount(
       pool.poolAddress,
       pool.position_manager.positions_handle,
-      position_object_id
+      PositionObjectID
     )
     const rewardCoinTypes = rewards.filter((item) => Number(item.amount_owed) > 0).map((item) => item.coin_address)
 
     const collectRewarderParams: CollectRewarderParams = {
       pool_id: pool.poolAddress,
-      pos_id: position_object_id,
+      pos_id: PositionObjectID,
       rewarder_coin_types: [...rewardCoinTypes],
       coinTypeA: pool.coinTypeA,
       coinTypeB: pool.coinTypeB,

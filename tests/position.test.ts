@@ -1,6 +1,6 @@
 import { TickMath } from '../src/math/tick'
 import BN from 'bn.js'
-import { SdkEnv, USDT_USDC_POOL_10, buildSdk, buildTestAccount, buildTestPool, buildTestPosition, pool_object_id, position_object_id } from './data/init_test_data'
+import { SdkEnv, USDT_USDC_POOL_10, buildSdk, buildTestAccount, buildTestPool, buildTestPosition, PoolObjectID, PositionObjectID } from './data/init_test_data'
 import { ClmmPoolUtil } from '../src/math/clmm'
 import { Percentage } from '../src/math/percentage'
 import { adjustForCoinSlippage } from '../src/math/position'
@@ -20,12 +20,12 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('get ower position list', async () => {
-    const res = await sdk.Position.getPositionList(buildTestAccount().getPublicKey().toSuiAddress(), [pool_object_id])
+    const res = await sdk.Position.getPositionList(buildTestAccount().getPublicKey().toSuiAddress(), [PoolObjectID])
     console.log('getPositionList####', res)
   })
 
   test('get pool position list', async () => {
-    const pool = await sdk.Pool.getPool(pool_object_id)
+    const pool = await sdk.Pool.getPool(PoolObjectID)
     const res = await sdk.Pool.getPositionList(pool.position_manager.positions_handle)
     console.log('getPositionList####', res)
   })
@@ -36,13 +36,13 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('getSipmlePosition', async () => {
-    const res = await sdk.Position.getSimplePosition(position_object_id)
+    const res = await sdk.Position.getSimplePosition(PositionObjectID)
     console.log('getSipmlePosition####', res)
   })
 
   test('getPositionInfo', async () => {
-    const pool = await sdk.Pool.getPool(pool_object_id)
-    const res = await sdk.Position.getPosition(pool.position_manager.positions_handle, position_object_id)
+    const pool = await sdk.Pool.getPool(PoolObjectID)
+    const res = await sdk.Position.getPosition(pool.position_manager.positions_handle, PositionObjectID)
     console.log('getPositionInfo####', res)
   })
 
@@ -121,12 +121,12 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('collect_fee', async () => {
-    const pool = await buildTestPool(sdk, pool_object_id)
+    const pool = await buildTestPool(sdk, PoolObjectID)
     const collectFeeTransactionPayload = await sdk.Position.collectFeeTransactionPayload({
       coinTypeA: pool.coinTypeA,
       coinTypeB: pool.coinTypeB,
       pool_id: pool.poolAddress,
-      pos_id: position_object_id,
+      pos_id: PositionObjectID,
     })
 
     const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, collectFeeTransactionPayload)

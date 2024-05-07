@@ -52,9 +52,9 @@ export function getNearestTickByTick(tickIndex: number, tickSpacing: number): nu
  * @param {TickData}tickLower Tick lower data.
  * @param {TickData}tickUpper Tick upper data.
  * @param {number}tickLowerIndex Tick lower index.
- * @param {number}tickUpperIndex Tick upper index. 
- * @param {BN[]}growthGlobal 
- * @returns 
+ * @param {number}tickUpperIndex Tick upper index.
+ * @param {BN[]}growthGlobal
+ * @returns
  */
 export function getRewardInTickRange(
   pool: Pool,

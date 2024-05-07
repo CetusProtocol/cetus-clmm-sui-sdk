@@ -4,7 +4,7 @@ import { SdkEnv, TestnetCoin, buildSdk, buildTestAccount } from './data/init_tes
 import { assert } from 'console'
 import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
 import { Secp256k1Keypair } from '@mysten/sui.js/keypairs/secp256k1'
-import { TransactionBlock } from '@mysten/sui.js'
+import { TransactionBlock } from '@mysten/sui.js/transactions'
 import { verifyBalanceEnough } from './router_v1.test'
 
 describe('Test Router V2 Module', () => {
@@ -77,7 +77,9 @@ describe('Test Router V2 Module', () => {
         const amount = 10000000
         for (const orderSplit of [true, false]) {
           for (const externalRouter of [true, false]) {
-            const result = await (await sdk.RouterV2.getBestRouter(coinList[i], coinList[j], amount, byAmountIn, 0, '', undefined, undefined, orderSplit, externalRouter)).result
+            const preSwapWithMultiPoolParams = 
+
+            const result = (await sdk.RouterV2.getBestRouter(coinList[i], coinList[j], amount, byAmountIn, 0, '', undefined, undefined, orderSplit, externalRouter)).result
             assert(result.outputAmount > 0, "detection all router path success")
           }
         }
@@ -97,6 +99,9 @@ describe('Test Router V2 Module', () => {
 
         const splitResult = await (await sdk.RouterV2.getBestRouter(coinList[i], coinList[j], amount, byAmountIn, 0, '', undefined, undefined, true, externalRouter)).result
         const noSplitResult = await (await sdk.RouterV2.getBestRouter(coinList[i], coinList[j], amount, byAmountIn, 0, '', undefined, undefined, false, externalRouter)).result
+
+        console.log(`Split path: ${JSON.stringify(splitResult, null, 2)}, One path: ${JSON.stringify(noSplitResult, null, 2)}`)
+
 
         if (splitResult.splitPaths.length > 1) {
           split = true

@@ -6,6 +6,7 @@ import {
   AddLiquidityParams,
   ClosePositionParams,
   CollectFeeParams,
+  CollectRewarderParams,
   OpenPositionParams,
   Position,
   PositionReward,
@@ -275,7 +276,10 @@ export class PositionModule implements IModule {
     })
 
     if (simulateRes.error != null) {
-      throw new ClmmpoolsError(`fetch position fee error code: ${simulateRes.error ?? 'unknown error'}, please check config and postion and pool object ids`, PoolErrorCode.InvalidPoolObject)
+      throw new ClmmpoolsError(
+        `fetch position fee error code: ${simulateRes.error ?? 'unknown error'}, please check config and postion and pool object ids`,
+        PoolErrorCode.InvalidPoolObject
+      )
     }
 
     const valueData: any = simulateRes.events?.filter((item: any) => {
@@ -579,6 +583,31 @@ export class PositionModule implements IModule {
 
     tx.moveCall({
       target: `${integrate.published_at}::${ClmmIntegratePoolV2Module}::collect_fee`,
+      typeArguments,
+      arguments: args,
+    })
+    return tx
+  }
+
+  createCollectFeeNoSendPaylod(
+    params: CollectFeeParams,
+    published_at: string,
+    tx: TransactionBlock,
+    primaryCoinAInput: TransactionArgument,
+    primaryCoinBInput: TransactionArgument
+  ) {
+    const { clmm_pool, integrate } = this.sdk.sdkOptions
+    const typeArguments = [params.coinTypeA, params.coinTypeB]
+    const args = [
+      tx.object(getPackagerConfigs(clmm_pool).global_config_id),
+      tx.object(params.pool_id),
+      tx.object(params.pos_id),
+      primaryCoinAInput,
+      primaryCoinBInput,
+    ]
+
+    tx.moveCall({
+      target: `${published_at}::${ClmmIntegratePoolModule}::collect_fee`,
       typeArguments,
       arguments: args,
     })

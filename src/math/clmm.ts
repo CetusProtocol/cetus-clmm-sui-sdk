@@ -525,19 +525,19 @@ export class ClmmPoolUtil {
     const coinAmounts = ClmmPoolUtil.getCoinAmountFromLiquidity(liquidity, curSqrtPrice, lowerSqrtPrice, upperSqrtPrice, roundUp)
     const tokenLimitA = roundUp
       ? d(coinAmounts.coinA.toString())
-        .mul(1 + slippage)
-        .toString()
+          .mul(1 + slippage)
+          .toString()
       : d(coinAmounts.coinA.toString())
-        .mul(1 - slippage)
-        .toString()
+          .mul(1 - slippage)
+          .toString()
 
     const tokenLimitB = roundUp
       ? d(coinAmounts.coinB.toString())
-        .mul(1 + slippage)
-        .toString()
+          .mul(1 + slippage)
+          .toString()
       : d(coinAmounts.coinB.toString())
-        .mul(1 - slippage)
-        .toString()
+          .mul(1 - slippage)
+          .toString()
 
     return {
       coinAmountA: coinAmounts.coinA,

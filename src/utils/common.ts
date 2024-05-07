@@ -373,18 +373,26 @@ export function buildTickData(objects: SuiObjectResponse): TickData {
  * @throws {Error} If any required field is missing.
  */
 export function buildTickDataByEvent(fields: any): TickData {
-  if (!fields || !fields.index || !fields.sqrt_price || !fields.liquidity_net || !fields.liquidity_gross || !fields.fee_growth_outside_a || !fields.fee_growth_outside_b) {
+  if (
+    !fields ||
+    !fields.index ||
+    !fields.sqrt_price ||
+    !fields.liquidity_net ||
+    !fields.liquidity_gross ||
+    !fields.fee_growth_outside_a ||
+    !fields.fee_growth_outside_b
+  ) {
     throw new ClmmpoolsError(`Invalid tick fields.`, PoolErrorCode.InvalidTickFields)
   }
 
   // It's assumed that asIntN is a function that converts a BigInt to an integer.
-  const index = asIntN(BigInt(fields.index.bits));
-  const sqrtPrice = new BN(fields.sqrt_price);
-  const liquidityNet = new BN(fields.liquidity_net.bits);
-  const liquidityGross = new BN(fields.liquidity_gross);
-  const feeGrowthOutsideA = new BN(fields.fee_growth_outside_a);
-  const feeGrowthOutsideB = new BN(fields.fee_growth_outside_b);
-  const rewardersGrowthOutside = fields.rewards_growth_outside || [];
+  const index = asIntN(BigInt(fields.index.bits))
+  const sqrtPrice = new BN(fields.sqrt_price)
+  const liquidityNet = new BN(fields.liquidity_net.bits)
+  const liquidityGross = new BN(fields.liquidity_gross)
+  const feeGrowthOutsideA = new BN(fields.fee_growth_outside_a)
+  const feeGrowthOutsideB = new BN(fields.fee_growth_outside_b)
+  const rewardersGrowthOutside = fields.rewards_growth_outside || []
 
   const tick: TickData = {
     objectId: '',

@@ -1,6 +1,6 @@
 import { TickMath } from '../src/math/tick'
 import BN from 'bn.js'
-import { buildSdk, buildTestAccount, buildTestPool, buildTestPosition, pool_object_id, position_object_id } from './data/init_test_data'
+import { buildSdk, buildTestAccount, buildTestPool, buildTestPosition, PoolObjectID, PositionObjectID } from './data/init_test_data'
 import { ClmmPoolUtil } from '../src/math/clmm'
 import 'isomorphic-fetch'
 import { printTransaction } from '../src/utils/transaction-util'
@@ -18,7 +18,7 @@ describe('add_liquidity_fix_token', () => {
   })
 
   test('open_and_add_liquidity_fix_token', async () => {
-    const pool = await buildTestPool(sdk, pool_object_id)
+    const pool = await buildTestPool(sdk, PoolObjectID)
     const lowerTick = TickMath.getPrevInitializableTickIndex(
       new BN(pool.current_tick_index).toNumber(),
       new BN(pool.tickSpacing).toNumber()
@@ -73,9 +73,9 @@ describe('add_liquidity_fix_token', () => {
   })
 
   test('add_liquidity_fix_token', async () => {
-    const poolObjectId = pool_object_id
+    const poolObjectId = PoolObjectID
     const pool = await buildTestPool(sdk, poolObjectId)
-    const position = (await buildTestPosition(sdk, position_object_id)) as Position
+    const position = (await buildTestPosition(sdk, PositionObjectID)) as Position
     const lowerTick = position.tick_lower_index
     const upperTick = position.tick_upper_index
     const coinAmount = new BN(50000000000)

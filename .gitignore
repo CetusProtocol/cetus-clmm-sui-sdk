@@ -8,3 +8,4 @@ package.test.json
 /examples/package-lock.json
 /examples/*.js
 /.husky
+/.idea

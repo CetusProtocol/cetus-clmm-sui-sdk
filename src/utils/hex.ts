@@ -1,4 +1,5 @@
-import { ClmmpoolsError, TypesErrorCode } from "../errors/errors"
+// eslint-disable-next-line import/no-import-module-exports
+import { ClmmpoolsError, TypesErrorCode } from '../errors/errors'
 
 const HEX_REGEXP = /^[-+]?[0-9A-Fa-f]+\.?[0-9A-Fa-f]*?$/
 

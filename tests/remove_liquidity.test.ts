@@ -1,12 +1,12 @@
 import { TickMath } from '../src/math/tick'
 import BN from 'bn.js'
-import { buildSdk, buildTestAccount, buildTestPool, buildTestPosition, pool_object_id, position_object_id } from './data/init_test_data'
+import { buildSdk, buildTestAccount, buildTestPool, buildTestPosition, PoolObjectID, PositionObjectID } from './data/init_test_data'
 import { ClmmPoolUtil } from '../src/math/clmm'
 import { Percentage } from '../src/math/percentage'
 import { adjustForCoinSlippage } from '../src/math/position'
 import 'isomorphic-fetch'
 import { printTransaction } from '../src/utils/transaction-util'
-import {  Position, RemoveLiquidityParams, d, toDecimalsAmount } from '../src'
+import { Position, RemoveLiquidityParams, d, toDecimalsAmount } from '../src'
 import Decimal from 'decimal.js'
 import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
 
@@ -21,9 +21,9 @@ describe('remove liquidity', () => {
   })
 
   test('getCoinAmountFromLiquidity', async () => {
-    const poolObjectId = pool_object_id
+    const poolObjectId = PoolObjectID
     const pool = await buildTestPool(sdk, poolObjectId)
-    const position = (await buildTestPosition(sdk, position_object_id)) as Position
+    const position = (await buildTestPosition(sdk, PositionObjectID)) as Position
     const curSqrtPrice = new BN(pool.current_sqrt_price)
 
     const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(position.tick_lower_index)
@@ -41,8 +41,8 @@ describe('remove liquidity', () => {
   })
 
   test(' remove liquidity for input totalAmount', async () => {
-    const pool = await buildTestPool(sdk, pool_object_id)
-    const position = await buildTestPosition(sdk, position_object_id)
+    const pool = await buildTestPool(sdk, PoolObjectID)
+    const position = await buildTestPosition(sdk, PositionObjectID)
     const curSqrtPrice = new BN(pool.current_sqrt_price)
     // ===>tick_uppe
     const tick_lower_index = position.tick_lower_index
@@ -138,8 +138,8 @@ describe('remove liquidity', () => {
     console.log('liquidity: ', { tokenMaxA: liquidityInput.coinAmountA.toString(), tokenMaxB: liquidityInput.coinAmountB.toString() })
   })
   test('remove liquidity for input one token', async () => {
-    const pool = await buildTestPool(sdk, pool_object_id)
-    const position = await buildTestPosition(sdk, position_object_id)
+    const pool = await buildTestPool(sdk, PoolObjectID)
+    const position = await buildTestPosition(sdk, PositionObjectID)
     const lowerTick = position.tick_lower_index
     const upperTick = position.tick_upper_index
     const coinAmount = new BN(5995942)
@@ -183,9 +183,9 @@ describe('remove liquidity', () => {
     console.log('removeLiquidity: ', transferTxn)
   })
   test('remove liquidity for input liquidity', async () => {
-    const poolObjectId = pool_object_id
+    const poolObjectId = PoolObjectID
     const pool = await buildTestPool(sdk, poolObjectId)
-    const position = (await buildTestPosition(sdk, position_object_id)) as Position
+    const position = (await buildTestPosition(sdk, PositionObjectID)) as Position
 
     const lowerTick = Number(position.tick_lower_index)
     const upperTick = Number(position.tick_upper_index)
@@ -200,7 +200,7 @@ describe('remove liquidity', () => {
     const coinAmounts = ClmmPoolUtil.getCoinAmountFromLiquidity(liquidity, curSqrtPrice, lowerSqrtPrice, upperSqrtPrice, false)
     const { tokenMaxA, tokenMaxB } = adjustForCoinSlippage(coinAmounts, slippageTolerance, false)
 
-    const rewards: any[] = await sdk.Rewarder.posRewardersAmount(poolObjectId, pool.position_manager.positions_handle, position_object_id)
+    const rewards: any[] = await sdk.Rewarder.posRewardersAmount(poolObjectId, pool.position_manager.positions_handle, PositionObjectID)
     console.log('rewards: ', rewards)
 
     const rewardCoinTypes = rewards.filter((item) => Number(item.amount_owed) >= 0).map((item) => item.coin_address)

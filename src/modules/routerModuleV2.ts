@@ -5,6 +5,8 @@ import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { PreSwapLpChangeParams, PreSwapWithMultiPoolParams } from '../types'
 import { TickMath, ZERO } from '../math'
+import axios, { AxiosRequestConfig } from 'axios'
+import { ClmmpoolsError, MathErrorCode, RouterErrorCode } from '../errors/errors'
 
 export type BasePath = {
   direction: boolean
@@ -56,12 +58,10 @@ export class RouterModuleV2 implements IModule {
     const decimalA = a2b ? fromDecimals : toDecimals
     const decimalB = a2b ? toDecimals : fromDecimals
     if (label === 'Cetus') {
-      const price = TickMath.sqrtPriceX64ToPrice(currentSqrtPrice, decimalA, decimalB)
-      return price
+      return TickMath.sqrtPriceX64ToPrice(currentSqrtPrice, decimalA, decimalB)
     }
 
-    const price = new Decimal(currentSqrtPrice.toString()).div(new Decimal(10).pow(new Decimal(decimalB + 9 - decimalA)))
-    return price
+    return new Decimal(currentSqrtPrice.toString()).div(new Decimal(10).pow(new Decimal(decimalB + 9 - decimalA)))
   }
 
   private parseJsonResult(data: any): AggregatorResult {
@@ -110,35 +110,23 @@ export class RouterModuleV2 implements IModule {
     return result
   }
 
-  private async fetchWithTimeout(url: string, _options: RequestInit, timeout: number): Promise<Response | null> {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), timeout)
-
+  async fetchDataWithAxios(apiUrl: string, _options: AxiosRequestConfig, timeoutDuration: number) {
     try {
-      const response = await fetch(url, {
+      const config: AxiosRequestConfig = {
         ..._options,
-        signal: controller.signal,
-      })
-      clearTimeout(timeoutId)
-      return response
-    } catch (err) {
-      return null
-    }
-  }
+        timeout: timeoutDuration, // 设置超时时间
+      };
 
-  private async fetchAndParseData(apiUrl: string, _options: RequestInit): Promise<AggregatorResult | null> {
-    try {
-      const timeoutDuration = 1500
-
-      const response: any = await this.fetchWithTimeout(apiUrl, _options, timeoutDuration)
+      const response = await axios(apiUrl, config);
 
       if (response.status === 200) {
-        return this.parseJsonResult(await response.json())
+        return this.parseJsonResult(response.data);
       }
 
-      return null
+      return null;
     } catch (error) {
-      return null
+      console.error(error);
+      return null;
     }
   }
 
@@ -204,10 +192,11 @@ export class RouterModuleV2 implements IModule {
       `
     }
 
-    result = await this.fetchAndParseData(apiUrl, options)
+    // result = await this.fetchAndParseData(apiUrl, options)
+    result = await this.fetchDataWithAxios(apiUrl, { method: 'get' }, 6000)
 
-    if (result?.isTimeout || result == null) {
-      const priceResult: any = await this.sdk.Router.price(
+    if (result == null) {
+      const priceResult: any = await this.sdk.Router.priceUseV1(
         from,
         to,
         new BN(amount),
@@ -314,5 +303,158 @@ export class RouterModuleV2 implements IModule {
     }
 
     return { result, version }
+  }
+
+  async getBestRouterByServer(
+    from: string,
+    to: string,
+    amount: number,
+    byAmountIn: boolean,
+    /**
+     * @deprecated don't need to pass, just use empty string.
+     */
+    _senderAddress?: string,
+    orderSplit = false,
+    externalRouter = false,
+    lpChanges: PreSwapLpChangeParams[] = []
+  ): Promise<AggregatorResult> {
+    let result = null
+    let apiUrl = this.sdk.sdkOptions.aggregatorUrl
+    if (lpChanges.length > 0) {
+      const url = new URL(apiUrl)
+      apiUrl = `${url.protocol}//${url.hostname}/router_with_lp_changes`
+    } else {
+      apiUrl = `
+      ${apiUrl}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&amount=${encodeURIComponent(
+        amount
+      )}&by_amount_in=${encodeURIComponent(byAmountIn)}&order_split=${encodeURIComponent(orderSplit)}&external_router=${encodeURIComponent(
+        externalRouter
+      )}&sender_address=''&request_id=${encodeURIComponent(uuidv4())}
+      `
+    }
+
+    // result = await this.fetchAndParseData(apiUrl, options)
+    result = await this.fetchDataWithAxios(apiUrl, { method: 'get' }, 6000)
+
+    if (result == null) {
+      throw new ClmmpoolsError('Invalid server response', RouterErrorCode.InvalidServerResponse)
+    }
+
+    return result
+  }
+
+  async getBestRouterByRpc(
+    from: string,
+    to: string,
+    amount: number,
+    byAmountIn: boolean,
+    priceSplitPoint: number,
+    partner: string,
+    swapWithMultiPoolParams?: PreSwapWithMultiPoolParams
+  ): Promise<AggregatorResult> {
+    const priceResult: any = await this.sdk.Router.priceUseV1(
+      from,
+      to,
+      new BN(amount),
+      byAmountIn,
+      priceSplitPoint,
+      partner,
+      swapWithMultiPoolParams
+    )
+
+    const splitPaths: SplitPath[] = []
+
+    for (const path of priceResult.paths) {
+      const basePaths: BasePath[] = []
+      if (path.poolAddress.length > 1) {
+        const fromDecimal0 = this.sdk.Router.tokenInfo(path.coinType[0])!.decimals
+        const toDecimal0 = this.sdk.Router.tokenInfo(path.coinType[1])!.decimals
+        const currentPrice = path.a2b[0]
+          ? TickMath.sqrtPriceX64ToPrice(new BN(priceResult.currentSqrtPrice[0]), fromDecimal0, toDecimal0)
+          : TickMath.sqrtPriceX64ToPrice(new BN(priceResult.currentSqrtPrice[0]), toDecimal0, fromDecimal0)
+
+        const path0: BasePath = {
+          direction: path.a2b[0],
+          label: 'Cetus',
+          poolAddress: path.poolAddress[0],
+          fromCoin: path.coinType[0],
+          toCoin: path.coinType[1],
+          feeRate: this.sdk.Router.getFeeRate(path.coinType[0], path.coinType[1], path.poolAddress[0]),
+          outputAmount: priceResult.byAmountIn ? path.rawAmountLimit[0].toString() : path.rawAmountLimit[1].toString(),
+          inputAmount: path.amountIn.toString(),
+          currentSqrtPrice: priceResult.currentSqrtPrice[0],
+          currentPrice,
+          fromDecimal: fromDecimal0,
+          toDecimal: toDecimal0,
+        }
+
+        const fromDecimal1 = this.sdk.Router.tokenInfo(path.coinType[1])!.decimals
+        const toDecimal1 = this.sdk.Router.tokenInfo(path.coinType[2])!.decimals
+        const currentPrice1 = path.a2b[1]
+          ? TickMath.sqrtPriceX64ToPrice(new BN(priceResult.currentSqrtPrice[1]), fromDecimal1, toDecimal1)
+          : TickMath.sqrtPriceX64ToPrice(new BN(priceResult.currentSqrtPrice[1]), toDecimal1, fromDecimal1)
+
+        const path1: BasePath = {
+          direction: path.a2b[1],
+          label: 'Cetus',
+          poolAddress: path.poolAddress[1],
+          fromCoin: path.coinType[1],
+          toCoin: path.coinType[2],
+          feeRate: this.sdk.Router.getFeeRate(path.coinType[1], path.coinType[2], path.poolAddress[1]),
+          outputAmount: path.amountOut.toString(),
+          inputAmount: priceResult.byAmountIn ? path.rawAmountLimit[0].toString() : path.rawAmountLimit[1].toString(),
+          currentSqrtPrice: priceResult.currentSqrtPrice[1],
+          currentPrice: currentPrice1,
+          fromDecimal: fromDecimal1,
+          toDecimal: toDecimal1,
+        }
+
+        basePaths.push(path0, path1)
+      } else {
+        const fromDecimal = this.sdk.Router.tokenInfo(path.coinType[0])!.decimals
+        const toDecimal = this.sdk.Router.tokenInfo(path.coinType[1])!.decimals
+        const currentPrice = path.a2b[0]
+          ? TickMath.sqrtPriceX64ToPrice(new BN(priceResult.currentSqrtPrice[0]), fromDecimal, toDecimal)
+          : TickMath.sqrtPriceX64ToPrice(new BN(priceResult.currentSqrtPrice[0]), toDecimal, fromDecimal)
+
+        const path0: BasePath = {
+          direction: path.a2b[0],
+          label: 'Cetus',
+          poolAddress: path.poolAddress[0],
+          fromCoin: path.coinType[0],
+          toCoin: path.coinType[1],
+          feeRate: this.sdk.Router.getFeeRate(path.coinType[0], path.coinType[1], path.poolAddress[0]),
+          outputAmount: path.amountOut.toString(),
+          inputAmount: path.amountIn.toString(),
+          currentSqrtPrice: priceResult.currentSqrtPrice[0],
+          currentPrice,
+          fromDecimal,
+          toDecimal,
+        }
+        basePaths.push(path0)
+      }
+      const splitPath: SplitPath = {
+        percent: (Number(path.amountIn) / Number(priceResult.amountIn)) * 100,
+        inputAmount: Number(path.amountIn.toString()),
+        outputAmount: Number(path.amountOut.toString()),
+        pathIndex: 0,
+        lastQuoteOutput: 0,
+        basePaths,
+      }
+      splitPaths.push(splitPath)
+    }
+
+    const aggregatorResult: AggregatorResult = {
+      isExceed: priceResult.isExceed,
+      isTimeout: true,
+      inputAmount: Number(priceResult.amountIn.toString()),
+      outputAmount: Number(priceResult.amountOut.toString()),
+      fromCoin: priceResult.coinTypeA,
+      toCoin: priceResult.coinTypeC != null ? priceResult.coinTypeC : priceResult.coinTypeB,
+      byAmountIn: priceResult.byAmountIn,
+      splitPaths,
+    }
+
+    return aggregatorResult
   }
 }

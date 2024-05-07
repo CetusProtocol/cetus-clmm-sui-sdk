@@ -1,6 +1,6 @@
 import BN from 'bn.js'
 import Decimal from 'decimal.js'
-import { TransactionBlock } from '@mysten/sui.js/transactions'
+import { TransactionBlock, TransactionObjectArgument } from '@mysten/sui.js/transactions'
 import {
   CalculateRatesParams,
   CalculateRatesResult,
@@ -131,7 +131,10 @@ export class SwapModule implements IModule {
       sender: simulationAccount.address,
     })
     if (simulateRes.error != null) {
-      throw new ClmmpoolsError(`pre swap with multi pools error code: ${simulateRes.error ?? 'unknown error'}, please check config and params`, ConfigErrorCode.InvalidConfig)
+      throw new ClmmpoolsError(
+        `pre swap with multi pools error code: ${simulateRes.error ?? 'unknown error'}, please check config and params`,
+        ConfigErrorCode.InvalidConfig
+      )
     }
 
     const valueData: any = simulateRes.events?.filter((item: any) => {
@@ -208,7 +211,10 @@ export class SwapModule implements IModule {
       sender: simulationAccount.address,
     })
     if (simulateRes.error != null) {
-      throw new ClmmpoolsError(`preswap error code: ${simulateRes.error ?? 'unknown error'}, please check config and params`, ConfigErrorCode.InvalidConfig)
+      throw new ClmmpoolsError(
+        `preswap error code: ${simulateRes.error ?? 'unknown error'}, please check config and params`,
+        ConfigErrorCode.InvalidConfig
+      )
     }
 
     const valueData: any = simulateRes.events?.filter((item: any) => {
@@ -238,13 +244,16 @@ export class SwapModule implements IModule {
 
   private transformSwapWithMultiPoolData(params: TransPreSwapWithMultiPoolParams, jsonData: any) {
     const { data } = jsonData
+
+    console.log("json data. ", data)
+
     const estimatedAmountIn = data.amount_in && data.fee_amount ? new BN(data.amount_in).add(new BN(data.fee_amount)).toString() : ''
     return {
       poolAddress: params.poolAddress,
       estimatedAmountIn,
       estimatedAmountOut: data.amount_out,
       estimatedEndSqrtPrice: data.after_sqrt_price,
-      estimatedStartSqrtPrice: jsonData.current_sqrt_price,
+      estimatedStartSqrtPrice: data.step_results[0].current_sqrt_price,
       estimatedFeeAmount: data.fee_amount,
       isExceed: data.is_exceed,
       amount: params.amount,
@@ -351,5 +360,40 @@ export class SwapModule implements IModule {
     }
 
     return TransactionUtil.buildSwapTransaction(this.sdk, params, allCoinAsset)
+  }
+
+  /**
+   * create swap transaction without transfer coins payload
+   * @param params
+   * @param gasEstimateArg When the fix input amount is SUI, gasEstimateArg can control whether to recalculate the number of SUI to prevent insufficient gas.
+   * If this parameter is not passed, gas estimation is not performed
+   * @returns tx and coin ABs
+   */
+  async createSwapTransactionWithoutTransferCoinsPayload(
+    params: SwapParams,
+    gasEstimateArg?: {
+      byAmountIn: boolean
+      slippage: Percentage
+      decimalsA: number
+      decimalsB: number
+      swapTicks: Array<TickData>
+      currentPool: Pool
+    }
+  ): Promise<{ tx: TransactionBlock; coinABs: TransactionObjectArgument[] }> {
+    if (this._sdk.senderAddress.length === 0) {
+      throw Error('this config sdk senderAddress is empty')
+    }
+    const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
+
+    if (gasEstimateArg) {
+      const { isAdjustCoinA, isAdjustCoinB } = findAdjustCoin(params)
+
+      if ((params.a2b && isAdjustCoinA) || (!params.a2b && isAdjustCoinB)) {
+        const res = await TransactionUtil.buildSwapTransactionWithoutTransferCoinsForGas(this._sdk, params, allCoinAsset, gasEstimateArg)
+        return res
+      }
+    }
+
+    return TransactionUtil.buildSwapTransactionWithoutTransferCoins(this.sdk, params, allCoinAsset)
   }
 }

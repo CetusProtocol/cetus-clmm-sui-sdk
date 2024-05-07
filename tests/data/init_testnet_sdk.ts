@@ -20,8 +20,7 @@ const SDKConfig = {
 }
 
 export const clmm_testnet: SdkOptions = {
-  fullRpcUrl: 'https://testnet.artifact.systems:443/sui',
-  // fullRpcUrl: 'https://sui-testnet-endpoint.blockvision.org',
+  fullRpcUrl: 'https://sui-testnet-endpoint.blockvision.org',
   simulationAccount: {
     address: '0xcd0247d0b67e53dde69b285e7a748e3dc390e8a5244eb9dd9c5c53d95e4cf0aa',
   },
@@ -54,7 +53,7 @@ export const clmm_testnet: SdkOptions = {
     package_id: '0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6',
     published_at: '0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6',
   },
-  aggregatorUrl: 'https://api-sui.devcetus.com/router',
+  aggregatorUrl: 'https://api-sui.devcetus.com/router11',
   swapCountUrl: 'https://api-sui.devcetus.com/v2/sui/pools_info',
 }
 

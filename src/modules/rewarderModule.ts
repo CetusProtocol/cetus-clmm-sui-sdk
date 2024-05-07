@@ -1,13 +1,23 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import BN from 'bn.js'
-import { TransactionBlock, TransactionArgument } from '@mysten/sui.js/transactions'
-import { checkInvalidSuiAddress, extractStructTagFromType, TransactionUtil } from '../utils'
-import { ClmmFetcherModule, ClmmIntegratePoolV2Module, CLOCK_ADDRESS } from '../types/sui'
+import { TransactionBlock, TransactionArgument, TransactionObjectArgument } from '@mysten/sui.js/transactions'
+import { BuildCoinResult, checkInvalidSuiAddress, extractStructTagFromType, normalizeCoinType, TransactionUtil } from '../utils'
+import { ClmmFetcherModule, ClmmIntegratePoolModule, ClmmIntegratePoolV2Module, CLOCK_ADDRESS } from '../types/sui'
 import { getRewardInTickRange } from '../utils/tick'
 import { MathUtil, ONE, ZERO } from '../math/utils'
 import { TickData } from '../types/clmmpool'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
-import { CollectRewarderParams, getPackagerConfigs, Pool, Position, PositionReward, Rewarder, RewarderAmountOwed } from '../types'
+import {
+  CoinAsset,
+  CollectRewarderParams,
+  getPackagerConfigs,
+  Pool,
+  Position,
+  PositionReward,
+  Rewarder,
+  RewarderAmountOwed,
+} from '../types'
 import { CollectFeesQuote } from '../math'
 import { ClmmpoolsError, ConfigErrorCode, UtilsErrorCode } from '../errors/errors'
 
@@ -276,7 +286,6 @@ export class RewarderModule implements IModule {
     return result[0].rewarderAmountOwed
   }
 
-
   /**
    * Fetches the Position fee amount for a given list of addresses.
    * @param positionIDs An array of position object ids.
@@ -383,7 +392,10 @@ export class RewarderModule implements IModule {
     }
 
     if (!checkInvalidSuiAddress(simulationAccount.address)) {
-      throw new ClmmpoolsError(`this config simulationAccount: ${simulationAccount.address} is not set right`, ConfigErrorCode.InvalidSimulateAccount)
+      throw new ClmmpoolsError(
+        `this config simulationAccount: ${simulationAccount.address} is not set right`,
+        ConfigErrorCode.InvalidSimulateAccount
+      )
     }
 
     const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
@@ -392,7 +404,10 @@ export class RewarderModule implements IModule {
     })
 
     if (simulateRes.error != null) {
-      throw new ClmmpoolsError(`fetch position rewards error code: ${simulateRes.error ?? 'unknown error'}, please check config and params`, ConfigErrorCode.InvalidConfig)
+      throw new ClmmpoolsError(
+        `fetch position rewards error code: ${simulateRes.error ?? 'unknown error'}, please check config and params`,
+        ConfigErrorCode.InvalidConfig
+      )
     }
 
     const valueData: any = simulateRes.events?.filter((item: any) => {
@@ -403,7 +418,7 @@ export class RewarderModule implements IModule {
     }
 
     if (valueData.length !== params.length) {
-      throw new ClmmpoolsError('valueData.length !== params.pools.length',)
+      throw new ClmmpoolsError('valueData.length !== params.pools.length')
     }
 
     const result: PosRewarderResult[] = []
@@ -496,6 +511,74 @@ export class RewarderModule implements IModule {
     return tx
   }
 
+  /**
+   * batech Collect rewards from Position.
+   * @param params
+   * @param published_at
+   * @param tx
+   * @returns
+   */
+  async batchCollectRewardePayload(params: CollectRewarderParams[], published_at: string, tx?: TransactionBlock) {
+    if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
+      throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
+    }
+    const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress, null)
+    tx = tx || new TransactionBlock()
+    const coinIdMaps: Record<string, BuildCoinResult> = {}
+    params.forEach((item) => {
+      const coinTypeA = normalizeCoinType(item.coinTypeA)
+      const coinTypeB = normalizeCoinType(item.coinTypeB)
+
+      if (item.collect_fee) {
+        let coinAInput = coinIdMaps[coinTypeA]
+        if (coinAInput === undefined) {
+          coinAInput = TransactionUtil.buildCoinForAmount(tx!, allCoinAsset!, BigInt(0), coinTypeA, false)
+          coinIdMaps[coinTypeA] = coinAInput
+        }
+
+        let coinBInput = coinIdMaps[coinTypeB]
+        if (coinBInput === undefined) {
+          coinBInput = TransactionUtil.buildCoinForAmount(tx!, allCoinAsset!, BigInt(0), coinTypeB, false)
+          coinIdMaps[coinTypeB] = coinBInput
+        }
+
+        tx = this._sdk.Position.createCollectFeeNoSendPaylod(
+          {
+            pool_id: item.pool_id,
+            pos_id: item.pos_id,
+            coinTypeA: item.coinTypeA,
+            coinTypeB: item.coinTypeB,
+          },
+          published_at,
+          tx!,
+          coinAInput.targetCoin,
+          coinBInput.targetCoin
+        )
+      }
+      const primaryCoinInputs: TransactionObjectArgument[] = []
+      item.rewarder_coin_types.forEach((type) => {
+        const coinType = normalizeCoinType(type)
+        let coinInput = coinIdMaps[type]
+        if (coinInput === undefined) {
+          coinInput = TransactionUtil.buildCoinForAmount(tx!, allCoinAsset!, BigInt(0), coinType, false)
+          coinIdMaps[coinType] = coinInput
+        }
+        primaryCoinInputs.push(coinInput.targetCoin)
+      })
+
+      tx = this.createCollectRewarderNoSendPaylod(item, published_at, tx!, primaryCoinInputs)
+    })
+
+    Object.keys(coinIdMaps).forEach((key) => {
+      const value = coinIdMaps[key]
+      if (value.isMintZeroCoin) {
+        TransactionUtil.buildTransferCoin(this._sdk, tx!, value.targetCoin, key, this._sdk.senderAddress)
+      }
+    })
+
+    return tx
+  }
+
   createCollectRewarderPaylod(params: CollectRewarderParams, tx: TransactionBlock, primaryCoinInputs: TransactionArgument[]) {
     const { clmm_pool, integrate } = this.sdk.sdkOptions
     const clmmConfigs = getPackagerConfigs(clmm_pool)
@@ -504,6 +587,34 @@ export class RewarderModule implements IModule {
       if (tx) {
         tx.moveCall({
           target: `${integrate.published_at}::${ClmmIntegratePoolV2Module}::collect_reward`,
+          typeArguments: [...typeArguments, type],
+          arguments: [
+            tx.object(clmmConfigs.global_config_id),
+            tx.object(params.pool_id),
+            tx.object(params.pos_id),
+            tx.object(clmmConfigs.global_vault_id),
+            primaryCoinInputs[index],
+            tx.object(CLOCK_ADDRESS),
+          ],
+        })
+      }
+    })
+    return tx
+  }
+
+  createCollectRewarderNoSendPaylod(
+    params: CollectRewarderParams,
+    published_at: string,
+    tx: TransactionBlock,
+    primaryCoinInputs: TransactionArgument[]
+  ) {
+    const { clmm_pool } = this.sdk.sdkOptions
+    const clmmConfigs = getPackagerConfigs(clmm_pool)
+    const typeArguments = [params.coinTypeA, params.coinTypeB]
+    params.rewarder_coin_types.forEach((type, index) => {
+      if (tx) {
+        tx.moveCall({
+          target: `${published_at}::${ClmmIntegratePoolModule}::collect_reward`,
           typeArguments: [...typeArguments, type],
           arguments: [
             tx.object(clmmConfigs.global_config_id),

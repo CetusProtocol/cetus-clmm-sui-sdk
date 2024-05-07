@@ -157,8 +157,8 @@ export interface SuiObjectDataWithContent extends SuiObjectData {
 
 /**
  * Return hasPublicTransfer of a move object.
- * @param {SuiObjectResponse | SuiObjectData}data 
- * @returns 
+ * @param {SuiObjectResponse | SuiObjectData}data
+ * @returns
  */
 export function hasPublicTransfer(data: SuiObjectResponse | SuiObjectData): boolean {
   return getMoveObject(data)?.hasPublicTransfer ?? false
