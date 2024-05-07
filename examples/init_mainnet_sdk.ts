@@ -48,6 +48,7 @@ export const clmmMainnet: SdkOptions = {
     published_at: '0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7',
   },
   aggregatorUrl: 'https://api-sui.cetus.zone/router',
+  swapCountUrl: 'https://api-sui.cetus.zone/v2/sui/swap/count',
 }
 
 export const SDK = new CetusClmmSDK(clmmMainnet)

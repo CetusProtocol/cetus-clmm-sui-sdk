@@ -19,8 +19,8 @@ const SDKConfig = {
   },
 }
 
-export const clmm_testnet: SdkOptions = {
-  fullRpcUrl: 'https://sui-testnet-endpoint.blockvision.org',
+export const clmmTestnet: SdkOptions = {
+  fullRpcUrl: 'https://testnet.artifact.systems/sui',
   simulationAccount: {
     address: '0xcd0247d0b67e53dde69b285e7a748e3dc390e8a5244eb9dd9c5c53d95e4cf0aa',
   },
@@ -36,25 +36,24 @@ export const clmm_testnet: SdkOptions = {
 
   clmm_pool: {
     package_id: '0x0868b71c0cba55bf0faf6c40df8c179c67a4d0ba0e79965b68b3d72d7dfbf666',
-    published_at: '0x1c29d658882c40eeb39a8bb8fe58f71a216a918acb3e3eb3b47d24efd07257f2',
-    version: 6,
+    published_at: '0x084dbc14f8f6b50e4e1d6828ebf1f93fd1b1d2502b121bc787937893793417b0',
     config: SDKConfig.clmmConfig,
   },
   integrate: {
     package_id: '0x8627c5cdcd8b63bc3daa09a6ab7ed81a829a90cafce6003ae13372d611fbb1a9',
-    published_at: '0xf1a5d0c5b0593e41d13f9684ca91365bdfe54a98836c1d33c90e361a031fac74',
-    version: 6,
+    published_at: '0xd55d88490e28ef68d83d2fe7862909dfcef6e43a2f50403f3a461c4678e274f1',
   },
   deepbook: {
     package_id: '0x000000000000000000000000000000000000000000000000000000000000dee9',
     published_at: '0x000000000000000000000000000000000000000000000000000000000000dee9',
   },
   deepbook_endpoint_v2: {
-    package_id: '0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6',
-    published_at: '0xa34ffca2c6540e1ca9e53963ab43e7b1eed7b82e37696c743bb7c6179c15dfa6',
+    package_id: '0x56d90d0c055edb534b11e7548270bb458fd47c69b77bf40c14d5eb00e6e6cf64',
+    published_at: '0x56d90d0c055edb534b11e7548270bb458fd47c69b77bf40c14d5eb00e6e6cf64',
   },
-  aggregatorUrl: 'https://api-sui.devcetus.com/router11',
+  aggregatorUrl: 'https://api-sui.devcetus.com/router',
   swapCountUrl: 'https://api-sui.devcetus.com/v2/sui/pools_info',
 }
 
-export const TestnetSDK = new CetusClmmSDK(clmm_testnet)
+export const TestnetSDK = new CetusClmmSDK(clmmTestnet)
+

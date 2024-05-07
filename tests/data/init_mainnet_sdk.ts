@@ -19,7 +19,8 @@ const SDKConfig = {
   },
 }
 
-export const clmm_mainnet: SdkOptions = {
+// mainnet
+export const clmmMainnet: SdkOptions = {
   fullRpcUrl: 'https://sui-mainnet-endpoint.blockvision.org/',
   simulationAccount: {
     address: '0x326ce9894f08dcaa337fa232641cc34db957aec9ff6614c1186bc9a7508df0bb',
@@ -31,25 +32,23 @@ export const clmm_mainnet: SdkOptions = {
   },
   clmm_pool: {
     package_id: '0x1eabed72c53feb3805120a081dc15963c204dc8d091542592abaf7a35689b2fb',
-    published_at: '0xc33c3e937e5aa2009cc0c3fdb3f345a0c3193d4ee663ffc601fe8b894fbc4ba6',
-    version: 4,
+    published_at: '0x70968826ad1b4ba895753f634b0aea68d0672908ca1075a2abdf0fc9e0b2fc6a',
     config: SDKConfig.clmmConfig,
   },
   integrate: {
     package_id: '0x996c4d9480708fb8b92aa7acf819fb0497b5ec8e65ba06601cae2fb6db3312c3',
-    published_at: '0x12fc0b1791df55bf2c91921f12152659c4a897fa6867144b5b3939a3ea004c46',
-    version: 2,
+    published_at: '0x6f5e582ede61fe5395b50c4a449ec11479a54d7ff8e0158247adfda60d98970b',
   },
   deepbook: {
     package_id: '0x000000000000000000000000000000000000000000000000000000000000dee9',
     published_at: '0x000000000000000000000000000000000000000000000000000000000000dee9',
   },
   deepbook_endpoint_v2: {
-    package_id: '0x10b5eea7a286091241b69102a5e63ae444a27363ebe4ee7261fa6b688ae3daf5',
-    published_at: '0x10b5eea7a286091241b69102a5e63ae444a27363ebe4ee7261fa6b688ae3daf5',
+    package_id: '0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7',
+    published_at: '0xac95e8a5e873cfa2544916c16fe1461b6a45542d9e65504c1794ae390b3345a7',
   },
   aggregatorUrl: 'https://api-sui.cetus.zone/router',
   swapCountUrl: 'https://api-sui.cetus.zone/v2/sui/swap/count',
 }
 
-export const SDK = new CetusClmmSDK(clmm_mainnet)
+export const SDK = new CetusClmmSDK(clmmMainnet)
