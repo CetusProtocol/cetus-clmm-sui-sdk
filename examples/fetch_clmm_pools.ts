@@ -9,19 +9,19 @@ async function retrievelAllPools() {
 //pool length: 82
 
 async function batchRetrievalPools() {
-  const betch_pool_addresses = [
+  const batch_pool_addresses = [
     '0xbed3136f15b0ea649fb94bcdf9d3728fb82ba1c3e189bf6062d78ff547850054',
     '0x74dcb8625ddd023e2ef7faf1ae299e3bc4cb4c337d991a5326751034676acdae',
   ]
 
   // if pool addresses not empty, you will get the pool list of the addresses.
-  const betch_pools = await TestnetSDK.Pool.getPoolsWithPage(betch_pool_addresses)
-  console.log({ betch_pools })
+  const batch_pools = await TestnetSDK.Pool.getPoolsWithPage(batch_pool_addresses)
+  console.log({ batch_pools })
 }
 //batchRetrievalPools()
 /*
 {
-  betch_pools: [
+  batch_pools: [
     {
       poolAddress: '0xbed3136f15b0ea649fb94bcdf9d3728fb82ba1c3e189bf6062d78ff547850054',
       poolType: '0x0868b71c0cba55bf0faf6c40df8c179c67a4d0ba0e79965b68b3d72d7dfbf666::pool::Pool<0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::usdt::USDT, 0x26b3bc67befc214058ca78ea9a2690298d731a2d4309485ec3d40198063c4abc::cetus::CETUS>',
