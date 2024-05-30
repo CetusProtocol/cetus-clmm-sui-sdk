@@ -1,5 +1,5 @@
-import { normalizeSuiObjectId } from '@mysten/sui.js/utils'
-import { TransactionArgument, TransactionBlock, TransactionObjectArgument, TransactionResult } from '@mysten/sui.js/transactions'
+import { normalizeSuiObjectId } from '@mysten/sui/utils'
+import { TransactionArgument, Transaction, TransactionObjectArgument, TransactionResult } from '@mysten/sui/transactions'
 import { getDefaultSuiInputType, SuiInputTypes, SuiTxArg } from '../types/sui'
 import { ClmmpoolsError, UtilsErrorCode } from '../errors/errors'
 
@@ -15,10 +15,10 @@ export function checkInvalidSuiAddress(address: string): boolean {
   return true
 }
 export class TxBlock {
-  public txBlock: TransactionBlock
+  public txBlock: Transaction
 
   constructor() {
-    this.txBlock = new TransactionBlock()
+    this.txBlock = new Transaction()
   }
 
   /**
@@ -39,12 +39,9 @@ export class TxBlock {
     }
 
     const tx = this.txBlock
-    const coins = tx.splitCoins(
-      tx.gas,
-      amounts.map((amount) => tx.pure(amount))
-    )
+    const coins = tx.splitCoins(tx.gas, amounts)
     recipients.forEach((recipient, index) => {
-      tx.transferObjects([coins[index]], tx.pure(recipient))
+      tx.transferObjects([coins[index]], recipient)
     })
     return this
   }
@@ -87,8 +84,8 @@ export class TxBlock {
       )
     }
 
-    const spitAmount = tx.splitCoins(primaryCoinAInput, [tx.pure(amount)])
-    tx.transferObjects([spitAmount], tx.pure(recipient))
+    const spitAmount = tx.splitCoins(primaryCoinAInput, [amount])
+    tx.transferObjects([spitAmount], recipient)
     return this
   }
 
@@ -98,13 +95,12 @@ export class TxBlock {
    * @param {string}recipient The recipient address.
    * @returns
    */
-  transferObjects(objects: SuiTxArg[], recipient: string) {
+  transferObjects(objects: (TransactionObjectArgument | string)[], recipient: string) {
     if (!checkInvalidSuiAddress(recipient) === false) {
       throw new ClmmpoolsError('Invalid recipient address', UtilsErrorCode.InvalidRecipientAddress)
     }
 
-    const tx = this.txBlock
-    tx.transferObjects(this.convertArgs(objects) as TransactionObjectArgument[], tx.pure(recipient))
+    this.txBlock.transferObjects(objects, recipient)
     return this
   }
 
@@ -136,7 +132,7 @@ export class TxBlock {
    * @returns
    */
   address(value: string) {
-    return this.txBlock.pure(value)
+    return this.txBlock.pure.address(value)
   }
 
   /**
@@ -180,20 +176,20 @@ export class TxBlock {
    * @param args
    * @param type 'address' | 'bool' | 'u8' | 'u16' | 'u32' | 'u64' | 'u128' | 'u256' | 'object'
    */
-  makeMoveVec(args: SuiTxArg[], type?: SuiInputTypes) {
+  makeMoveVec(args: SuiTxArg[], type: SuiInputTypes = getDefaultSuiInputType(args[0])) {
     if (args.length === 0)
       throw new ClmmpoolsError('Transaction builder error: Empty array is not allowed', UtilsErrorCode.InvalidTransactionBuilder)
     if (type === 'object' && args.some((arg) => typeof arg !== 'string')) {
       throw new ClmmpoolsError('Transaction builder error: Object id must be string', UtilsErrorCode.InvalidTransactionBuilder)
     }
-    const defaultSuiType = getDefaultSuiInputType(args[0])
-    if (type === 'object' || defaultSuiType === 'object') {
+    if (type === 'object') {
       return this.txBlock.makeMoveVec({
-        objects: args.map((arg) => this.txBlock.object(normalizeSuiObjectId(arg as string))),
+        elements: args.map((arg) => this.txBlock.object(normalizeSuiObjectId(arg as string))),
       })
     }
     return this.txBlock.makeMoveVec({
-      objects: args.map((arg) => this.txBlock.pure(arg) as TransactionObjectArgument),
+      type,
+      elements: args.map((arg) => this.txBlock.pure[type](arg as never)),
     })
   }
 

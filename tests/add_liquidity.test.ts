@@ -8,7 +8,7 @@ import 'isomorphic-fetch'
 import { printTransaction } from '../src/utils/transaction-util'
 import { AddLiquidityParams, Position, d, toDecimalsAmount } from '../src'
 import Decimal from 'decimal.js'
-import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
 
 let sendKeypair: Ed25519Keypair
 
@@ -58,8 +58,6 @@ describe('add Liquidity Module', () => {
     const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, payload)
     console.log('createAddLiquidityPayload: ', transferTxn)
   })
-
-
 
   test('add liquidity for input totalAmount', async () => {
     const pool = await buildTestPool(sdk, PoolObjectID)
@@ -118,5 +116,4 @@ describe('add Liquidity Module', () => {
     const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, payload)
     console.log('createAddLiquidityPayload: ', transferTxn)
   })
-
 })

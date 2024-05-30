@@ -8,7 +8,7 @@ import 'isomorphic-fetch'
 import { printTransaction } from '../src/utils/transaction-util'
 import { Position, RemoveLiquidityParams, d, toDecimalsAmount } from '../src'
 import Decimal from 'decimal.js'
-import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
 
 let sendKeypair: Ed25519Keypair
 
@@ -224,5 +224,4 @@ describe('remove liquidity', () => {
     const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, removeLiquidityTransactionPayload)
     console.log('removeLiquidity: ', transferTxn)
   })
-
 })

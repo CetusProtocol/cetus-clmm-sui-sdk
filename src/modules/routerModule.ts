@@ -1,6 +1,6 @@
 import BN from 'bn.js'
 import { Graph, GraphEdge, GraphVertex } from '@syntsugar/cc-graph'
-import { TransactionBlock } from '@mysten/sui.js/transactions'
+import { Transaction } from '@mysten/sui/transactions'
 import { PreSwapWithMultiPoolParams } from '../types'
 import { checkInvalidSuiAddress, extractStructTagFromType } from '../utils'
 import { ClmmExpectSwapModule, ClmmIntegrateRouterModule, SuiAddressType } from '../types/sui'
@@ -661,16 +661,16 @@ export class RouterModule implements IModule {
 
     const { integrate, simulationAccount } = this.sdk.sdkOptions
 
-    const tx = new TransactionBlock()
+    const tx = new Transaction()
     for (const param of params) {
       if (param.stepNums > 1) {
         const args = [
           tx.object(param.poolAB),
           tx.object(param.poolBC!),
-          tx.pure(param.a2b),
-          tx.pure(param.b2c),
-          tx.pure(param.byAmountIn),
-          tx.pure(param.amount.toString()),
+          tx.pure.bool(param.a2b),
+          tx.pure.bool(!!param.b2c),
+          tx.pure.bool(param.byAmountIn),
+          tx.pure.u64(param.amount.toString()),
         ]
         const typeArguments = []
         if (param.a2b) {
@@ -691,7 +691,12 @@ export class RouterModule implements IModule {
           arguments: args,
         })
       } else {
-        const args = [tx.pure(param.poolAB), tx.pure(param.a2b), tx.pure(param.byAmountIn), tx.pure(param.amount.toString())]
+        const args = [
+          tx.object(param.poolAB),
+          tx.pure.bool(param.a2b),
+          tx.pure.bool(param.byAmountIn),
+          tx.pure.u64(param.amount.toString()),
+        ]
         const typeArguments = param.a2b ? [param.coinTypeA, param.coinTypeB] : [param.coinTypeB, param.coinTypeA]
         tx.moveCall({
           target: `${integrate.published_at}::${ClmmExpectSwapModule}::get_expect_swap_result`,

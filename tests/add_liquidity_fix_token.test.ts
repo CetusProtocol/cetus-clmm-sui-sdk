@@ -5,7 +5,7 @@ import { ClmmPoolUtil } from '../src/math/clmm'
 import 'isomorphic-fetch'
 import { printTransaction } from '../src/utils/transaction-util'
 import { AddLiquidityFixTokenParams, Position, d } from '../src'
-import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
 
 let sendKeypair: Ed25519Keypair
 

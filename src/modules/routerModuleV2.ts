@@ -1,11 +1,11 @@
 import BN from 'bn.js'
 import Decimal from 'decimal.js'
 import { v4 as uuidv4 } from 'uuid'
+import axios, { AxiosRequestConfig } from 'axios'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
 import { PreSwapLpChangeParams, PreSwapWithMultiPoolParams } from '../types'
 import { TickMath, ZERO } from '../math'
-import axios, { AxiosRequestConfig } from 'axios'
 import { ClmmpoolsError, MathErrorCode, RouterErrorCode } from '../errors/errors'
 
 export type BasePath = {
@@ -115,18 +115,18 @@ export class RouterModuleV2 implements IModule {
       const config: AxiosRequestConfig = {
         ..._options,
         timeout: timeoutDuration, // 设置超时时间
-      };
-
-      const response = await axios(apiUrl, config);
-
-      if (response.status === 200) {
-        return this.parseJsonResult(response.data);
       }
 
-      return null;
+      const response = await axios(apiUrl, config)
+
+      if (response.status === 200) {
+        return this.parseJsonResult(response.data)
+      }
+
+      return null
     } catch (error) {
-      console.error(error);
-      return null;
+      console.error(error)
+      return null
     }
   }
 
