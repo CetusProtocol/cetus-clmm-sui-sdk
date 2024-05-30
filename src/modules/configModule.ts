@@ -1,6 +1,6 @@
 import { Base64 } from 'js-base64'
-import { SuiObjectResponse } from '@mysten/sui.js/client'
-import { normalizeSuiObjectId } from '@mysten/sui.js/utils'
+import { SuiObjectResponse } from '@mysten/sui/client'
+import { normalizeSuiObjectId } from '@mysten/sui/utils'
 import { CetusConfigs, ClmmPoolConfig, CoinConfig, getPackagerConfigs, LaunchpadPoolConfig } from '../types'
 import { SuiResource, SuiAddressType } from '../types/sui'
 import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils/cachedContent'

@@ -1,6 +1,6 @@
 import BN from 'bn.js'
 import Decimal from 'decimal.js'
-import { TransactionBlock, TransactionObjectArgument } from '@mysten/sui.js/transactions'
+import { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions'
 import {
   CalculateRatesParams,
   CalculateRatesResult,
@@ -111,11 +111,16 @@ export class SwapModule implements IModule {
    */
   async preSwapWithMultiPool(params: PreSwapWithMultiPoolParams) {
     const { integrate, simulationAccount } = this.sdk.sdkOptions
-    const tx = new TransactionBlock()
+    const tx = new Transaction()
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
     for (let i = 0; i < params.poolAddresses.length; i += 1) {
-      const args = [tx.pure(params.poolAddresses[i]), tx.pure(params.a2b), tx.pure(params.byAmountIn), tx.pure(params.amount)]
+      const args = [
+        tx.object(params.poolAddresses[i]),
+        tx.pure.bool(params.a2b),
+        tx.pure.bool(params.byAmountIn),
+        tx.pure.u64(params.amount),
+      ]
       tx.moveCall({
         target: `${integrate.published_at}::${ClmmFetcherModule}::calculate_swap_result`,
         arguments: args,
@@ -192,10 +197,10 @@ export class SwapModule implements IModule {
   async preswap(params: PreSwapParams) {
     const { integrate, simulationAccount } = this.sdk.sdkOptions
 
-    const tx = new TransactionBlock()
+    const tx = new Transaction()
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
-    const args = [tx.pure(params.pool.poolAddress), tx.pure(params.a2b), tx.pure(params.byAmountIn), tx.pure(params.amount)]
+    const args = [tx.object(params.pool.poolAddress), tx.pure.bool(params.a2b), tx.pure.bool(params.byAmountIn), tx.pure.u64(params.amount)]
 
     tx.moveCall({
       target: `${integrate.published_at}::${ClmmFetcherModule}::calculate_swap_result`,
@@ -245,7 +250,7 @@ export class SwapModule implements IModule {
   private transformSwapWithMultiPoolData(params: TransPreSwapWithMultiPoolParams, jsonData: any) {
     const { data } = jsonData
 
-    console.log("json data. ", data)
+    console.log('json data. ', data)
 
     const estimatedAmountIn = data.amount_in && data.fee_amount ? new BN(data.amount_in).add(new BN(data.fee_amount)).toString() : ''
     return {
@@ -344,7 +349,7 @@ export class SwapModule implements IModule {
       swapTicks: Array<TickData>
       currentPool: Pool
     }
-  ): Promise<TransactionBlock> {
+  ): Promise<Transaction> {
     if (this._sdk.senderAddress.length === 0) {
       throw Error('this config sdk senderAddress is empty')
     }
@@ -379,7 +384,7 @@ export class SwapModule implements IModule {
       swapTicks: Array<TickData>
       currentPool: Pool
     }
-  ): Promise<{ tx: TransactionBlock; coinABs: TransactionObjectArgument[] }> {
+  ): Promise<{ tx: Transaction; coinABs: TransactionObjectArgument[] }> {
     if (this._sdk.senderAddress.length === 0) {
       throw Error('this config sdk senderAddress is empty')
     }

@@ -1,4 +1,4 @@
-import { CoinBalance } from '@mysten/sui.js/client'
+import { CoinBalance } from '@mysten/sui/client'
 import { PoolModule } from './modules/poolModule'
 import { PositionModule } from './modules/positionModule'
 import { RewarderModule } from './modules/rewarderModule'

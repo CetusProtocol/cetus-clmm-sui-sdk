@@ -1,6 +1,7 @@
-import { DynamicFieldPage, SuiObjectResponse, SuiTransactionBlockResponse } from '@mysten/sui.js/client'
-import { normalizeSuiAddress } from '@mysten/sui.js/utils'
-import { TransactionBlock } from '@mysten/sui.js/transactions'
+import { DynamicFieldPage, SuiObjectResponse, SuiTransactionBlockResponse } from '@mysten/sui/client'
+import { bcs } from '@mysten/sui/bcs'
+import { normalizeSuiAddress } from '@mysten/sui/utils'
+import { Transaction } from '@mysten/sui/transactions'
 import { CachedContent, cacheTime24h, cacheTime5min, checkInvalidSuiAddress, d, getFutureTime } from '../utils'
 import {
   CreatePoolAddLiquidityParams,
@@ -36,7 +37,7 @@ import { getObjectPreviousTransactionDigest } from '../utils/objects'
 import { ClmmpoolsError, ConfigErrorCode, PartnerErrorCode, PoolErrorCode, PositionErrorCode, UtilsErrorCode } from '../errors/errors'
 
 type GetTickParams = {
-  start: number[]
+  start: number
   limit: number
 } & FetchParams
 
@@ -297,9 +298,9 @@ export class PoolModule implements IModule {
   /**
    * Creates a transaction payload for creating multiple pools.
    * @param {CreatePoolParams[]} paramss The parameters for the pools.
-   * @returns {Promise<TransactionBlock>} A promise that resolves to the transaction payload.
+   * @returns {Promise<Transaction>} A promise that resolves to the transaction payload.
    */
-  async creatPoolsTransactionPayload(paramss: CreatePoolParams[]): Promise<TransactionBlock> {
+  async creatPoolsTransactionPayload(paramss: CreatePoolParams[]): Promise<Transaction> {
     for (const params of paramss) {
       if (isSortedSymbols(normalizeSuiAddress(params.coinTypeA), normalizeSuiAddress(params.coinTypeB))) {
         const swpaCoinTypeB = params.coinTypeB
@@ -314,9 +315,9 @@ export class PoolModule implements IModule {
   /**
    * Create a pool of clmmpool protocol. The pool is identified by (CoinTypeA, CoinTypeB, tick_spacing).
    * @param {CreatePoolParams | CreatePoolAddLiquidityParams} params
-   * @returns {Promise<TransactionBlock>}
+   * @returns {Promise<Transaction>}
    */
-  async creatPoolTransactionPayload(params: CreatePoolParams | CreatePoolAddLiquidityParams): Promise<TransactionBlock> {
+  async creatPoolTransactionPayload(params: CreatePoolParams | CreatePoolAddLiquidityParams): Promise<Transaction> {
     if (isSortedSymbols(normalizeSuiAddress(params.coinTypeA), normalizeSuiAddress(params.coinTypeB))) {
       const swpaCoinTypeB = params.coinTypeB
       params.coinTypeB = params.coinTypeA
@@ -430,10 +431,10 @@ export class PoolModule implements IModule {
   /**
    * Create pool internal.
    * @param {CreatePoolParams[]}params The parameters for the pools.
-   * @returns {Promise<TransactionBlock>} A promise that resolves to the transaction payload.
+   * @returns {Promise<Transaction>} A promise that resolves to the transaction payload.
    */
-  private async creatPool(params: CreatePoolParams[]): Promise<TransactionBlock> {
-    const tx = new TransactionBlock()
+  private async creatPool(params: CreatePoolParams[]): Promise<Transaction> {
+    const tx = new Transaction()
     const { integrate, clmm_pool } = this.sdk.sdkOptions
     const eventConfig = getPackagerConfigs(clmm_pool)
     const globalPauseStatusObjectId = eventConfig.global_config_id
@@ -443,9 +444,9 @@ export class PoolModule implements IModule {
       const args = [
         tx.object(globalPauseStatusObjectId),
         tx.object(poolsId),
-        tx.pure(params.tick_spacing.toString()),
-        tx.pure(params.initialize_sqrt_price),
-        tx.pure(params.uri),
+        tx.pure.u32(params.tick_spacing),
+        tx.pure.u128(params.initialize_sqrt_price),
+        tx.pure.string(params.uri),
         tx.object(CLOCK_ADDRESS),
       ]
 
@@ -462,14 +463,14 @@ export class PoolModule implements IModule {
   /**
    * Create pool and add liquidity internal. It will call create_pool_with_liquidity function.
    * @param {CreatePoolAddLiquidityParams}params The parameters for the create and liquidity.
-   * @returns {Promise<TransactionBlock>} A promise that resolves to the transaction payload.
+   * @returns {Promise<Transaction>} A promise that resolves to the transaction payload.
    */
-  private async creatPoolAndAddLiquidity(params: CreatePoolAddLiquidityParams): Promise<TransactionBlock> {
+  private async creatPoolAndAddLiquidity(params: CreatePoolAddLiquidityParams): Promise<Transaction> {
     if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
       throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
     }
 
-    const tx = new TransactionBlock()
+    const tx = new Transaction()
     const { integrate, clmm_pool } = this.sdk.sdkOptions
     const eventConfig = getPackagerConfigs(clmm_pool)
     const globalPauseStatusObjectId = eventConfig.global_config_id
@@ -497,19 +498,19 @@ export class PoolModule implements IModule {
     )
 
     const args = [
-      tx.pure(globalPauseStatusObjectId),
-      tx.pure(poolsId),
-      tx.pure(params.tick_spacing.toString()),
-      tx.pure(params.initialize_sqrt_price),
-      tx.pure(params.uri),
+      tx.object(globalPauseStatusObjectId),
+      tx.object(poolsId),
+      tx.pure.u32(params.tick_spacing),
+      tx.pure.u128(params.initialize_sqrt_price),
+      tx.pure.string(params.uri),
       primaryCoinAInputsR.targetCoin,
       primaryCoinBInputsR.targetCoin,
-      tx.pure(asUintN(BigInt(params.tick_lower)).toString()),
-      tx.pure(asUintN(BigInt(params.tick_upper)).toString()),
-      tx.pure(params.amount_a),
-      tx.pure(params.amount_b),
-      tx.pure(params.fix_amount_a),
-      tx.pure(CLOCK_ADDRESS),
+      tx.pure.u32(params.tick_lower),
+      tx.pure.u32(params.tick_upper),
+      tx.pure.u64(params.amount_a),
+      tx.pure.u64(params.amount_b),
+      tx.pure.bool(params.fix_amount_a),
+      tx.object(CLOCK_ADDRESS),
     ]
 
     tx.moveCall({
@@ -527,7 +528,7 @@ export class PoolModule implements IModule {
    */
   async fetchTicks(params: FetchParams): Promise<TickData[]> {
     let ticks: TickData[] = []
-    let start: number[] = []
+    let start = 0
     const limit = 512
 
     while (true) {
@@ -542,7 +543,7 @@ export class PoolModule implements IModule {
       if (data.length < limit) {
         break
       }
-      start = [data[data.length - 1].index]
+      start = data[data.length - 1].index
     }
     return ticks
   }
@@ -557,8 +558,8 @@ export class PoolModule implements IModule {
     const ticks: TickData[] = []
     const typeArguments = [params.coinTypeA, params.coinTypeB]
 
-    const tx = new TransactionBlock()
-    const args = [tx.pure(params.pool_id), tx.pure(params.start), tx.pure(params.limit.toString())]
+    const tx = new Transaction()
+    const args = [tx.object(params.pool_id), tx.pure.u64(params.start), tx.pure.u64(params.limit)]
 
     tx.moveCall({
       target: `${integrate.published_at}::${ClmmFetcherModule}::fetch_ticks`,
@@ -606,8 +607,8 @@ export class PoolModule implements IModule {
     while (true) {
       const typeArguments = [params.coinTypeA, params.coinTypeB]
 
-      const tx = new TransactionBlock()
-      const args = [tx.object(params.pool_id), tx.pure(start, 'u64'), tx.pure(limit.toString(), 'u64')]
+      const tx = new Transaction()
+      const args = [tx.object(params.pool_id), tx.pure(bcs.vector(bcs.Address).serialize(start)), tx.pure.u64(limit)]
 
       tx.moveCall({
         target: `${integrate.published_at}::${ClmmFetcherModule}::fetch_positions`,
@@ -816,10 +817,10 @@ export class PoolModule implements IModule {
    * Claim partner ref fee.
    * @param {string} partnerCap partner cap id.
    * @param {string} partner partner id.
-   * @returns {Promise<TransactionBlock>} A promise that resolves to the transaction payload.
+   * @returns {Promise<Transaction>} A promise that resolves to the transaction payload.
    */
-  async claimPartnerRefFeePayload(partnerCap: string, partner: string, coinType: string): Promise<TransactionBlock> {
-    const tx = new TransactionBlock()
+  async claimPartnerRefFeePayload(partnerCap: string, partner: string, coinType: string): Promise<Transaction> {
+    const tx = new Transaction()
     const { clmm_pool } = this.sdk.sdkOptions
     const { global_config_id } = getPackagerConfigs(clmm_pool)
     const typeArguments = [coinType]

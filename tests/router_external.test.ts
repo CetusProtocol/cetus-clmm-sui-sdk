@@ -1,4 +1,4 @@
-import { TransactionArgument, TransactionBlock } from '@mysten/sui.js'
+import { TransactionArgument, Transaction } from '@mysten/sui/transactions'
 import { DeepbookUtils, TransactionUtil } from '../src'
 import { SdkEnv, TestnetCoin, buildSdk, buildTestAccount } from './data/init_test_data'
 import { assert } from 'console'
@@ -31,15 +31,15 @@ describe('Router External Module', () => {
   })
 
   test('create account cap', async () => {
-    let tx = new TransactionBlock()
+    let tx = new Transaction()
     const createAccountCapResult = DeepbookUtils.createAccountCap(sdk.senderAddress, sdk.sdkOptions, tx, false)
     const cap = createAccountCapResult[0] as TransactionArgument
-    tx = createAccountCapResult[1] as TransactionBlock
+    tx = createAccountCapResult[1] as Transaction
     if (sdk.senderAddress.length === 0) {
       throw Error('this config sdk senderAddress is empty')
     }
 
-    tx.transferObjects([cap], tx.pure(sdk.senderAddress))
+    tx.transferObjects([cap], sdk.senderAddress)
 
     const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, tx)
     console.log('create account cap: ', transferTxn)
@@ -48,7 +48,7 @@ describe('Router External Module', () => {
   test('delete account cap', async () => {
     const accountCap = await DeepbookUtils.getAccountCap(sdk)
     console.log(`deleted account cap: ${accountCap}}`)
-    let tx = new TransactionBlock()
+    let tx = new Transaction()
 
     tx = DeepbookUtils.deleteAccountCap(accountCap, sdk.sdkOptions, tx)
 

@@ -1,6 +1,6 @@
 import BN from 'bn.js'
 import Decimal from 'decimal.js'
-import { TransactionBlock, TransactionObjectArgument } from '@mysten/sui.js/transactions'
+import { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions'
 import { CoinAssist } from '../math/CoinAssist'
 import { OnePath, SwapWithRouterParams } from '../modules/routerModule'
 import { TickData } from '../types/clmmpool'
@@ -72,11 +72,11 @@ function reverSlippageAmount(slippageAmount: number | string, slippage: number):
   return Decimal.ceil(d(slippageAmount).div(1 + slippage)).toString()
 }
 
-export async function printTransaction(tx: TransactionBlock, isPrint = true) {
-  console.log(`inputs`, tx.blockData.inputs)
-  tx.blockData.transactions.forEach((item, index) => {
+export async function printTransaction(tx: Transaction, isPrint = true) {
+  console.log(`inputs`, tx.getData().inputs)
+  tx.getData().commands.forEach((item, index) => {
     if (isPrint) {
-      console.log(`transaction ${index}: `, item)
+      console.log(`command ${index}: `, item)
     }
   })
 }
@@ -89,7 +89,7 @@ interface TransferedCoin {
 export class TransactionUtil {
   static createCollectRewarderAndFeeParams(
     sdk: SDK,
-    tx: TransactionBlock,
+    tx: Transaction,
     params: CollectRewarderParams,
     allCoinAsset: CoinAsset[],
     allCoinAssetA?: CoinAsset[],
@@ -151,8 +151,8 @@ export class TransactionUtil {
     sdk: SDK,
     allCoins: CoinAsset[],
     amount: bigint,
-    tx: TransactionBlock
-  ): Promise<{ fixAmount: bigint; newTx?: TransactionBlock }> {
+    tx: Transaction
+  ): Promise<{ fixAmount: bigint; newTx?: Transaction }> {
     tx.setSender(sdk.senderAddress)
     // amount coins
     const amountCoins = CoinAssist.selectCoinAssetGreaterThanOrEqual(allCoins, amount).selectedCoins
@@ -185,7 +185,7 @@ export class TransactionUtil {
           throw new ClmmpoolsError(`gas Insufficient balance`, UtilsErrorCode.InsufficientBalance)
         }
 
-        const newTx = new TransactionBlock()
+        const newTx = new Transaction()
         return { fixAmount: amount, newTx }
       }
     }
@@ -208,7 +208,7 @@ export class TransactionUtil {
       slippage: number
       curSqrtPrice: BN
     }
-  ): Promise<TransactionBlock> {
+  ): Promise<Transaction> {
     let tx = await TransactionUtil.buildAddLiquidityFixToken(sdk, allCoins, params)
 
     const { isAdjustCoinA } = findAdjustCoin(params)
@@ -284,16 +284,12 @@ export class TransactionUtil {
    * @param packageId
    * @returns
    */
-  static async buildAddLiquidityFixToken(
-    sdk: SDK,
-    allCoinAsset: CoinAsset[],
-    params: AddLiquidityFixTokenParams
-  ): Promise<TransactionBlock> {
+  static async buildAddLiquidityFixToken(sdk: SDK, allCoinAsset: CoinAsset[], params: AddLiquidityFixTokenParams): Promise<Transaction> {
     if (sdk.senderAddress.length === 0) {
       throw Error('this config sdk senderAddress is empty')
     }
 
-    let tx = new TransactionBlock()
+    let tx = new Transaction()
     const primaryCoinAInputs = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
       tx,
       !params.fix_amount_a,
@@ -325,7 +321,7 @@ export class TransactionUtil {
   }
 
   public static buildAddLiquidityFixTokenCoinInput(
-    tx: TransactionBlock,
+    tx: Transaction,
     need_interval_amount: boolean,
     amount: number | string,
     slippage: number,
@@ -370,7 +366,7 @@ export class TransactionUtil {
   }
 
   private static buildAddLiquidityFixTokenArgs(
-    tx: TransactionBlock,
+    tx: Transaction,
     sdk: SDK,
     allCoinAsset: CoinAsset[],
     params: AddLiquidityFixTokenParams,
@@ -397,13 +393,13 @@ export class TransactionUtil {
       ? [
           tx.object(clmmConfig.global_config_id),
           tx.object(params.pool_id),
-          tx.pure(asUintN(BigInt(params.tick_lower)).toString()),
-          tx.pure(asUintN(BigInt(params.tick_upper)).toString()),
+          tx.pure.u32(Number(params.tick_lower)),
+          tx.pure.u32(Number(params.tick_upper)),
           primaryCoinAInputs.targetCoin,
           primaryCoinBInputs.targetCoin,
-          tx.pure(params.amount_a),
-          tx.pure(params.amount_b),
-          tx.pure(params.fix_amount_a),
+          tx.pure.u64(params.amount_a),
+          tx.pure.u64(params.amount_b),
+          tx.pure.bool(params.fix_amount_a),
           tx.object(CLOCK_ADDRESS),
         ]
       : [
@@ -412,9 +408,9 @@ export class TransactionUtil {
           tx.object(params.pos_id),
           primaryCoinAInputs.targetCoin,
           primaryCoinBInputs.targetCoin,
-          tx.pure(params.amount_a),
-          tx.pure(params.amount_b),
-          tx.pure(params.fix_amount_a),
+          tx.pure.u64(params.amount_a),
+          tx.pure.u64(params.amount_b),
+          tx.pure.bool(params.fix_amount_a),
           tx.object(CLOCK_ADDRESS),
         ]
 
@@ -446,7 +442,7 @@ export class TransactionUtil {
       swapTicks: Array<TickData>
       currentPool: Pool
     }
-  ): Promise<TransactionBlock> {
+  ): Promise<Transaction> {
     let tx = TransactionUtil.buildSwapTransaction(sdk, params, allCoinAsset)
     tx.setSender(sdk.senderAddress)
     const newResult = await TransactionUtil.adjustTransactionForGas(
@@ -493,8 +489,8 @@ export class TransactionUtil {
    * @param packageId
    * @returns
    */
-  static buildSwapTransaction(sdk: SDK, params: SwapParams, allCoinAsset: CoinAsset[]): TransactionBlock {
-    let tx = new TransactionBlock()
+  static buildSwapTransaction(sdk: SDK, params: SwapParams, allCoinAsset: CoinAsset[]): Transaction {
+    let tx = new Transaction()
     tx.setSender(sdk.senderAddress)
 
     const primaryCoinInputA = TransactionUtil.buildCoinForAmount(
@@ -524,12 +520,12 @@ export class TransactionUtil {
    * @returns
    */
   static buildSwapTransactionArgs(
-    tx: TransactionBlock,
+    tx: Transaction,
     params: SwapParams,
     sdkOptions: SdkOptions,
     primaryCoinInputA: BuildCoinResult,
     primaryCoinInputB: BuildCoinResult
-  ): TransactionBlock {
+  ): Transaction {
     const { clmm_pool, integrate } = sdkOptions
 
     const sqrtPriceLimit = SwapUtils.getDefaultSqrtPriceLimit(params.a2b)
@@ -552,27 +548,27 @@ export class TransactionUtil {
 
     const args = hasSwapPartner
       ? [
-          tx.pure(global_config_id),
-          tx.pure(params.pool_id),
-          tx.pure(params.swap_partner),
+          tx.object(global_config_id),
+          tx.object(params.pool_id),
+          tx.object(params.swap_partner!),
           primaryCoinInputA.targetCoin,
           primaryCoinInputB.targetCoin,
-          tx.pure(params.by_amount_in),
-          tx.pure(params.amount),
-          tx.pure(params.amount_limit),
-          tx.pure(sqrtPriceLimit.toString()),
-          tx.pure(CLOCK_ADDRESS),
+          tx.pure.bool(params.by_amount_in),
+          tx.pure.u64(params.amount),
+          tx.pure.u64(params.amount_limit),
+          tx.pure.u128(sqrtPriceLimit.toString()),
+          tx.object(CLOCK_ADDRESS),
         ]
       : [
-          tx.pure(global_config_id),
-          tx.pure(params.pool_id),
+          tx.object(global_config_id),
+          tx.object(params.pool_id),
           primaryCoinInputA.targetCoin,
           primaryCoinInputB.targetCoin,
-          tx.pure(params.by_amount_in),
-          tx.pure(params.amount),
-          tx.pure(params.amount_limit),
-          tx.pure(sqrtPriceLimit.toString()),
-          tx.pure(CLOCK_ADDRESS),
+          tx.pure.bool(params.by_amount_in),
+          tx.pure.u64(params.amount),
+          tx.pure.u64(params.amount_limit),
+          tx.pure.u128(sqrtPriceLimit.toString()),
+          tx.object(CLOCK_ADDRESS),
         ]
 
     tx.moveCall({
@@ -603,7 +599,7 @@ export class TransactionUtil {
       swapTicks: Array<TickData>
       currentPool: Pool
     }
-  ): Promise<{ tx: TransactionBlock; coinABs: TransactionObjectArgument[] }> {
+  ): Promise<{ tx: Transaction; coinABs: TransactionObjectArgument[] }> {
     let { tx, coinABs } = TransactionUtil.buildSwapTransactionWithoutTransferCoins(sdk, params, allCoinAsset)
     tx.setSender(sdk.senderAddress)
     const newResult = await TransactionUtil.adjustTransactionForGas(
@@ -667,8 +663,8 @@ export class TransactionUtil {
     sdk: SDK,
     params: SwapParams,
     allCoinAsset: CoinAsset[]
-  ): { tx: TransactionBlock; coinABs: TransactionObjectArgument[] } {
-    const tx = new TransactionBlock()
+  ): { tx: Transaction; coinABs: TransactionObjectArgument[] } {
+    const tx = new Transaction()
     tx.setSender(sdk.senderAddress)
 
     // Fix amount must set true, to support amount limit.
@@ -709,12 +705,12 @@ export class TransactionUtil {
    */
   static buildSwapTransactionWithoutTransferCoinArgs(
     sdk: SDK,
-    tx: TransactionBlock,
+    tx: Transaction,
     params: SwapParams,
     sdkOptions: SdkOptions,
     primaryCoinInputA: BuildCoinResult,
     primaryCoinInputB: BuildCoinResult
-  ): { tx: TransactionBlock; txRes: TransactionObjectArgument[] } {
+  ): { tx: Transaction; txRes: TransactionObjectArgument[] } {
     const { clmm_pool, integrate } = sdkOptions
 
     const sqrtPriceLimit = SwapUtils.getDefaultSqrtPriceLimit(params.a2b)
@@ -733,29 +729,29 @@ export class TransactionUtil {
 
     const args = hasSwapPartner
       ? [
-          tx.pure(global_config_id),
-          tx.pure(params.pool_id),
-          tx.pure(params.swap_partner),
+          tx.object(global_config_id),
+          tx.object(params.pool_id),
+          tx.object(params.swap_partner!),
           primaryCoinInputA.targetCoin,
           primaryCoinInputB.targetCoin,
-          tx.pure(params.a2b),
-          tx.pure(params.by_amount_in),
-          tx.pure(params.amount),
-          tx.pure(sqrtPriceLimit.toString()),
-          tx.pure(false), // use coin value always set false.
-          tx.pure(CLOCK_ADDRESS),
+          tx.pure.bool(params.a2b),
+          tx.pure.bool(params.by_amount_in),
+          tx.pure.u64(params.amount),
+          tx.pure.u128(sqrtPriceLimit.toString()),
+          tx.pure.bool(false), // use coin value always set false.
+          tx.object(CLOCK_ADDRESS),
         ]
       : [
-          tx.pure(global_config_id),
-          tx.pure(params.pool_id),
+          tx.object(global_config_id),
+          tx.object(params.pool_id),
           primaryCoinInputA.targetCoin,
           primaryCoinInputB.targetCoin,
-          tx.pure(params.a2b),
-          tx.pure(params.by_amount_in),
-          tx.pure(params.amount),
-          tx.pure(sqrtPriceLimit.toString()),
-          tx.pure(false), // use coin value always set false.
-          tx.pure(CLOCK_ADDRESS),
+          tx.pure.bool(params.a2b),
+          tx.pure.bool(params.by_amount_in),
+          tx.pure.u64(params.amount),
+          tx.pure.u128(sqrtPriceLimit.toString()),
+          tx.pure.bool(false), // use coin value always set false.
+          tx.object(CLOCK_ADDRESS),
         ]
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
@@ -814,7 +810,7 @@ export class TransactionUtil {
 
   public static async syncBuildCoinInputForAmount(
     sdk: SDK,
-    tx: TransactionBlock,
+    tx: Transaction,
     amount: bigint,
     coinType: string,
     buildVector = true
@@ -830,7 +826,7 @@ export class TransactionUtil {
   }
 
   public static buildCoinForAmount(
-    tx: TransactionBlock,
+    tx: Transaction,
     allCoins: CoinAsset[],
     amount: bigint,
     coinType: string,
@@ -853,7 +849,7 @@ export class TransactionUtil {
   }
 
   private static buildCoin(
-    tx: TransactionBlock,
+    tx: Transaction,
     allCoins: CoinAsset[],
     coinAssets: CoinAsset[],
     amount: bigint,
@@ -863,9 +859,9 @@ export class TransactionUtil {
   ): BuildCoinResult {
     if (CoinAssist.isSuiCoin(coinType)) {
       if (buildVector) {
-        const amountCoin = tx.splitCoins(tx.gas, [tx.pure(amount.toString())])
+        const amountCoin = tx.splitCoins(tx.gas, [amount.toString()])
         return {
-          targetCoin: tx.makeMoveVec({ objects: [amountCoin] }),
+          targetCoin: tx.makeMoveVec({ elements: [amountCoin] }),
           remainCoins: allCoins,
           tragetCoinAmount: amount.toString(),
           isMintZeroCoin: false,
@@ -882,7 +878,7 @@ export class TransactionUtil {
         }
       }
       const selectedCoinsResult = CoinAssist.selectCoinObjectIdGreaterThanOrEqual(coinAssets, amount)
-      const amountCoin = tx.splitCoins(tx.gas, [tx.pure(amount.toString())])
+      const amountCoin = tx.splitCoins(tx.gas, [amount.toString()])
       return {
         targetCoin: amountCoin,
         remainCoins: selectedCoinsResult.remainCoins,
@@ -897,7 +893,7 @@ export class TransactionUtil {
     const coinObjectIds = selectedCoinsResult.objectArray
     if (buildVector) {
       return {
-        targetCoin: tx.makeMoveVec({ objects: coinObjectIds.map((id) => tx.object(id)) }),
+        targetCoin: tx.makeMoveVec({ elements: coinObjectIds.map((id) => tx.object(id)) }),
         remainCoins: selectedCoinsResult.remainCoins,
         tragetCoinAmount: selectedCoinsResult.amountArray.reduce((a, b) => Number(a) + Number(b), 0).toString(),
         isMintZeroCoin: false,
@@ -917,7 +913,7 @@ export class TransactionUtil {
     }
 
     if (fixAmount && Number(totalSelectedCoinAmount) > Number(amount)) {
-      targetCoin = tx.splitCoins(primaryCoinAObject, [tx.pure(amount.toString())])
+      targetCoin = tx.splitCoins(primaryCoinAObject, [amount.toString()])
       tragetCoinAmount = amount.toString()
       originalSplitedCoin = primaryCoinAObject
     }
@@ -931,11 +927,11 @@ export class TransactionUtil {
     }
   }
 
-  private static buildZeroValueCoin(allCoins: CoinAsset[], tx: TransactionBlock, coinType: string, buildVector = true): BuildCoinResult {
+  private static buildZeroValueCoin(allCoins: CoinAsset[], tx: Transaction, coinType: string, buildVector = true): BuildCoinResult {
     const zeroCoin = TransactionUtil.callMintZeroValueCoin(tx, coinType)
     let targetCoin: any
     if (buildVector) {
-      targetCoin = tx.makeMoveVec({ objects: [zeroCoin] })
+      targetCoin = tx.makeMoveVec({ elements: [zeroCoin] })
     } else {
       targetCoin = zeroCoin
     }
@@ -949,7 +945,7 @@ export class TransactionUtil {
   }
 
   public static buildCoinForAmountInterval(
-    tx: TransactionBlock,
+    tx: Transaction,
     allCoins: CoinAsset[],
     amounts: CoinInputInterval,
     coinType: string,
@@ -979,7 +975,7 @@ export class TransactionUtil {
     return TransactionUtil.buildCoin(tx, [...allCoins], [...coinAssets], amounts.amountSecond, coinType, buildVector)
   }
 
-  static callMintZeroValueCoin = (txb: TransactionBlock, coinType: string) => {
+  static callMintZeroValueCoin = (txb: Transaction, coinType: string) => {
     return txb.moveCall({
       target: '0x2::coin::zero',
       typeArguments: [coinType],
@@ -994,8 +990,8 @@ export class TransactionUtil {
     allCoinAsset: CoinAsset[],
     // If recipient not set, transfer objects move call will use ctx sender.
     recipient?: string
-  ): Promise<TransactionBlock> {
-    let tx = new TransactionBlock()
+  ): Promise<Transaction> {
+    let tx = new Transaction()
 
     // When the router's split path length exceeds 1, router cannot support partner.
     // now router v1 just return one best path.
@@ -1013,7 +1009,7 @@ export class TransactionUtil {
     params: SwapWithRouterParams,
     byAmountIn: boolean,
     allCoinAsset: CoinAsset[],
-    tx: TransactionBlock,
+    tx: Transaction,
     // If recipient not set, transfer objects move call will use ctx sender.
     recipient?: string
   ) {
@@ -1087,7 +1083,7 @@ export class TransactionUtil {
     byAmountIn: boolean,
     fromCoinBuildRes: BuildCoinResult,
     toCoinBuildRes: BuildCoinResult,
-    tx: TransactionBlock
+    tx: Transaction
   ) {
     const { clmm_pool, integrate } = sdk.sdkOptions
     const globalConfigID = getPackagerConfigs(clmm_pool).global_config_id
@@ -1139,24 +1135,24 @@ export class TransactionUtil {
               tx.object(path.poolAddress[0]),
               poolCoinA,
               poolCoinB,
-              tx.pure(a2b),
-              tx.pure(byAmountIn),
-              tx.pure(amount),
-              tx.pure(sqrtPriceLimit),
-              tx.pure(false),
+              tx.pure.bool(a2b),
+              tx.pure.bool(byAmountIn),
+              tx.pure.u64(amount),
+              tx.pure.u128(sqrtPriceLimit),
+              tx.pure.bool(false),
               tx.object(CLOCK_ADDRESS),
             ]
           : [
               tx.object(globalConfigID),
               tx.object(path.poolAddress[0]),
-              tx.pure(params.partner),
+              tx.object(params.partner),
               poolCoinA,
               poolCoinB,
-              tx.pure(a2b),
-              tx.pure(byAmountIn),
-              tx.pure(amount),
-              tx.pure(sqrtPriceLimit),
-              tx.pure(false),
+              tx.pure.bool(a2b),
+              tx.pure.bool(byAmountIn),
+              tx.pure.u64(amount),
+              tx.pure.u128(sqrtPriceLimit),
+              tx.pure.bool(false),
               tx.object(CLOCK_ADDRESS),
             ]
 
@@ -1199,25 +1195,25 @@ export class TransactionUtil {
               tx.object(path.poolAddress[1]),
               fromCoin,
               toCoin,
-              tx.pure(byAmountIn),
-              tx.pure(amount0.toString()),
-              tx.pure(amount1.toString()),
-              tx.pure(sqrtPriceLimit0.toString()),
-              tx.pure(sqrtPriceLimit1.toString()),
+              tx.pure.bool(byAmountIn),
+              tx.pure.u64(amount0.toString()),
+              tx.pure.u64(amount1.toString()),
+              tx.pure.u128(sqrtPriceLimit0.toString()),
+              tx.pure.u128(sqrtPriceLimit1.toString()),
               tx.object(CLOCK_ADDRESS),
             ]
           : [
               tx.object(globalConfigID),
               tx.object(path.poolAddress[0]),
               tx.object(path.poolAddress[1]),
-              tx.pure(params.partner),
+              tx.object(params.partner),
               fromCoin,
               toCoin,
-              tx.pure(byAmountIn),
-              tx.pure(amount0.toString()),
-              tx.pure(amount1.toString()),
-              tx.pure(sqrtPriceLimit0.toString()),
-              tx.pure(sqrtPriceLimit1.toString()),
+              tx.pure.bool(byAmountIn),
+              tx.pure.u64(amount0.toString()),
+              tx.pure.u64(amount1.toString()),
+              tx.pure.u128(sqrtPriceLimit0.toString()),
+              tx.pure.u128(sqrtPriceLimit1.toString()),
               tx.object(CLOCK_ADDRESS),
             ]
         const typeArguments = [path.coinType[0], path.coinType[1], path.coinType[2]]
@@ -1243,7 +1239,7 @@ export class TransactionUtil {
     toCoinBuildRes: BuildCoinResult,
     partner: string,
     priceSplitPoint: number,
-    tx: TransactionBlock,
+    tx: Transaction,
     // If recipient not set, transfer objects move call will use sdk.senderAddress
     recipient?: string
   ) {
@@ -1329,7 +1325,7 @@ export class TransactionUtil {
       let accountCap
       if (hasExternalPool) {
         const [cap, createAccountCapTX] = DeepbookUtils.createAccountCap(recipient, sdk.sdkOptions, tx)
-        tx = createAccountCapTX as TransactionBlock
+        tx = createAccountCapTX as Transaction
         accountCap = cap as TransactionObjectArgument
         isCreateAccountCap = true
       }
@@ -1379,7 +1375,7 @@ export class TransactionUtil {
               tx.moveCall({
                 target: `${sdk.sdkOptions.integrate.published_at}::${ClmmIntegrateUtilsModule}::send_coin`,
                 typeArguments: [basePath.fromCoin],
-                arguments: [middleCoin, tx.pure(recipient)],
+                arguments: [middleCoin, tx.pure.address(recipient)],
               })
             }
           }
@@ -1403,7 +1399,7 @@ export class TransactionUtil {
     priceSlippagePoint: number,
     recipient?: string
   ) {
-    let tx = new TransactionBlock()
+    let tx = new Transaction()
 
     const amountLimit = param.byAmountIn
       ? Math.round(param.outputAmount * (1 - priceSlippagePoint))
@@ -1463,7 +1459,7 @@ export class TransactionUtil {
   static checkCoinThreshold(
     sdk: SDK,
     byAmountIn: boolean,
-    tx: TransactionBlock,
+    tx: Transaction,
     coin: TransactionObjectArgument,
     amountLimit: number,
     coinType: string
@@ -1472,7 +1468,7 @@ export class TransactionUtil {
       tx.moveCall({
         target: `${sdk.sdkOptions.integrate.published_at}::${ClmmIntegrateRouterModule}::check_coin_threshold`,
         typeArguments: [coinType],
-        arguments: [coin, tx.pure(amountLimit)],
+        arguments: [coin, tx.pure.u64(amountLimit)],
       })
     }
   }
@@ -1480,7 +1476,7 @@ export class TransactionUtil {
   static buildDeepbookBasePathTx(
     sdk: SDK,
     basePath: BasePath,
-    tx: TransactionBlock,
+    tx: Transaction,
     accountCap: any,
     from: TransactionObjectArgument,
     to: TransactionObjectArgument,
@@ -1492,12 +1488,12 @@ export class TransactionUtil {
     const args: any = [
       tx.object(basePath.poolAddress),
       accountCap,
-      tx.pure(basePath.inputAmount),
-      tx.pure(0),
-      tx.pure(basePath.direction),
+      tx.pure.u64(basePath.inputAmount),
+      tx.pure.u64(0),
+      tx.pure.bool(basePath.direction),
       base,
       quote,
-      tx.pure(middleStep),
+      tx.pure.bool(middleStep),
       tx.object(CLOCK_ADDRESS),
     ]
 
@@ -1522,7 +1518,7 @@ export class TransactionUtil {
   private static buildClmmBasePathTx(
     sdk: SDK,
     basePath: BasePath,
-    tx: TransactionBlock,
+    tx: Transaction,
     byAmountIn: boolean,
     from: TransactionObjectArgument,
     to: TransactionObjectArgument,
@@ -1544,24 +1540,24 @@ export class TransactionUtil {
           tx.object(basePath.poolAddress),
           coinA,
           coinB,
-          tx.pure(basePath.direction),
-          tx.pure(byAmountIn),
-          tx.pure(amount),
-          tx.pure(sqrtPriceLimit.toString()),
-          tx.pure(middleStep),
+          tx.pure.bool(basePath.direction),
+          tx.pure.bool(byAmountIn),
+          tx.pure.u64(amount),
+          tx.pure.u128(sqrtPriceLimit.toString()),
+          tx.pure.bool(middleStep),
           tx.object(CLOCK_ADDRESS),
         ]
       : [
           tx.object(globalConfigID),
           tx.object(basePath.poolAddress),
-          tx.pure(partner),
+          tx.object(partner),
           coinA,
           coinB,
-          tx.pure(basePath.direction),
-          tx.pure(byAmountIn),
-          tx.pure(amount),
-          tx.pure(sqrtPriceLimit.toString()),
-          tx.pure(middleStep),
+          tx.pure.bool(basePath.direction),
+          tx.pure.bool(byAmountIn),
+          tx.pure.u64(amount),
+          tx.pure.u128(sqrtPriceLimit.toString()),
+          tx.pure.bool(middleStep),
           tx.object(CLOCK_ADDRESS),
         ]
 
@@ -1609,7 +1605,7 @@ export class TransactionUtil {
   }
 
   // ------------------------------------------utils-------------------------------------------------//
-  static buildTransferCoinToSender(sdk: SDK, tx: TransactionBlock, coin: TransactionObjectArgument, coinType: string) {
+  static buildTransferCoinToSender(sdk: SDK, tx: Transaction, coin: TransactionObjectArgument, coinType: string) {
     tx.moveCall({
       target: `${sdk.sdkOptions.integrate.published_at}::${ClmmIntegrateUtilsModule}::transfer_coin_to_sender`,
       typeArguments: [coinType],
@@ -1618,9 +1614,9 @@ export class TransactionUtil {
   }
 
   // If recipient not set, transfer objects move call will use ctx sender
-  static buildTransferCoin(sdk: SDK, tx: TransactionBlock, coin: TransactionObjectArgument, coinType: string, recipient?: string) {
+  static buildTransferCoin(sdk: SDK, tx: Transaction, coin: TransactionObjectArgument, coinType: string, recipient?: string) {
     if (recipient != null) {
-      tx.transferObjects([coin], tx.pure(recipient))
+      tx.transferObjects([coin], recipient)
     } else {
       TransactionUtil.buildTransferCoinToSender(sdk, tx, coin, coinType)
     }

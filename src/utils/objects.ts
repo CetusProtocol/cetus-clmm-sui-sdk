@@ -11,7 +11,7 @@ import {
   DisplayFieldsResponse,
   SuiMoveObject,
   SuiParsedData,
-} from '@mysten/sui.js/client'
+} from '@mysten/sui/client'
 
 /* -------------------------- SuiObjectResponse ------------------------- */
 

@@ -1,4 +1,4 @@
-import { Inputs, TransactionBlock } from '@mysten/sui.js/transactions'
+import { Inputs, Transaction } from '@mysten/sui/transactions'
 import {
   DevInspectResults,
   DynamicFieldPage,
@@ -10,11 +10,11 @@ import {
   SuiObjectResponse,
   SuiObjectResponseQuery,
   SuiTransactionBlockResponse,
-} from '@mysten/sui.js/client'
-import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
-import { Secp256k1Keypair } from '@mysten/sui.js/keypairs/secp256k1'
+} from '@mysten/sui/client'
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
+import { Secp256k1Keypair } from '@mysten/sui/keypairs/secp256k1'
 
-import { bcs } from '@mysten/sui.js/bcs'
+import { bcs } from '@mysten/sui/bcs'
 import { toB64 } from '@mysten/bcs'
 import { DataPage, PaginationArgs, SuiObjectIdType } from '../types'
 
@@ -143,11 +143,11 @@ export class RpcModule extends SuiClient {
 
   /**
    * Calculates the gas cost of a transaction block.
-   * @param {TransactionBlock} tx - The transaction block to calculate gas for.
+   * @param {Transaction} tx - The transaction block to calculate gas for.
    * @returns {Promise<number>} - The estimated gas cost of the transaction block.
    * @throws {Error} - Throws an error if the sender is empty.
    */
-  async calculationTxGas(tx: TransactionBlock): Promise<number> {
+  async calculationTxGas(tx: Transaction): Promise<number> {
     const { sender } = tx.blockData
 
     if (sender === undefined) {
@@ -168,16 +168,13 @@ export class RpcModule extends SuiClient {
    * Sends a transaction block after signing it with the provided keypair.
    *
    * @param {Ed25519Keypair | Secp256k1Keypair} keypair - The keypair used for signing the transaction.
-   * @param {TransactionBlock} tx - The transaction block to send.
+   * @param {Transaction} tx - The transaction block to send.
    * @returns {Promise<SuiTransactionBlockResponse | undefined>} - The response of the sent transaction block.
    */
-  async sendTransaction(
-    keypair: Ed25519Keypair | Secp256k1Keypair,
-    tx: TransactionBlock
-  ): Promise<SuiTransactionBlockResponse | undefined> {
+  async sendTransaction(keypair: Ed25519Keypair | Secp256k1Keypair, tx: Transaction): Promise<SuiTransactionBlockResponse | undefined> {
     try {
-      const resultTxn: any = await this.signAndExecuteTransactionBlock({
-        transactionBlock: tx,
+      const resultTxn: any = await this.signAndExecuteTransaction({
+        transaction: tx,
         signer: keypair,
         options: {
           showEffects: true,
@@ -199,7 +196,7 @@ export class RpcModule extends SuiClient {
    * @returns A promise that resolves to DevInspectResults or undefined.
    */
   async sendSimulationTransaction(
-    tx: TransactionBlock,
+    tx: Transaction,
     simulationAccount: string,
     useDevInspect = true
   ): Promise<DevInspectResults | undefined> {
@@ -212,31 +209,24 @@ export class RpcModule extends SuiClient {
         return simulateRes
       }
 
-      // If useDevInspect is false, manually construct the transaction for simulation.
-      const inputs = tx.blockData.inputs.map((input) => {
-        const { type, value } = input
-        if (type === 'object') {
-          return Inputs.SharedObjectRef({
-            objectId: value,
-            initialSharedVersion: 0,
-            mutable: true,
-          })
-        }
-        return value
+      const copy = Transaction.from(tx)
+
+      Transaction.from(tx).addSerializationPlugin((data, options, next) => {
+        data.inputs = data.inputs.map((input) => {
+          if (input.$kind === 'UnresolvedObject') {
+            return Inputs.SharedObjectRef({
+              objectId: input.UnresolvedObject.objectId,
+              initialSharedVersion: 0,
+              mutable: true,
+            })
+          }
+          return input
+        })
+        return next()
       })
 
-      const kind = {
-        ProgrammableTransaction: {
-          inputs,
-          transactions: tx.blockData.transactions,
-        },
-      }
-      // Serialize the transaction using BCS.
-      const serialize = bcs.TransactionKind.serialize(kind, {
-        maxSize: 131072,
-      }).toBytes()
+      const devInspectTxBytes = toB64(await copy.build({ onlyTransactionKind: true }))
 
-      const devInspectTxBytes = toB64(serialize)
       // Send the request to DevInspect.
       const res = await this.transport.request<DevInspectResults>({
         method: 'sui_devInspectTransactionBlock',
