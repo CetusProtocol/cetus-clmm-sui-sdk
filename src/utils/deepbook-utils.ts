@@ -71,9 +71,9 @@ export class DeepbookUtils {
     return tx
   }
 
-  static async getAccountCap(sdk: SDK): Promise<string> {
+  static async getAccountCap(sdk: SDK, showDisplay = true): Promise<string> {
     const ownerRes: any = await sdk.fullClient.getOwnedObjectsByPage(sdk.senderAddress, {
-      options: { showType: true, showContent: true, showDisplay: true, showOwner: true },
+      options: { showType: true, showContent: true, showDisplay, showOwner: true },
       filter: {
         MoveModule: {
           package: sdk.sdkOptions.deepbook.package_id,

@@ -26,7 +26,7 @@ describe('Pool Module', () => {
   })
 
   test('getSiginlePool', async () => {
-    const pool = await sdk.Pool.getPool('0x473ab0306ff8952d473b10bb4c3516c632edeb0725f6bb3cda6c474d0ffc883f')
+    const pool = await sdk.Pool.getPool('0xc41621d02d5ee00a7a993b912a8550df50524c9b2494339691e5896936ff269b')
     console.log('pool', pool)
   })
 

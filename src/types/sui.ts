@@ -25,6 +25,7 @@ export const CLOCK_ADDRESS = '0x000000000000000000000000000000000000000000000000
 export const ClmmPartnerModule = 'partner'
 export const ClmmIntegratePoolModule = 'pool_script'
 export const ClmmIntegratePoolV2Module = 'pool_script_v2'
+export const ClmmIntegratePoolV3Module = 'pool_script_v3'
 export const ClmmIntegrateRouterModule = 'router'
 export const ClmmIntegrateRouterWithPartnerModule = 'router_with_partner'
 export const ClmmFetcherModule = 'fetcher_script'

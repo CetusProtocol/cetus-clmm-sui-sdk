@@ -2,22 +2,13 @@
 import BN from 'bn.js'
 import { TransactionBlock, TransactionArgument, TransactionObjectArgument } from '@mysten/sui.js/transactions'
 import { BuildCoinResult, checkInvalidSuiAddress, extractStructTagFromType, normalizeCoinType, TransactionUtil } from '../utils'
-import { ClmmFetcherModule, ClmmIntegratePoolModule, ClmmIntegratePoolV2Module, CLOCK_ADDRESS } from '../types/sui'
+import { ClmmFetcherModule, ClmmIntegratePoolV2Module, ClmmIntegratePoolV3Module, CLOCK_ADDRESS } from '../types/sui'
 import { getRewardInTickRange } from '../utils/tick'
 import { MathUtil, ONE, ZERO } from '../math/utils'
 import { TickData } from '../types/clmmpool'
 import { CetusClmmSDK } from '../sdk'
 import { IModule } from '../interfaces/IModule'
-import {
-  CoinAsset,
-  CollectRewarderParams,
-  getPackagerConfigs,
-  Pool,
-  Position,
-  PositionReward,
-  Rewarder,
-  RewarderAmountOwed,
-} from '../types'
+import { CollectRewarderParams, getPackagerConfigs, Pool, Position, PositionReward, Rewarder, RewarderAmountOwed } from '../types'
 import { CollectFeesQuote } from '../math'
 import { ClmmpoolsError, ConfigErrorCode, UtilsErrorCode } from '../errors/errors'
 
@@ -518,7 +509,7 @@ export class RewarderModule implements IModule {
    * @param tx
    * @returns
    */
-  async batchCollectRewardePayload(params: CollectRewarderParams[], published_at: string, tx?: TransactionBlock) {
+  async batchCollectRewardePayload(params: CollectRewarderParams[], tx?: TransactionBlock) {
     if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
       throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
     }
@@ -549,7 +540,6 @@ export class RewarderModule implements IModule {
             coinTypeA: item.coinTypeA,
             coinTypeB: item.coinTypeB,
           },
-          published_at,
           tx!,
           coinAInput.targetCoin,
           coinBInput.targetCoin
@@ -566,7 +556,7 @@ export class RewarderModule implements IModule {
         primaryCoinInputs.push(coinInput.targetCoin)
       })
 
-      tx = this.createCollectRewarderNoSendPaylod(item, published_at, tx!, primaryCoinInputs)
+      tx = this.createCollectRewarderNoSendPaylod(item, tx!, primaryCoinInputs)
     })
 
     Object.keys(coinIdMaps).forEach((key) => {
@@ -602,19 +592,14 @@ export class RewarderModule implements IModule {
     return tx
   }
 
-  createCollectRewarderNoSendPaylod(
-    params: CollectRewarderParams,
-    published_at: string,
-    tx: TransactionBlock,
-    primaryCoinInputs: TransactionArgument[]
-  ) {
-    const { clmm_pool } = this.sdk.sdkOptions
+  createCollectRewarderNoSendPaylod(params: CollectRewarderParams, tx: TransactionBlock, primaryCoinInputs: TransactionArgument[]) {
+    const { clmm_pool, integrate } = this.sdk.sdkOptions
     const clmmConfigs = getPackagerConfigs(clmm_pool)
     const typeArguments = [params.coinTypeA, params.coinTypeB]
     params.rewarder_coin_types.forEach((type, index) => {
       if (tx) {
         tx.moveCall({
-          target: `${published_at}::${ClmmIntegratePoolModule}::collect_reward`,
+          target: `${integrate.published_at}::${ClmmIntegratePoolV3Module}::collect_reward`,
           typeArguments: [...typeArguments, type],
           arguments: [
             tx.object(clmmConfigs.global_config_id),

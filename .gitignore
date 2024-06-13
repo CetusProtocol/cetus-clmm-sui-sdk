@@ -1,7 +1,6 @@
 node_modules/**/*
 .DS_Store
 dist/**/*
-yarn.lock
 /.vscode/
 package.test.json
 /examples/node_modules

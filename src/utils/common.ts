@@ -407,3 +407,7 @@ export function buildTickDataByEvent(fields: any): TickData {
 
   return tick
 }
+
+export function buildClmmPositionName(pool_index: number, position_index: number): string {
+  return `Cetus LP | Pool${pool_index}-${position_index}`
+}

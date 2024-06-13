@@ -230,16 +230,18 @@ export class PoolModule implements IModule {
   /**
    * Gets a list of pools.
    * @param {string[]} assignPools An array of pool IDs to get.
+   * @param {PaginationArgs} paginationArgs The cursor and limit to start at.
+   * @param {boolean} forceRefresh Whether to force a refresh of the cache.
    * @returns {Promise<Pool[]>} An array of Pool objects.
    */
-  async getPoolsWithPage(assignPools: string[] = []): Promise<Pool[]> {
+  async getPoolsWithPage(assignPools: string[] = [], paginationArgs: PaginationArgs = 'all', forceRefresh = false): Promise<Pool[]> {
     const allPool: Pool[] = []
     let poolObjectIds: string[] = []
 
     if (assignPools.length > 0) {
       poolObjectIds = [...assignPools]
     } else {
-      const poolImmutables = (await this.getPoolImmutablesWithPage()).data
+      const poolImmutables = (await this.getPoolImmutablesWithPage(paginationArgs, forceRefresh)).data
       poolImmutables.forEach((item) => poolObjectIds.push(item.poolAddress))
     }
 
@@ -755,11 +757,11 @@ export class PoolModule implements IModule {
    * @param {string}partner Partner object id
    * @returns {Promise<CoinAsset[]>} A promise that resolves to an array of coin asset.
    */
-  async getPartnerRefFeeAmount(partner: string): Promise<CoinAsset[]> {
+  async getPartnerRefFeeAmount(partner: string, showDisplay = true): Promise<CoinAsset[]> {
     const objectDataResponses = await this._sdk.fullClient.batchGetObjects([partner], {
       showOwner: true,
       showContent: true,
-      showDisplay: true,
+      showDisplay,
       showType: true,
     })
 
@@ -790,7 +792,7 @@ export class PoolModule implements IModule {
     const object = await this._sdk.fullClient.batchGetObjects(coins, {
       showOwner: true,
       showContent: true,
-      showDisplay: true,
+      showDisplay,
       showType: true,
     })
     object.forEach((info: any) => {

@@ -114,7 +114,7 @@ export class RouterModuleV2 implements IModule {
     try {
       const config: AxiosRequestConfig = {
         ..._options,
-        timeout: timeoutDuration, // 设置超时时间
+        timeout: timeoutDuration,
       };
 
       const response = await axios(apiUrl, config);
@@ -160,7 +160,7 @@ export class RouterModuleV2 implements IModule {
   ) {
     let result = null
     let version = 'v2'
-    let options: RequestInit = {}
+    let options: AxiosRequestConfig = {}
     let apiUrl = this.sdk.sdkOptions.aggregatorUrl
     if (lpChanges.length > 0) {
       const url = new URL(apiUrl)
@@ -170,7 +170,7 @@ export class RouterModuleV2 implements IModule {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
+        data: JSON.stringify({
           from,
           to,
           amount,
@@ -192,8 +192,7 @@ export class RouterModuleV2 implements IModule {
       `
     }
 
-    // result = await this.fetchAndParseData(apiUrl, options)
-    result = await this.fetchDataWithAxios(apiUrl, { method: 'get' }, 6000)
+    result = await this.fetchDataWithAxios(apiUrl, options, 6000)
 
     if (result == null) {
       const priceResult: any = await this.sdk.Router.priceUseV1(
@@ -319,10 +318,28 @@ export class RouterModuleV2 implements IModule {
     lpChanges: PreSwapLpChangeParams[] = []
   ): Promise<AggregatorResult> {
     let result = null
+    let options: AxiosRequestConfig = {}
     let apiUrl = this.sdk.sdkOptions.aggregatorUrl
     if (lpChanges.length > 0) {
       const url = new URL(apiUrl)
       apiUrl = `${url.protocol}//${url.hostname}/router_with_lp_changes`
+      options = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        data: JSON.stringify({
+          from,
+          to,
+          amount,
+          by_amount_in: byAmountIn,
+          order_split: orderSplit,
+          external_router: externalRouter,
+          sender_address: 'None',
+          request_id: encodeURIComponent(uuidv4()),
+          lp_changes: lpChanges,
+        }),
+      }
     } else {
       apiUrl = `
       ${apiUrl}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&amount=${encodeURIComponent(
@@ -333,8 +350,7 @@ export class RouterModuleV2 implements IModule {
       `
     }
 
-    // result = await this.fetchAndParseData(apiUrl, options)
-    result = await this.fetchDataWithAxios(apiUrl, { method: 'get' }, 6000)
+    result = await this.fetchDataWithAxios(apiUrl, options, 6000)
 
     if (result == null) {
       throw new ClmmpoolsError('Invalid server response', RouterErrorCode.InvalidServerResponse)

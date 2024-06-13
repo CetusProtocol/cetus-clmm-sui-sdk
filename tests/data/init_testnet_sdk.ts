@@ -20,7 +20,7 @@ const SDKConfig = {
 }
 
 export const clmmTestnet: SdkOptions = {
-  fullRpcUrl: 'https://testnet.artifact.systems/sui',
+  fullRpcUrl: 'https://sui-testnet-endpoint.blockvision.org',
   simulationAccount: {
     address: '0xcd0247d0b67e53dde69b285e7a748e3dc390e8a5244eb9dd9c5c53d95e4cf0aa',
   },
@@ -41,7 +41,7 @@ export const clmmTestnet: SdkOptions = {
   },
   integrate: {
     package_id: '0x8627c5cdcd8b63bc3daa09a6ab7ed81a829a90cafce6003ae13372d611fbb1a9',
-    published_at: '0xd55d88490e28ef68d83d2fe7862909dfcef6e43a2f50403f3a461c4678e274f1',
+    published_at: '0xe26cb89a7c3bb9a00b396e278f4f1f90aae02d0da37cd4b0c4b4977ca95568ef',
   },
   deepbook: {
     package_id: '0x000000000000000000000000000000000000000000000000000000000000dee9',

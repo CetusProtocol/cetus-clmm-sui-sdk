@@ -29,6 +29,7 @@ import {
   ClmmFetcherModule,
   ClmmIntegratePoolModule,
   ClmmIntegratePoolV2Module,
+  ClmmIntegratePoolV3Module,
   CLOCK_ADDRESS,
   SuiObjectIdType,
   SuiResource,
@@ -71,11 +72,11 @@ export class PositionModule implements IModule {
    * @param assignPoolIds An array of pool IDs to filter the positions by.
    * @returns array of Position objects.
    */
-  async getPositionList(accountAddress: string, assignPoolIds: string[] = []): Promise<Position[]> {
+  async getPositionList(accountAddress: string, assignPoolIds: string[] = [], showDisplay = true): Promise<Position[]> {
     const allPosition: Position[] = []
 
     const ownerRes: any = await this._sdk.fullClient.getOwnedObjectsByPage(accountAddress, {
-      options: { showType: true, showContent: true, showDisplay: true, showOwner: true },
+      options: { showType: true, showContent: true, showDisplay, showOwner: true },
       filter: { Package: this._sdk.sdkOptions.clmm_pool.package_id },
     })
 
@@ -108,8 +109,8 @@ export class PositionModule implements IModule {
    * @param {boolean} calculateRewarder Whether to calculate the rewarder of the position.
    * @returns {Promise<Position>} Position object.
    */
-  async getPosition(positionHandle: string, positionID: string, calculateRewarder = true): Promise<Position> {
-    let position = await this.getSimplePosition(positionID)
+  async getPosition(positionHandle: string, positionID: string, calculateRewarder = true, showDisplay = true): Promise<Position> {
+    let position = await this.getSimplePosition(positionID, showDisplay)
     if (calculateRewarder) {
       position = await this.updatePositionRewarders(positionHandle, position)
     }
@@ -122,8 +123,8 @@ export class PositionModule implements IModule {
    * @param {boolean} calculateRewarder Whether to calculate the rewarder of the position.
    * @returns {Promise<Position>} Position object.
    */
-  async getPositionById(positionID: string, calculateRewarder = true): Promise<Position> {
-    const position = await this.getSimplePosition(positionID)
+  async getPositionById(positionID: string, calculateRewarder = true, showDisplay = true): Promise<Position> {
+    const position = await this.getSimplePosition(positionID, showDisplay)
     if (calculateRewarder) {
       const pool = await this._sdk.Pool.getPool(position.pool, false)
       const result = await this.updatePositionRewarders(pool.position_manager.positions_handle, position)
@@ -137,7 +138,7 @@ export class PositionModule implements IModule {
    * @param {string} positionID The ID of the position to get.
    * @returns {Promise<Position>} Position object.
    */
-  async getSimplePosition(positionID: string): Promise<Position> {
+  async getSimplePosition(positionID: string, showDisplay = true): Promise<Position> {
     const cacheKey = `${positionID}_getPositionList`
 
     let position = this.getSimplePositionByCache(positionID)
@@ -145,7 +146,7 @@ export class PositionModule implements IModule {
     if (position === undefined) {
       const objectDataResponses = await this.sdk.fullClient.getObject({
         id: positionID,
-        options: { showContent: true, showType: true, showDisplay: true, showOwner: true },
+        options: { showContent: true, showType: true, showDisplay, showOwner: true },
       })
       position = buildPosition(objectDataResponses)
 
@@ -169,7 +170,7 @@ export class PositionModule implements IModule {
    * @param {SuiObjectIdType[]} positionIDs The IDs of the positions to get.
    * @returns {Promise<Position[]>} A promise that resolves to an array of Position objects.
    */
-  async getSipmlePositionList(positionIDs: SuiObjectIdType[]): Promise<Position[]> {
+  async getSipmlePositionList(positionIDs: SuiObjectIdType[], showDisplay = true): Promise<Position[]> {
     const positionList: Position[] = []
     const notFoundIds: SuiObjectIdType[] = []
 
@@ -186,7 +187,7 @@ export class PositionModule implements IModule {
       const objectDataResponses = await this._sdk.fullClient.batchGetObjects(notFoundIds, {
         showOwner: true,
         showContent: true,
-        showDisplay: true,
+        showDisplay,
         showType: true,
       })
 
@@ -591,7 +592,6 @@ export class PositionModule implements IModule {
 
   createCollectFeeNoSendPaylod(
     params: CollectFeeParams,
-    published_at: string,
     tx: TransactionBlock,
     primaryCoinAInput: TransactionArgument,
     primaryCoinBInput: TransactionArgument
@@ -607,7 +607,7 @@ export class PositionModule implements IModule {
     ]
 
     tx.moveCall({
-      target: `${published_at}::${ClmmIntegratePoolModule}::collect_fee`,
+      target: `${integrate.published_at}::${ClmmIntegratePoolV3Module}::collect_fee`,
       typeArguments,
       arguments: args,
     })
