@@ -1,6 +1,6 @@
 import { Base64 } from 'js-base64'
-import { TransactionBlock } from '@mysten/sui.js/transactions'
-import { normalizeSuiObjectId } from '@mysten/sui.js/utils'
+import { Transaction } from '@mysten/sui/transactions'
+import { normalizeSuiObjectId } from '@mysten/sui/utils'
 import { getPackagerConfigs, PoolInfo, TokenConfigEvent, TokenInfo } from '../types'
 import { SuiResource, SuiAddressType } from '../types/sui'
 import { CachedContent, cacheTime24h, cacheTime5min, getFutureTime } from '../utils/cachedContent'
@@ -169,14 +169,14 @@ export class TokenModule implements IModule {
     }
     const tokenConfig = getPackagerConfigs(token)
     while (true) {
-      const tx = new TransactionBlock()
+      const tx = new Transaction()
       tx.moveCall({
         target: `${token.published_at}::coin_list::${
           isOwnerRequest ? 'fetch_full_list_with_limit' : 'fetch_all_registered_coin_info_with_limit'
         }`,
         arguments: isOwnerRequest
-          ? [tx.pure(tokenConfig.coin_registry_id), tx.pure(listOwnerAddr), tx.pure(index), tx.pure(limit)]
-          : [tx.pure(tokenConfig.coin_registry_id), tx.pure(index), tx.pure(limit)],
+          ? [tx.pure.address(tokenConfig.coin_registry_id), tx.pure.address(listOwnerAddr), tx.pure.u64(index), tx.pure.u64(limit)]
+          : [tx.pure.address(tokenConfig.coin_registry_id), tx.pure.u64(index), tx.pure.u64(limit)],
       })
 
       const simulateRes = await this.sdk.fullClient.devInspectTransactionBlock({
@@ -223,14 +223,14 @@ export class TokenModule implements IModule {
     }
     const tokenConfig = getPackagerConfigs(token)
     while (true) {
-      const tx = new TransactionBlock()
+      const tx = new Transaction()
       tx.moveCall({
         target: `${token.published_at}::lp_list::${
           isOwnerRequest ? 'fetch_full_list_with_limit' : 'fetch_all_registered_coin_info_with_limit'
         }`,
         arguments: isOwnerRequest
-          ? [tx.pure(tokenConfig.pool_registry_id), tx.pure(listOwnerAddr), tx.pure(index), tx.pure(limit)]
-          : [tx.pure(tokenConfig.pool_registry_id), tx.pure(index), tx.pure(limit)],
+          ? [tx.pure.address(tokenConfig.pool_registry_id), tx.pure.address(listOwnerAddr), tx.pure.u64(index), tx.pure.u64(limit)]
+          : [tx.pure.address(tokenConfig.pool_registry_id), tx.pure.u64(index), tx.pure.u64(limit)],
       })
 
       if (!checkInvalidSuiAddress(simulationAccount.address)) {

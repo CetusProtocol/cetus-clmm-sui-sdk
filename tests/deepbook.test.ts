@@ -3,7 +3,7 @@ import { buildSdk, buildTestAccountNew, buildTestAccount, buildTestPool, Testnet
 import { CoinProvider, OnePath, PreRouterSwapParams, SwapWithRouterParams } from '../src/modules/routerModule'
 import SDK, { CoinAsset, CoinAssist, DeepbookUtils, Pool, printTransaction, SwapUtils, TransactionUtil } from '../src'
 import { ClmmFetcherModule, ClmmIntegratePoolModule, CLOCK_ADDRESS } from '../src/types/sui'
-import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
+import { TransactionArgument, Transaction } from '@mysten/sui/transactions'
 
 
 describe('Router Module', () => {
@@ -65,7 +65,7 @@ describe('Router Module', () => {
   test('test deposit_base', async () => {
     const accountCap = await DeepbookUtils.getAccountCap(sdk)
     const { deepbook } = sdk.sdkOptions
-    const tx = new TransactionBlock()
+    const tx = new Transaction()
     tx.setGasBudget(100000000)
 
     const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
@@ -77,7 +77,7 @@ describe('Router Module', () => {
       tx.object('0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b'),
       coin_a,
       tx.object(accountCap),
-      tx.pure(900000000),
+      tx.pure.u64(900000000),
     ]
     const typeArguments = [TestnetCoin.USDT, TestnetCoin.USDC]
     tx.moveCall({
@@ -93,7 +93,7 @@ describe('Router Module', () => {
   test('test deposit_quote', async () => {
     const accountCap = await DeepbookUtils.getAccountCap(sdk)
     const { deepbook } = sdk.sdkOptions
-    const tx = new TransactionBlock()
+    const tx = new Transaction()
     tx.setGasBudget(100000000)
 
     const allCoinAsset = await sdk.getOwnerCoinAssets(sdk.senderAddress)
@@ -105,7 +105,7 @@ describe('Router Module', () => {
       tx.object('0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b'),
       coin_a,
       tx.object(accountCap),
-      tx.pure(100000000),
+      tx.pure.u64(100000000),
     ]
     const typeArguments = [TestnetCoin.USDT, TestnetCoin.USDC]
     tx.moveCall({
@@ -121,15 +121,15 @@ describe('Router Module', () => {
   test('test place_limit_order', async () => {
     const accountCap = await DeepbookUtils.getAccountCap(sdk)
     const { deepbook } = sdk.sdkOptions
-    const tx = new TransactionBlock()
+    const tx = new Transaction()
 
     const args: any = [
       tx.object('0x5a7604cb78bc96ebd490803cfa5254743262c17d3b5b5a954767f59e8285fa1b'),
-      tx.pure(950000000),
-      tx.pure(150000000),
-      tx.pure(false),
-      tx.pure(1699124350000),
-      tx.pure(0),
+      tx.pure.u64(950000000),
+      tx.pure.u64(150000000),
+      tx.pure.bool(false),
+      tx.pure.u64(1699124350000),
+      tx.pure.u64(0),
       tx.object(CLOCK_ADDRESS),
       tx.object(accountCap),
     ]
@@ -148,16 +148,16 @@ describe('Router Module', () => {
   })
 
   test('create account cap', async () => {
-    let tx = new TransactionBlock()
+    let tx = new Transaction()
     const createAccountCapResult = DeepbookUtils.createAccountCap(sdk.senderAddress, sdk.sdkOptions, tx, false)
     const cap: any = createAccountCapResult[0]
-    tx = createAccountCapResult[1] as TransactionBlock
+    tx = createAccountCapResult[1] as Transaction
 
     if (sdk.senderAddress.length === 0) {
       throw Error('this config sdk senderAddress is empty')
     }
 
-    tx.transferObjects([cap], tx.pure(sdk.senderAddress))
+    tx.transferObjects([cap], tx.pure.address(sdk.senderAddress))
 
     const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, tx)
     console.log('create account cap: ', transferTxn)
@@ -166,7 +166,7 @@ describe('Router Module', () => {
   test('delete account cap', async () => {
     const accountCap = await DeepbookUtils.getAccountCap(sdk)
     console.log(`deleted account cap: ${accountCap}}`)
-    let tx = new TransactionBlock()
+    let tx = new Transaction()
 
     tx = DeepbookUtils.deleteAccountCap(accountCap, sdk.sdkOptions, tx)
 

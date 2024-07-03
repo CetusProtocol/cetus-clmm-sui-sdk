@@ -4,7 +4,7 @@ import { CoinProvider, SwapWithRouterParams } from '../src/modules/routerModule'
 import { CetusClmmSDK, CoinAsset, CoinAssist, TransactionUtil } from '../src'
 import { PathProvider } from '../src/modules/routerModule'
 import { execTx } from './router_v2.test'
-import { TransactionBlock } from '@mysten/sui.js/transactions'
+import { Transaction } from '@mysten/sui/transactions'
 import { assert } from 'console'
 
 describe('Test Router V1 Module', () => {
@@ -265,7 +265,7 @@ export function verifyBalanceEnough(allCoins: CoinAsset[], coinType: string, amo
   return amountTotal >= BigInt(amount)
 }
 
-export async function execTxReturnRes(sdk: CetusClmmSDK, payload: TransactionBlock) {
+export async function execTxReturnRes(sdk: CetusClmmSDK, payload: Transaction) {
   const { simulationAccount } = sdk.sdkOptions
   const simulateRes = await sdk.fullClient.devInspectTransactionBlock({
     transactionBlock: payload,

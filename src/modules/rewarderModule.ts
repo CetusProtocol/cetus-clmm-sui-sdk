@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import BN from 'bn.js'
-import { TransactionBlock, TransactionArgument, TransactionObjectArgument } from '@mysten/sui.js/transactions'
+import { Transaction, TransactionArgument, TransactionObjectArgument } from '@mysten/sui/transactions'
 import { BuildCoinResult, checkInvalidSuiAddress, extractStructTagFromType, normalizeCoinType, TransactionUtil } from '../utils'
 import { ClmmFetcherModule, ClmmIntegratePoolV2Module, ClmmIntegratePoolV3Module, CLOCK_ADDRESS } from '../types/sui'
 import { getRewardInTickRange } from '../utils/tick'
@@ -315,14 +315,14 @@ export class RewarderModule implements IModule {
    */
   async fetchPosFeeAmount(params: FetchPosFeeParams[]): Promise<CollectFeesQuote[]> {
     const { clmm_pool, integrate, simulationAccount } = this.sdk.sdkOptions
-    const tx = new TransactionBlock()
+    const tx = new Transaction()
 
     for (const paramItem of params) {
       const typeArguments = [paramItem.coinTypeA, paramItem.coinTypeB]
       const args = [
         tx.object(getPackagerConfigs(clmm_pool).global_config_id),
         tx.object(paramItem.poolAddress),
-        tx.pure(paramItem.positionId),
+        tx.pure.address(paramItem.positionId),
       ]
       tx.moveCall({
         target: `${integrate.published_at}::${ClmmFetcherModule}::fetch_position_fees`,
@@ -365,14 +365,14 @@ export class RewarderModule implements IModule {
    */
   async fetchPosRewardersAmount(params: FetchPosRewardParams[]) {
     const { clmm_pool, integrate, simulationAccount } = this.sdk.sdkOptions
-    const tx = new TransactionBlock()
+    const tx = new Transaction()
 
     for (const paramItem of params) {
       const typeArguments = [paramItem.coinTypeA, paramItem.coinTypeB]
       const args = [
         tx.object(getPackagerConfigs(clmm_pool).global_config_id),
         tx.object(paramItem.poolAddress),
-        tx.pure(paramItem.positionId),
+        tx.pure.address(paramItem.positionId),
         tx.object(CLOCK_ADDRESS),
       ]
       tx.moveCall({
@@ -490,13 +490,13 @@ export class RewarderModule implements IModule {
    * @param gasBudget
    * @returns
    */
-  async collectRewarderTransactionPayload(params: CollectRewarderParams): Promise<TransactionBlock> {
+  async collectRewarderTransactionPayload(params: CollectRewarderParams): Promise<Transaction> {
     if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
       throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
     }
 
     const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress, null)
-    let tx = new TransactionBlock()
+    let tx = new Transaction()
 
     tx = TransactionUtil.createCollectRewarderAndFeeParams(this._sdk, tx, params, allCoinAsset)
     return tx
@@ -509,12 +509,12 @@ export class RewarderModule implements IModule {
    * @param tx
    * @returns
    */
-  async batchCollectRewardePayload(params: CollectRewarderParams[], tx?: TransactionBlock) {
+  async batchCollectRewardePayload(params: CollectRewarderParams[], tx?: Transaction) {
     if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
       throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
     }
     const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress, null)
-    tx = tx || new TransactionBlock()
+    tx = tx || new Transaction()
     const coinIdMaps: Record<string, BuildCoinResult> = {}
     params.forEach((item) => {
       const coinTypeA = normalizeCoinType(item.coinTypeA)
@@ -569,7 +569,7 @@ export class RewarderModule implements IModule {
     return tx
   }
 
-  createCollectRewarderPaylod(params: CollectRewarderParams, tx: TransactionBlock, primaryCoinInputs: TransactionArgument[]) {
+  createCollectRewarderPaylod(params: CollectRewarderParams, tx: Transaction, primaryCoinInputs: TransactionArgument[]) {
     const { clmm_pool, integrate } = this.sdk.sdkOptions
     const clmmConfigs = getPackagerConfigs(clmm_pool)
     const typeArguments = [params.coinTypeA, params.coinTypeB]
@@ -592,7 +592,7 @@ export class RewarderModule implements IModule {
     return tx
   }
 
-  createCollectRewarderNoSendPaylod(params: CollectRewarderParams, tx: TransactionBlock, primaryCoinInputs: TransactionArgument[]) {
+  createCollectRewarderNoSendPaylod(params: CollectRewarderParams, tx: Transaction, primaryCoinInputs: TransactionArgument[]) {
     const { clmm_pool, integrate } = this.sdk.sdkOptions
     const clmmConfigs = getPackagerConfigs(clmm_pool)
     const typeArguments = [params.coinTypeA, params.coinTypeB]

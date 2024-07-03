@@ -1,4 +1,4 @@
-import { TransactionArgument } from '@mysten/sui.js/transactions'
+import { TransactionArgument } from '@mysten/sui/transactions'
 import Decimal from 'decimal.js'
 import { ClmmpoolsError, TypesErrorCode } from '../errors/errors'
 

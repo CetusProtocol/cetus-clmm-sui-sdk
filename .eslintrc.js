@@ -30,6 +30,7 @@ module.exports = {
     'default-case': 'off',
     'no-bitwise': 'off',
     'no-template-curly-in-string': 'off',
+    'import/no-extraneous-dependencies': ['error', { 'devDependencies': false }]
   },
   settings: {
     'import/resolver': {

@@ -7,7 +7,7 @@ import { adjustForCoinSlippage } from '../src/math/position'
 import 'isomorphic-fetch'
 import { printTransaction } from '../src/utils/transaction-util'
 import { Position } from '../src'
-import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
 
 let sendKeypair: Ed25519Keypair
 
@@ -75,6 +75,8 @@ describe('Position add Liquidity Module', () => {
       tick_upper: upperTick.toString(),
       pool_id: pool.poolAddress,
     })
+
+    printTransaction(openPositionTransactionPayload)
 
     const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, openPositionTransactionPayload)
     console.log('open position: ', JSON.stringify(transferTxn, null, 2))

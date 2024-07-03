@@ -1,5 +1,5 @@
 import BN from 'bn.js'
-import { TransactionArgument, TransactionBlock } from '@mysten/sui.js/transactions'
+import { TransactionArgument, Transaction } from '@mysten/sui/transactions'
 import { SdkOptions } from '../sdk'
 import { CLOCK_ADDRESS, DeepbookClobV2Moudle, DeepbookCustodianV2Moudle, DeepbookEndpointsV2Moudle } from '../types'
 import SDK from '../main'
@@ -25,7 +25,7 @@ export type DeepbookPool = {
 }
 
 export class DeepbookUtils {
-  static createAccountCap(senderAddress: string, sdkOptions: SdkOptions, tx: TransactionBlock, isTransfer = false) {
+  static createAccountCap(senderAddress: string, sdkOptions: SdkOptions, tx: Transaction, isTransfer = false) {
     if (senderAddress.length === 0) {
       throw Error('this config sdk senderAddress is empty')
     }
@@ -39,16 +39,16 @@ export class DeepbookUtils {
     })
 
     if (isTransfer) {
-      tx.transferObjects([cap], tx.pure(senderAddress))
+      tx.transferObjects([cap], tx.pure.address(senderAddress))
     }
 
     return [cap, tx]
   }
 
-  static deleteAccountCap(accountCap: string, sdkOptions: SdkOptions, tx: TransactionBlock): TransactionBlock {
+  static deleteAccountCap(accountCap: string, sdkOptions: SdkOptions, tx: Transaction): Transaction {
     const { deepbook } = sdkOptions
 
-    const args = [tx.pure(accountCap)]
+    const args = [tx.object(accountCap)]
 
     tx.moveCall({
       target: `${deepbook.published_at}::${DeepbookCustodianV2Moudle}::delete_account_cap`,
@@ -58,7 +58,7 @@ export class DeepbookUtils {
     return tx
   }
 
-  static deleteAccountCapByObject(accountCap: TransactionArgument, sdkOptions: SdkOptions, tx: TransactionBlock): TransactionBlock {
+  static deleteAccountCapByObject(accountCap: TransactionArgument, sdkOptions: SdkOptions, tx: Transaction): Transaction {
     const { deepbook } = sdkOptions
 
     const args = [accountCap]
@@ -125,12 +125,12 @@ export class DeepbookUtils {
     const { simulationAccount } = sdk.sdkOptions
     const { deepbook_endpoint_v2 } = sdk.sdkOptions
 
-    const tx = new TransactionBlock()
+    const tx = new Transaction()
 
     const asks: Order[] = []
 
     const typeArguments = [baseCoin, quoteCoin]
-    const args = [tx.pure(poolAddress), tx.pure('0'), tx.pure('999999999999'), tx.pure(CLOCK_ADDRESS)]
+    const args = [tx.object(poolAddress), tx.pure.u64('0'), tx.pure.u64('999999999999'), tx.object(CLOCK_ADDRESS)]
     tx.moveCall({
       target: `${deepbook_endpoint_v2.published_at}::endpoints_v2::get_level2_book_status_ask_side`,
       arguments: args,
@@ -166,12 +166,12 @@ export class DeepbookUtils {
     const { simulationAccount } = sdk.sdkOptions
     const { deepbook_endpoint_v2 } = sdk.sdkOptions
 
-    const tx = new TransactionBlock()
+    const tx = new Transaction()
 
     const bids: Order[] = []
 
     const typeArguments = [baseCoin, quoteCoin]
-    const args = [tx.pure(poolAddress), tx.pure('0'), tx.pure('999999999999'), tx.pure(CLOCK_ADDRESS)]
+    const args = [tx.object(poolAddress), tx.pure.u64('0'), tx.pure.u64('999999999999'), tx.object(CLOCK_ADDRESS)]
     tx.moveCall({
       target: `${deepbook_endpoint_v2.published_at}::endpoints_v2::get_level2_book_status_bid_side`,
       arguments: args,
@@ -283,7 +283,7 @@ export class DeepbookUtils {
   static async simulateSwap(sdk: SDK, poolID: string, baseCoin: string, quoteCoin: string, a2b: boolean, amount: number) {
     const { deepbook_endpoint_v2 } = sdk.sdkOptions
 
-    let tx = new TransactionBlock()
+    let tx = new Transaction()
 
     const accountCapStr = await this.getAccountCap(sdk)
 
@@ -291,10 +291,10 @@ export class DeepbookUtils {
     if (accountCapStr === '') {
       const getAccoutCapResult = this.createAccountCap(sdk.senderAddress, sdk.sdkOptions, tx)
       const cap = getAccoutCapResult[0] as TransactionArgument
-      tx = getAccoutCapResult[1] as TransactionBlock
+      tx = getAccoutCapResult[1] as Transaction
       accountCap = cap
     } else {
-      accountCap = tx.pure(accountCapStr)
+      accountCap = tx.object(accountCapStr)
     }
 
     const allCoins = await sdk.getOwnerCoinAssets(sdk.senderAddress)
@@ -306,14 +306,14 @@ export class DeepbookUtils {
 
     const typeArguments = [baseCoin, quoteCoin]
     const args: any = [
-      tx.pure(poolID),
+      tx.object(poolID),
       accountCap,
-      tx.pure(amount),
-      tx.pure(0),
-      tx.pure(a2b),
+      tx.pure.u64(amount),
+      tx.pure.u64(0),
+      tx.pure.bool(a2b),
       baseAsset,
       quoteAsset,
-      tx.pure(CLOCK_ADDRESS),
+      tx.object(CLOCK_ADDRESS),
     ]
 
     tx.moveCall({

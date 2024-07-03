@@ -1,5 +1,5 @@
-import { normalizeSuiObjectId } from '@mysten/sui.js/utils'
-import { TransactionArgument, TransactionBlock, TransactionObjectArgument, TransactionResult } from '@mysten/sui.js/transactions'
+import { normalizeSuiObjectId } from '@mysten/sui/utils'
+import { TransactionArgument, Transaction, TransactionObjectArgument, TransactionResult } from '@mysten/sui/transactions'
 import { getDefaultSuiInputType, SuiInputTypes, SuiTxArg } from '../types/sui'
 import { ClmmpoolsError, UtilsErrorCode } from '../errors/errors'
 
@@ -15,10 +15,10 @@ export function checkInvalidSuiAddress(address: string): boolean {
   return true
 }
 export class TxBlock {
-  public txBlock: TransactionBlock
+  public txBlock: Transaction
 
   constructor() {
-    this.txBlock = new TransactionBlock()
+    this.txBlock = new Transaction()
   }
 
   /**
@@ -41,10 +41,10 @@ export class TxBlock {
     const tx = this.txBlock
     const coins = tx.splitCoins(
       tx.gas,
-      amounts.map((amount) => tx.pure(amount))
+      amounts.map((amount) => tx.pure.u64(amount))
     )
     recipients.forEach((recipient, index) => {
-      tx.transferObjects([coins[index]], tx.pure(recipient))
+      tx.transferObjects([coins[index]], tx.pure.address(recipient))
     })
     return this
   }
@@ -87,132 +87,8 @@ export class TxBlock {
       )
     }
 
-    const spitAmount = tx.splitCoins(primaryCoinAInput, [tx.pure(amount)])
-    tx.transferObjects([spitAmount], tx.pure(recipient))
+    const spitAmount = tx.splitCoins(primaryCoinAInput, [tx.pure.u64(amount)])
+    tx.transferObjects([spitAmount], tx.pure.address(recipient))
     return this
-  }
-
-  /**
-   * Transfer objects to many recipients.
-   * @param {SuiTxArg[]}objects The objects to be transferred.
-   * @param {string}recipient The recipient address.
-   * @returns
-   */
-  transferObjects(objects: SuiTxArg[], recipient: string) {
-    if (!checkInvalidSuiAddress(recipient) === false) {
-      throw new ClmmpoolsError('Invalid recipient address', UtilsErrorCode.InvalidRecipientAddress)
-    }
-
-    const tx = this.txBlock
-    tx.transferObjects(this.convertArgs(objects) as TransactionObjectArgument[], tx.pure(recipient))
-    return this
-  }
-
-  /**
-   * @description Move call
-   * @param {string}target `${string}::${string}::${string}`, e.g. `0x3::sui_system::request_add_stake`
-   * @param {string[]}typeArguments the type arguments of the move call, such as `['0x2::sui::SUI']`
-   * @param {any[]}args the arguments of the move call, such as `['0x1', '0x2']`
-   * @returns {TransactionResult}
-   */
-  moveCall(target: string, typeArguments: string[] = [], args: any[] = []): TransactionResult {
-    // a regex for pattern `${string}::${string}::${string}`
-    const regex = /(?<package>[a-zA-Z0-9]+)::(?<module>[a-zA-Z0-9_]+)::(?<function>[a-zA-Z0-9_]+)/
-    const match = target.match(regex)
-    if (match === null)
-      throw new ClmmpoolsError('Invalid target format. Expected `${string}::${string}::${string}`', UtilsErrorCode.InvalidTarget)
-    const convertedArgs = this.convertArgs(args)
-    const tx = this.txBlock
-    return tx.moveCall({
-      target: target as `${string}::${string}::${string}`,
-      arguments: convertedArgs,
-      typeArguments,
-    })
-  }
-
-  /**
-   * Create pure address arguments
-   * @param {string}value
-   * @returns
-   */
-  address(value: string) {
-    return this.txBlock.pure(value)
-  }
-
-  /**
-   * Create pure arguments
-   * @param {any}value
-   * @returns
-   */
-  pure(value: any) {
-    return this.txBlock.pure(value)
-  }
-
-  /**
-   * Create object arguments
-   * @param {string}value
-   * @returns
-   */
-  object(value: string) {
-    return this.txBlock.object(value)
-  }
-
-  /**
-   * Create move vec arguments
-   * @param {number}gasBudget
-   * @returns
-   */
-  setGasBudget(gasBudget: number) {
-    this.txBlock.setGasBudget(gasBudget)
-  }
-
-  /**
-   * Since we know the elements in the array are the same type
-   * If type is not provided, we will try to infer the type from the first element
-   * By default,
-   *
-   * string starting with `0x` =====> object id
-   * number, bigint ====> u64
-   * boolean =====> bool
-   *
-   *
-   * If type is provided, we will use the type to convert the array
-   * @param args
-   * @param type 'address' | 'bool' | 'u8' | 'u16' | 'u32' | 'u64' | 'u128' | 'u256' | 'object'
-   */
-  makeMoveVec(args: SuiTxArg[], type?: SuiInputTypes) {
-    if (args.length === 0)
-      throw new ClmmpoolsError('Transaction builder error: Empty array is not allowed', UtilsErrorCode.InvalidTransactionBuilder)
-    if (type === 'object' && args.some((arg) => typeof arg !== 'string')) {
-      throw new ClmmpoolsError('Transaction builder error: Object id must be string', UtilsErrorCode.InvalidTransactionBuilder)
-    }
-    const defaultSuiType = getDefaultSuiInputType(args[0])
-    if (type === 'object' || defaultSuiType === 'object') {
-      return this.txBlock.makeMoveVec({
-        objects: args.map((arg) => this.txBlock.object(normalizeSuiObjectId(arg as string))),
-      })
-    }
-    return this.txBlock.makeMoveVec({
-      objects: args.map((arg) => this.txBlock.pure(arg) as TransactionObjectArgument),
-    })
-  }
-
-  private convertArgs(args: any[]): TransactionArgument[] | TransactionObjectArgument[] {
-    return args.map((arg) => {
-      // We always treat string starting with `0x` as object id
-      if (typeof arg === 'string' && arg.startsWith('0x')) {
-        return this.txBlock.object(normalizeSuiObjectId(arg))
-        // Other basic types such as string, number, boolean are converted to pure value
-      }
-      if (typeof arg !== 'object') {
-        return this.txBlock.pure(arg)
-        // if it's an array, we will convert it to move vec
-      }
-      if (Array.isArray(arg)) {
-        return this.makeMoveVec(arg)
-      }
-      // We do nothing, because it's most likely already a move value
-      return arg
-    })
   }
 }

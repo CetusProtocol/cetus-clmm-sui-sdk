@@ -2,9 +2,9 @@ import CetusClmmSDK, { CoinAsset, CoinAssist, TransactionUtil } from '../src'
 import { AggregatorResult, CoinProvider, PathProvider } from '../src/modules'
 import { SdkEnv, TestnetCoin, buildSdk, buildTestAccount } from './data/init_test_data'
 import { assert } from 'console'
-import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519'
-import { Secp256k1Keypair } from '@mysten/sui.js/keypairs/secp256k1'
-import { TransactionBlock } from '@mysten/sui.js/transactions'
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
+import { Secp256k1Keypair } from '@mysten/sui/keypairs/secp256k1'
+import { Transaction } from '@mysten/sui/transactions'
 import { verifyBalanceEnough } from './router_v1.test'
 
 describe('Test Router V2 Module', () => {
@@ -77,8 +77,6 @@ describe('Test Router V2 Module', () => {
         const amount = 10000000
         for (const orderSplit of [true, false]) {
           for (const externalRouter of [true, false]) {
-            const preSwapWithMultiPoolParams = 
-
             const result = (await sdk.RouterV2.getBestRouter(coinList[i], coinList[j], amount, byAmountIn, 0, '', undefined, undefined, orderSplit, externalRouter)).result
             assert(result.outputAmount > 0, "detection all router path success")
           }
@@ -336,7 +334,7 @@ describe('Test Router V2 Module', () => {
 
   test("Transfer zero coin", async () => {
     const coinType = TestnetCoin.HASUI
-    const tx = new TransactionBlock()
+    const tx = new Transaction()
 
     const coin = tx.object('0x721729c8cb713aadce7f4f4f4ece2f72a1574f75e0e809a064ede10f55f7cee4')
     const payload = await TransactionUtil.buildTransferCoin(sdk, tx, coin, coinType)
@@ -345,7 +343,7 @@ describe('Test Router V2 Module', () => {
 
 })
 
-export async function execTx(sdk: CetusClmmSDK, simulate: boolean, payload: TransactionBlock, sendKeypair: Ed25519Keypair | Secp256k1Keypair) {
+export async function execTx(sdk: CetusClmmSDK, simulate: boolean, payload: Transaction, sendKeypair: Ed25519Keypair | Secp256k1Keypair) {
   if (simulate) {
     const { simulationAccount } = sdk.sdkOptions
     const simulateRes = await sdk.fullClient.devInspectTransactionBlock({
