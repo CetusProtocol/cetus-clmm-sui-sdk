@@ -509,7 +509,12 @@ export class RewarderModule implements IModule {
    * @param tx
    * @returns
    */
-  async batchCollectRewardePayload(params: CollectRewarderParams[], tx?: Transaction) {
+  async batchCollectRewardePayload(
+    params: CollectRewarderParams[],
+    tx?: Transaction,
+    inputCoinA?: TransactionObjectArgument,
+    inputCoinB?: TransactionObjectArgument
+  ) {
     if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
       throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
     }
@@ -522,14 +527,34 @@ export class RewarderModule implements IModule {
 
       if (item.collect_fee) {
         let coinAInput = coinIdMaps[coinTypeA]
-        if (coinAInput === undefined) {
-          coinAInput = TransactionUtil.buildCoinForAmount(tx!, allCoinAsset!, BigInt(0), coinTypeA, false)
+        if (coinAInput == null) {
+          if (inputCoinA == null) {
+            coinAInput = TransactionUtil.buildCoinForAmount(tx!, allCoinAsset!, BigInt(0), coinTypeA, false)
+          } else {
+            coinAInput = {
+              targetCoin: inputCoinA,
+              remainCoins: [],
+              isMintZeroCoin: false,
+              tragetCoinAmount: '0',
+            }
+          }
+
           coinIdMaps[coinTypeA] = coinAInput
         }
 
         let coinBInput = coinIdMaps[coinTypeB]
-        if (coinBInput === undefined) {
-          coinBInput = TransactionUtil.buildCoinForAmount(tx!, allCoinAsset!, BigInt(0), coinTypeB, false)
+        if (coinBInput == null) {
+          if (inputCoinB == null) {
+            coinBInput = TransactionUtil.buildCoinForAmount(tx!, allCoinAsset!, BigInt(0), coinTypeB, false)
+          } else {
+            coinBInput = {
+              targetCoin: inputCoinB,
+              remainCoins: [],
+              isMintZeroCoin: false,
+              tragetCoinAmount: '0',
+            }
+          }
+
           coinIdMaps[coinTypeB] = coinBInput
         }
 

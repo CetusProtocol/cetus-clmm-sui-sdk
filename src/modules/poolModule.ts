@@ -73,7 +73,7 @@ export class PoolModule implements IModule {
     dataPage.nextCursor = objects.nextCursor
 
     const positionObjectIDs = objects.data.map((item: any) => {
-      if (item.error != null || item.data?.content?.dataType !== 'moveObject') {
+      if (item.error != null) {
         throw new ClmmpoolsError(
           `when getPositionList get position objects error: ${item.error}, please check the rpc, contracts address config and position id.`,
           ConfigErrorCode.InvalidConfig
@@ -562,10 +562,10 @@ export class PoolModule implements IModule {
 
     const tx = new Transaction()
 
-		const start = tx.makeMoveVec({
-			elements: params.start.map((index) => tx.pure.u32(index)),
-			type: undefined,
-		});
+    const start = tx.makeMoveVec({
+      elements: params.start.map((index) => tx.pure.u32(index)),
+      type: 'u32',
+    })
 
     const args = [tx.object(params.pool_id), start, tx.pure.u64(params.limit.toString())]
 
@@ -620,7 +620,7 @@ export class PoolModule implements IModule {
       const vecStart = tx.makeMoveVec({
         elements: start.map((id) => tx.pure.address(id)),
         type: undefined,
-      });
+      })
       const args = [tx.object(params.pool_id), vecStart, tx.pure.u64(limit)]
 
       tx.moveCall({

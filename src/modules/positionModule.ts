@@ -1,12 +1,11 @@
 import BN from 'bn.js'
-import { Transaction, TransactionArgument } from '@mysten/sui/transactions'
+import { Transaction, TransactionArgument, TransactionObjectArgument } from '@mysten/sui/transactions'
 import { isValidSuiObjectId } from '@mysten/sui/utils'
 import {
   AddLiquidityFixTokenParams,
   AddLiquidityParams,
   ClosePositionParams,
   CollectFeeParams,
-  CollectRewarderParams,
   OpenPositionParams,
   Position,
   PositionReward,
@@ -24,7 +23,7 @@ import {
   extractStructTagFromType,
   getFutureTime,
 } from '../utils'
-import { findAdjustCoin, TransactionUtil } from '../utils/transaction-util'
+import { BuildCoinResult, findAdjustCoin, TransactionUtil } from '../utils/transaction-util'
 import {
   ClmmFetcherModule,
   ClmmIntegratePoolModule,
@@ -192,10 +191,12 @@ export class PositionModule implements IModule {
       })
 
       objectDataResponses.forEach((info) => {
-        const position = buildPosition(info)
-        positionList.push(position)
-        const cacheKey = `${position.pos_object_id}_getPositionList`
-        this.updateCache(cacheKey, position, cacheTime24h)
+        if (info.error == null) {
+          const position = buildPosition(info)
+          positionList.push(position)
+          const cacheKey = `${position.pos_object_id}_getPositionList`
+          this.updateCache(cacheKey, position, cacheTime24h)
+        }
       })
     }
 
@@ -347,7 +348,10 @@ export class PositionModule implements IModule {
     gasEstimateArg?: {
       slippage: number
       curSqrtPrice: BN
-    }
+    },
+    tx?: Transaction,
+    inputCoinA?: TransactionObjectArgument,
+    inputCoinB?: TransactionObjectArgument
   ): Promise<Transaction> {
     if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
       throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
@@ -358,12 +362,20 @@ export class PositionModule implements IModule {
       const { isAdjustCoinA, isAdjustCoinB } = findAdjustCoin(params)
       params = params as AddLiquidityFixTokenParams
       if ((params.fix_amount_a && isAdjustCoinA) || (!params.fix_amount_a && isAdjustCoinB)) {
-        const tx = await TransactionUtil.buildAddLiquidityFixTokenForGas(this._sdk, allCoinAsset, params, gasEstimateArg)
+        tx = await TransactionUtil.buildAddLiquidityFixTokenForGas(
+          this._sdk,
+          allCoinAsset,
+          params,
+          gasEstimateArg,
+          tx,
+          inputCoinA,
+          inputCoinB
+        )
         return tx
       }
     }
 
-    return TransactionUtil.buildAddLiquidityFixToken(this._sdk, allCoinAsset, params)
+    return TransactionUtil.buildAddLiquidityFixToken(this._sdk, allCoinAsset, params, tx, inputCoinA, inputCoinB)
   }
 
   /**
@@ -371,7 +383,12 @@ export class PositionModule implements IModule {
    * @param {AddLiquidityParams} params
    * @returns {Promise<TransactionBlock>}
    */
-  async createAddLiquidityPayload(params: AddLiquidityParams): Promise<Transaction> {
+  async createAddLiquidityPayload(
+    params: AddLiquidityParams,
+    tx?: Transaction,
+    inputCoinA?: TransactionObjectArgument,
+    inputCoinB?: TransactionObjectArgument
+  ): Promise<Transaction> {
     const { integrate, clmm_pool } = this._sdk.sdkOptions
     if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
       throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
@@ -382,17 +399,33 @@ export class PositionModule implements IModule {
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
 
-    let tx = new Transaction()
+    tx = tx || new Transaction()
 
     const needOpenPosition = !isValidSuiObjectId(params.pos_id)
 
     const max_amount_a = BigInt(params.max_amount_a)
     const max_amount_b = BigInt(params.max_amount_b)
 
-    const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
-    const primaryCoinAInputs = TransactionUtil.buildCoinForAmount(tx, allCoinAsset, max_amount_a, params.coinTypeA, false)
-
-    const primaryCoinBInputs = TransactionUtil.buildCoinForAmount(tx, allCoinAsset, max_amount_b, params.coinTypeB, false)
+    let primaryCoinAInputs: BuildCoinResult
+    let primaryCoinBInputs: BuildCoinResult
+    if (inputCoinA == null || inputCoinB == null) {
+      const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
+      primaryCoinAInputs = TransactionUtil.buildCoinForAmount(tx, allCoinAsset, max_amount_a, params.coinTypeA, false)
+      primaryCoinBInputs = TransactionUtil.buildCoinForAmount(tx, allCoinAsset, max_amount_b, params.coinTypeB, false)
+    } else {
+      primaryCoinAInputs = {
+        targetCoin: inputCoinA,
+        remainCoins: [],
+        isMintZeroCoin: false,
+        tragetCoinAmount: '0',
+      }
+      primaryCoinBInputs = {
+        targetCoin: inputCoinB,
+        remainCoins: [],
+        isMintZeroCoin: false,
+        tragetCoinAmount: '0',
+      }
+    }
 
     if (needOpenPosition) {
       tx.moveCall({
@@ -412,6 +445,7 @@ export class PositionModule implements IModule {
         ],
       })
     } else {
+      const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress)
       tx = TransactionUtil.createCollectRewarderAndFeeParams(
         this._sdk,
         tx,
@@ -444,7 +478,7 @@ export class PositionModule implements IModule {
    * @param {RemoveLiquidityParams} params
    * @returns {TransactionBlock}
    */
-  async removeLiquidityTransactionPayload(params: RemoveLiquidityParams): Promise<Transaction> {
+  async removeLiquidityTransactionPayload(params: RemoveLiquidityParams, tx?: Transaction): Promise<Transaction> {
     if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
       throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
     }
@@ -453,7 +487,7 @@ export class PositionModule implements IModule {
 
     const functionName = 'remove_liquidity'
 
-    let tx = new Transaction()
+    tx = tx || new Transaction()
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
 
@@ -485,14 +519,14 @@ export class PositionModule implements IModule {
    * @param {ClosePositionParams} params
    * @returns {TransactionBlock}
    */
-  async closePositionTransactionPayload(params: ClosePositionParams): Promise<Transaction> {
+  async closePositionTransactionPayload(params: ClosePositionParams, tx?: Transaction): Promise<Transaction> {
     if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
       throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
     }
 
     const { clmm_pool, integrate } = this.sdk.sdkOptions
 
-    let tx = new Transaction()
+    tx = tx || new Transaction()
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
 
@@ -521,10 +555,9 @@ export class PositionModule implements IModule {
    * @param {OpenPositionParams} params
    * @returns {TransactionBlock}
    */
-  openPositionTransactionPayload(params: OpenPositionParams): Transaction {
+  openPositionTransactionPayload(params: OpenPositionParams, tx?: Transaction): Transaction {
     const { clmm_pool, integrate } = this.sdk.sdkOptions
-
-    const tx = new Transaction()
+    tx = tx || new Transaction()
 
     const typeArguments = [params.coinTypeA, params.coinTypeB]
     const tick_lower = asUintN(BigInt(params.tick_lower)).toString()
@@ -551,26 +584,34 @@ export class PositionModule implements IModule {
    * @param {TransactionBlock} tx
    * @returns {TransactionBlock}
    */
-  async collectFeeTransactionPayload(params: CollectFeeParams): Promise<Transaction> {
+  async collectFeeTransactionPayload(
+    params: CollectFeeParams,
+    tx?: Transaction,
+    inputCoinA?: TransactionObjectArgument,
+    inputCoinB?: TransactionObjectArgument
+  ): Promise<Transaction> {
     if (!checkInvalidSuiAddress(this._sdk.senderAddress)) {
       throw new ClmmpoolsError('this config sdk senderAddress is not set right', UtilsErrorCode.InvalidSendAddress)
     }
 
     const allCoinAsset = await this._sdk.getOwnerCoinAssets(this._sdk.senderAddress, null, true)
-    const tx = new Transaction()
+    tx = tx || new Transaction()
 
     const primaryCoinAInput = TransactionUtil.buildCoinForAmount(tx, allCoinAsset, BigInt(0), params.coinTypeA, false)
     const primaryCoinBInput = TransactionUtil.buildCoinForAmount(tx, allCoinAsset, BigInt(0), params.coinTypeB, false)
 
-    this.createCollectFeePaylod(params, tx, primaryCoinAInput.targetCoin, primaryCoinBInput.targetCoin)
+    const coinA = inputCoinA ?? primaryCoinAInput.targetCoin
+    const coinB = inputCoinB ?? primaryCoinBInput.targetCoin
+
+    this.createCollectFeePaylod(params, tx, coinA, coinB)
     return tx
   }
 
   createCollectFeePaylod(
     params: CollectFeeParams,
     tx: Transaction,
-    primaryCoinAInput: TransactionArgument,
-    primaryCoinBInput: TransactionArgument
+    primaryCoinAInput: TransactionObjectArgument,
+    primaryCoinBInput: TransactionObjectArgument
   ) {
     const { clmm_pool, integrate } = this.sdk.sdkOptions
     const typeArguments = [params.coinTypeA, params.coinTypeB]
@@ -593,8 +634,8 @@ export class PositionModule implements IModule {
   createCollectFeeNoSendPaylod(
     params: CollectFeeParams,
     tx: Transaction,
-    primaryCoinAInput: TransactionArgument,
-    primaryCoinBInput: TransactionArgument
+    primaryCoinAInput: TransactionObjectArgument,
+    primaryCoinBInput: TransactionObjectArgument
   ) {
     const { clmm_pool, integrate } = this.sdk.sdkOptions
     const typeArguments = [params.coinTypeA, params.coinTypeB]

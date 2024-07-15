@@ -194,12 +194,12 @@ export function buildNFT(objects: any): NFT {
 }
 
 /** Builds a Position object based on a SuiObjectResponse.
- * @param {SuiObjectResponse} objects - The SuiObjectResponse containing information about the position.
+ * @param {SuiObjectResponse} object - The SuiObjectResponse containing information about the position.
  * @returns {Position} - The built Position object.
  */
-export function buildPosition(objects: SuiObjectResponse): Position {
-  if (objects.error != null || objects.data?.content?.dataType !== 'moveObject') {
-    throw new ClmmpoolsError(`Position not exists. Get Position error:${objects.error}`, PositionErrorCode.InvalidPositionObject)
+export function buildPosition(object: SuiObjectResponse): Position {
+  if (object.error != null || object.data?.content?.dataType !== 'moveObject') {
+    throw new ClmmpoolsError(`Position not exists. Get Position error:${object.error}`, PositionErrorCode.InvalidPositionObject)
   }
 
   let nft: NFT = {
@@ -235,10 +235,10 @@ export function buildPosition(objects: SuiObjectResponse): Position {
     fee_owed_b: '0',
     position_status: ClmmPositionStatus.Exists,
   }
-  let fields = getObjectFields(objects)
+  let fields = getObjectFields(object)
   if (fields) {
-    const type = getMoveObjectType(objects) as string
-    const ownerWarp = getObjectOwner(objects) as {
+    const type = getMoveObjectType(object) as string
+    const ownerWarp = getObjectOwner(object) as {
       AddressOwner: string
     }
 
@@ -248,7 +248,7 @@ export function buildPosition(objects: SuiObjectResponse): Position {
       nft.name = fields.name
       nft.link = fields.url
     } else {
-      nft = buildNFT(objects)
+      nft = buildNFT(object)
     }
 
     position = {
@@ -256,9 +256,9 @@ export function buildPosition(objects: SuiObjectResponse): Position {
       pos_object_id: fields.id.id,
       owner: ownerWarp.AddressOwner,
       type,
+      liquidity: fields.liquidity,
       coin_type_a: fields.coin_type_a.fields.name,
       coin_type_b: fields.coin_type_b.fields.name,
-      liquidity: fields.liquidity,
       tick_lower_index: asIntN(BigInt(fields.tick_lower_index.fields.bits)),
       tick_upper_index: asIntN(BigInt(fields.tick_upper_index.fields.bits)),
       index: fields.index,
@@ -277,12 +277,12 @@ export function buildPosition(objects: SuiObjectResponse): Position {
     }
   }
 
-  const deletedResponse = getObjectDeletedResponse(objects)
+  const deletedResponse = getObjectDeletedResponse(object)
   if (deletedResponse) {
     position.pos_object_id = deletedResponse.objectId
     position.position_status = ClmmPositionStatus.Deleted
   }
-  const objectNotExistsResponse = getObjectNotExistsResponse(objects)
+  const objectNotExistsResponse = getObjectNotExistsResponse(object)
   if (objectNotExistsResponse) {
     position.pos_object_id = objectNotExistsResponse
     position.position_status = ClmmPositionStatus.NotExists

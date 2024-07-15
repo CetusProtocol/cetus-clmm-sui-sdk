@@ -1,3 +1,4 @@
+import { getFullnodeUrl } from '@mysten/sui/client'
 import CetusClmmSDK, { SdkOptions } from '../../src'
 
 const SDKConfig = {
@@ -21,7 +22,7 @@ const SDKConfig = {
 
 // mainnet
 export const clmmMainnet: SdkOptions = {
-  fullRpcUrl: 'https://sui-mainnet-endpoint.blockvision.org/',
+  fullRpcUrl: getFullnodeUrl('mainnet'),
   simulationAccount: {
     address: '0x326ce9894f08dcaa337fa232641cc34db957aec9ff6614c1186bc9a7508df0bb',
   },

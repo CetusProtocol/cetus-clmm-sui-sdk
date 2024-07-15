@@ -104,6 +104,7 @@ export class RpcModule extends SuiClient {
         cursor: nextCursor,
         limit: queryAll ? null : paginationArgs.limit,
       })
+
       if (res.data) {
         result = [...result, ...res.data]
         hasNextPage = res.hasNextPage
@@ -171,10 +172,7 @@ export class RpcModule extends SuiClient {
    * @param {Transaction} tx - The transaction block to send.
    * @returns {Promise<SuiTransactionBlockResponse | undefined>} - The response of the sent transaction block.
    */
-  async sendTransaction(
-    keypair: Ed25519Keypair | Secp256k1Keypair,
-    tx: Transaction
-  ): Promise<SuiTransactionBlockResponse | undefined> {
+  async sendTransaction(keypair: Ed25519Keypair | Secp256k1Keypair, tx: Transaction): Promise<SuiTransactionBlockResponse | undefined> {
     try {
       const resultTxn: any = await this.signAndExecuteTransaction({
         transaction: tx,
@@ -190,7 +188,7 @@ export class RpcModule extends SuiClient {
     }
     return undefined
   }
-  
+
   /**
    * Send a simulation transaction.
    * @param tx - The transaction block.

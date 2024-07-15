@@ -62,14 +62,6 @@ export type Position = {
    */
   type: SuiAddressType
   /**
-   * The address type of the first coin in the position.
-   */
-  coin_type_a: SuiAddressType
-  /**
-   * The address type of the second coin in the position.
-   */
-  coin_type_b: SuiAddressType
-  /**
    * The index of the position.
    */
   index: number
@@ -89,6 +81,15 @@ export type Position = {
    * The status of the position within the liquidity mining module.
    */
   position_status: ClmmPositionStatus
+
+  /**
+   * The address type of the first coin in the position.
+   */
+  coin_type_a: SuiAddressType
+  /**
+   * The address type of the second coin in the position.
+   */
+  coin_type_b: SuiAddressType
 } & NFT &
   PositionReward
 

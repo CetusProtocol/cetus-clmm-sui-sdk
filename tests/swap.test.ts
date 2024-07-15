@@ -1,12 +1,19 @@
 import BN from 'bn.js'
-import { TestnetCoin, buildSdk, buildTestAccount as buildTestAccountNew, buildTestPool, SdkEnv, USDT_USDC_POOL_10 } from './data/init_test_data'
+import {
+  TestnetCoin,
+  buildSdk,
+  buildTestAccount as buildTestAccountNew,
+  buildTestPool,
+  SdkEnv,
+  USDT_USDC_POOL_10,
+} from './data/init_test_data'
 import 'isomorphic-fetch'
 import { printTransaction } from '../src/utils/transaction-util'
 import { adjustForSlippage, d, Percentage, TransactionUtil } from '../src'
 import { assert } from 'console'
 
 describe('Swap calculate Module', () => {
-  const sdk = buildSdk()
+  const sdk = buildSdk(SdkEnv.mainnet)
 
   test('fetchTicksByContract', async () => {
     const tickdatas = await sdk.Pool.fetchTicks({
@@ -89,18 +96,17 @@ describe('Swap calculate Module', () => {
 
   test('calculateRates', async () => {
     const a2b = false
-    const pool = await sdk.Pool.getPool('0x6fd4915e6d8d3e2ba6d81787046eb948ae36fdfc75dad2e24f0d4aaa2417a416')
+    const pool = await sdk.Pool.getPool('0xc8d7a1503dc2f9f5b05449a87d8733593e2f0f3e7bffd90541252782e4d2ca20')
     const byAmountIn = false
     const amount = '80000000000000'
 
     const swapTicks = await sdk.Pool.fetchTicks({
       pool_id: pool.poolAddress,
       coinTypeA: pool.coinTypeA,
-      coinTypeB: pool.coinTypeB
+      coinTypeB: pool.coinTypeB,
     })
     // const swapTicks =  await  sdk.Pool.fetchTicksByRpc(pool.ticks_handle)
-    console.log("swapTicks: ", swapTicks.length);
-
+    console.log('swapTicks: ', swapTicks.length)
 
     const res = sdk.Swap.calculateRates({
       decimalsA: 6,
@@ -109,7 +115,7 @@ describe('Swap calculate Module', () => {
       byAmountIn,
       amount: new BN(amount),
       swapTicks: swapTicks,
-      currentPool: pool
+      currentPool: pool,
     })
 
     console.log('preswap###res###', {
@@ -137,7 +143,7 @@ describe('Swap Module', () => {
   test('swap', async () => {
     const a2b = true
     const byAmountIn = true
-    const amount = "10000000"
+    const amount = '10000000'
     const slippage = Percentage.fromDecimal(d(0.1))
 
     const currentPool = await buildTestPool(sdk, USDT_USDC_POOL_10)
@@ -201,7 +207,7 @@ describe('Swap Module: assert preswap and calcualteRates', () => {
   test('swap', async () => {
     const a2b = true
     const byAmountIn = true
-    const amount = "120000000000000000"
+    const amount = '120000000000000000'
 
     const currentPool = await sdk.Pool.getPool('0x6fd4915e6d8d3e2ba6d81787046eb948ae36fdfc75dad2e24f0d4aaa2417a416')
 
@@ -224,10 +230,10 @@ describe('Swap Module: assert preswap and calcualteRates', () => {
     const swapTicks = await sdk.Pool.fetchTicks({
       pool_id: currentPool.poolAddress,
       coinTypeA: currentPool.coinTypeA,
-      coinTypeB: currentPool.coinTypeB
+      coinTypeB: currentPool.coinTypeB,
     })
     // const swapTicks =  await  sdk.Pool.fetchTicksByRpc(pool.ticks_handle)
-    console.log("swapTicks: ", swapTicks.length);
+    console.log('swapTicks: ', swapTicks.length)
 
     const calculateRatesRes = sdk.Swap.calculateRates({
       decimalsA,
@@ -250,7 +256,6 @@ describe('Swap Module: assert preswap and calcualteRates', () => {
       aToB: calculateRatesRes.aToB,
       byAmountIn: calculateRatesRes.byAmountIn,
     })
-
 
     assert(preSwapRes.estimatedAmountIn.toString() == calculateRatesRes.estimatedAmountIn.toString())
     assert(preSwapRes.estimatedAmountOut.toString() == calculateRatesRes.estimatedAmountOut.toString())

@@ -1,6 +1,15 @@
 import { TickMath } from '../src/math/tick'
 import BN from 'bn.js'
-import { SdkEnv, USDT_USDC_POOL_10, buildSdk, buildTestAccount, buildTestPool, buildTestPosition, PoolObjectID, PositionObjectID } from './data/init_test_data'
+import {
+  SdkEnv,
+  USDT_USDC_POOL_10,
+  buildSdk,
+  buildTestAccount,
+  buildTestPool,
+  buildTestPosition,
+  PoolObjectID,
+  PositionObjectID,
+} from './data/init_test_data'
 import { ClmmPoolUtil } from '../src/math/clmm'
 import { Percentage } from '../src/math/percentage'
 import { adjustForCoinSlippage } from '../src/math/position'
@@ -12,7 +21,7 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
 let sendKeypair: Ed25519Keypair
 
 describe('Position add Liquidity Module', () => {
-  const sdk = buildSdk(SdkEnv.testnet)
+  const sdk = buildSdk(SdkEnv.mainnet)
 
   beforeEach(async () => {
     sendKeypair = buildTestAccount()
@@ -25,7 +34,8 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('get pool position list', async () => {
-    const pool = await sdk.Pool.getPool(PoolObjectID)
+    const pool = await sdk.Pool.getPool('0xd4573bdd25c629127d54c5671d72a0754ef47767e6c01758d6dc651f57951e7d')
+    console.log('pool', pool)
     const res = await sdk.Pool.getPositionList(pool.position_manager.positions_handle)
     console.log('getPositionList####', res)
   })
@@ -47,9 +57,9 @@ describe('Position add Liquidity Module', () => {
   })
 
   test('fetchPositionRewardList', async () => {
-    const pool = await sdk.Pool.getPool("0xd40feebfcf7935d40c9e82c9cb437442fee6b70a4be84d94764d0d89bb28ab07")
+    const pool = await sdk.Pool.getPool('0xd40feebfcf7935d40c9e82c9cb437442fee6b70a4be84d94764d0d89bb28ab07')
     const res = await sdk.Pool.fetchPositionRewardList({
-      pool_id: "0xd40feebfcf7935d40c9e82c9cb437442fee6b70a4be84d94764d0d89bb28ab07",
+      pool_id: '0xd40feebfcf7935d40c9e82c9cb437442fee6b70a4be84d94764d0d89bb28ab07',
       coinTypeA: pool.coinTypeA,
       coinTypeB: pool.coinTypeB,
     })
@@ -134,5 +144,4 @@ describe('Position add Liquidity Module', () => {
     const transferTxn = await sdk.fullClient.sendTransaction(sendKeypair, collectFeeTransactionPayload)
     console.log('collect_fee: ', transferTxn)
   })
-
 })

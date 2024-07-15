@@ -207,9 +207,12 @@ export class TransactionUtil {
     gasEstimateArg: {
       slippage: number
       curSqrtPrice: BN
-    }
+    },
+    tx?: Transaction,
+    inputCoinA?: TransactionObjectArgument,
+    inputCoinB?: TransactionObjectArgument
   ): Promise<Transaction> {
-    let tx = await TransactionUtil.buildAddLiquidityFixToken(sdk, allCoins, params)
+    tx = await TransactionUtil.buildAddLiquidityFixToken(sdk, allCoins, params, tx, inputCoinA, inputCoinB)
 
     const { isAdjustCoinA } = findAdjustCoin(params)
 
@@ -225,7 +228,7 @@ export class TransactionUtil {
     const { fixAmount } = newResult
     const { newTx } = newResult
 
-    if (newTx !== undefined) {
+    if (newTx != null) {
       let primaryCoinAInputs: BuildCoinResult
       let primaryCoinBInputs: BuildCoinResult
 
@@ -287,31 +290,52 @@ export class TransactionUtil {
   static async buildAddLiquidityFixToken(
     sdk: SDK,
     allCoinAsset: CoinAsset[],
-    params: AddLiquidityFixTokenParams
+    params: AddLiquidityFixTokenParams,
+    tx?: Transaction,
+    inputCoinA?: TransactionObjectArgument,
+    inputCoinB?: TransactionObjectArgument
   ): Promise<Transaction> {
     if (sdk.senderAddress.length === 0) {
       throw Error('this config sdk senderAddress is empty')
     }
 
-    let tx = new Transaction()
-    const primaryCoinAInputs = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
-      tx,
-      !params.fix_amount_a,
-      params.amount_a,
-      params.slippage,
-      params.coinTypeA,
-      allCoinAsset,
-      false
-    )
-    const primaryCoinBInputs = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
-      tx,
-      params.fix_amount_a,
-      params.amount_b,
-      params.slippage,
-      params.coinTypeB,
-      allCoinAsset,
-      false
-    )
+    tx = tx || new Transaction()
+
+    let primaryCoinAInputs: BuildCoinResult
+    let primaryCoinBInputs: BuildCoinResult
+    if (inputCoinA == null || inputCoinB == null) {
+      primaryCoinAInputs = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
+        tx,
+        !params.fix_amount_a,
+        params.amount_a,
+        params.slippage,
+        params.coinTypeA,
+        allCoinAsset,
+        false
+      )
+      primaryCoinBInputs = TransactionUtil.buildAddLiquidityFixTokenCoinInput(
+        tx,
+        params.fix_amount_a,
+        params.amount_b,
+        params.slippage,
+        params.coinTypeB,
+        allCoinAsset,
+        false
+      )
+    } else {
+      primaryCoinAInputs = {
+        targetCoin: inputCoinA,
+        remainCoins: [],
+        isMintZeroCoin: false,
+        tragetCoinAmount: '0',
+      }
+      primaryCoinBInputs = {
+        targetCoin: inputCoinB,
+        remainCoins: [],
+        isMintZeroCoin: false,
+        tragetCoinAmount: '0',
+      }
+    }
 
     tx = TransactionUtil.buildAddLiquidityFixTokenArgs(
       tx,
@@ -865,7 +889,7 @@ export class TransactionUtil {
       if (buildVector) {
         const amountCoin = tx.splitCoins(tx.gas, [tx.pure.u64(amount)])
         return {
-          targetCoin: tx.makeMoveVec({ type: coinType, elements: [amountCoin] }),
+          targetCoin: tx.makeMoveVec({ elements: [amountCoin] }),
           remainCoins: allCoins,
           tragetCoinAmount: amount.toString(),
           isMintZeroCoin: false,
@@ -897,7 +921,7 @@ export class TransactionUtil {
     const coinObjectIds = selectedCoinsResult.objectArray
     if (buildVector) {
       return {
-        targetCoin: tx.makeMoveVec({ type: coinType, elements: coinObjectIds.map((id) => tx.object(id)) }),
+        targetCoin: tx.makeMoveVec({ elements: coinObjectIds.map((id) => tx.object(id)) }),
         remainCoins: selectedCoinsResult.remainCoins,
         tragetCoinAmount: selectedCoinsResult.amountArray.reduce((a, b) => Number(a) + Number(b), 0).toString(),
         isMintZeroCoin: false,
@@ -935,7 +959,7 @@ export class TransactionUtil {
     const zeroCoin = TransactionUtil.callMintZeroValueCoin(tx, coinType)
     let targetCoin: any
     if (buildVector) {
-      targetCoin = tx.makeMoveVec({ type: coinType, elements: [zeroCoin] })
+      targetCoin = tx.makeMoveVec({ elements: [zeroCoin] })
     } else {
       targetCoin = zeroCoin
     }
