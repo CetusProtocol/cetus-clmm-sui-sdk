@@ -39,7 +39,7 @@ Our SDK now includes a default initialization method that allows for quick gener
   ```typescript
   import { initCetusSDK } from '@cetusprotocol/cetus-sui-clmm-sdk'
 
-  const cetusClmmSDK = initCetusSDK({network: 'mainnet})
+  const cetusClmmSDK = initCetusSDK({network: 'mainnet'})
   ```
 If you wish to set your own full node URL and simulate address, you can do so as follows:
   ```typescript
