@@ -1,6 +1,6 @@
 <a name="readme-top"></a>
 
-![NPM](https://img.shields.io/npm/l/%40cetusprotocol%2Fcetus-sui-clmm-sdk?registry_uri=https%3A%2F%2Fregistry.npmjs.com&style=flat&logo=npm&logoColor=blue&label=%40cetusprotocol&labelColor=rgb&color=fedcba&cacheSeconds=3600&link=https%3A%2F%2Fwww.npmjs.com%2Fpackage%2F%40cetusprotocol%2Fcetus-sui-clmm-sdk)
+[![NPM](https://img.shields.io/npm/l/%40cetusprotocol%2Fcetus-sui-clmm-sdk?registry_uri=https%3A%2F%2Fregistry.npmjs.com&style=flat&logo=npm&logoColor=blue&label=%40cetusprotocol&labelColor=rgb&color=fedcba&cacheSeconds=3600&link=https%3A%2F%2Fwww.npmjs.com%2Fpackage%2F%40cetusprotocol%2Fcetus-sui-clmm-sdk)](https://github.com/CetusProtocol/cetus-clmm-sui-sdk/blob/main/LICENSE)
 ![npm](https://img.shields.io/npm/v/%40cetusprotocol%2Fcetus-sui-clmm-sdk?logo=npm&logoColor=rgb)
 ![GitHub Repo stars](https://img.shields.io/github/stars/CetusProtocol/cetus-clmm-sui-sdk?logo=github)
 
