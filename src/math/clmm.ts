@@ -559,12 +559,12 @@ export class ClmmPoolUtil {
    */
   static estimateLiquidityFromcoinAmounts(curSqrtPrice: BN, lowerTick: number, upperTick: number, tokenAmount: CoinAmounts): BN {
     if (lowerTick > upperTick) {
-      throw new ClmmpoolsError('lower tick cannot be greater than lower tick', MathErrorCode.InvalidTwoTickIndex)
+      throw new ClmmpoolsError('lower tick cannot be greater than upper tick', MathErrorCode.InvalidTwoTickIndex)
     }
     const currTick = TickMath.sqrtPriceX64ToTickIndex(curSqrtPrice)
     const lowerSqrtPrice = TickMath.tickIndexToSqrtPriceX64(lowerTick)
     const upperSqrtPrice = TickMath.tickIndexToSqrtPriceX64(upperTick)
-    if (currTick < lowerTick) {
+    if (currTick <= lowerTick) {
       return estimateLiquidityForCoinA(lowerSqrtPrice, upperSqrtPrice, tokenAmount.coinA)
     }
     if (currTick >= upperTick) {
